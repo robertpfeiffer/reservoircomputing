@@ -10,7 +10,7 @@ if raw_input("run Mackey-Glass?[y/n] ")=="y":
     from mackey_glass  import mackey_glass
     print "MACKEY_GLASS"
 
-    sim_length=100000
+    sim_length=1000000
     u_input=[[1] for t in range(sim_length)]
     u_train1=[[t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=1.1,dt=0.01),sim_length)]
     u_train2=[[t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=1.0,dt=0.01),sim_length)]
@@ -39,10 +39,14 @@ if raw_input("run Mackey-Glass?[y/n] ")=="y":
     print "test set created"
 
     n_plot=10000
-    echo_states=numpy.array([a.ravel() for a in machine.run(u_in_test[:n_plot],u_target_test[n_plot:2*n_plot])]).T
-    outputs=numpy.array(list(machine.predict(u_in_test[n_plot:2*n_plot],w_out))).ravel()
-    input_function=numpy.array([u_in_test[n_plot:2*n_plot]]).ravel()
-    target_function=numpy.array([u_target_test[n_plot:2*n_plot]]).ravel()
+    n_throwaway=100
+    plot_in=u_in_test[:n_plot+n_throwaway]
+    plot_echo=[a.ravel() for a in machine.run(plot_in)]
+    
+    echo_states     = numpy.array(plot_echo[n_throwaway:])
+    outputs         = numpy.array(list(machine.predict(plot_in,w_out)[n_throwaway:])).ravel()
+    input_function  = numpy.array(plot_in[n_throwaway:]).ravel()
+    target_function = numpy.array(plot_out[n_throwaway:]).ravel()
 
     plt.subplot(3,1,1)
     plt.plot(input_function)
@@ -86,11 +90,24 @@ if raw_input("run sine waves?[y/n] ")=="y":
 
     print "test set created"
 
-    n_plot=1000
-    echo_states=numpy.array([a.ravel() for a in machine.run(u_in_test[:n_plot],u_target_test[n_plot:2*n_plot])]).T
-    outputs=numpy.array(list(machine.predict(u_in_test[n_plot:2*n_plot],w_out))).ravel()
-    input_function=numpy.array([u_in_test[n_plot:2*n_plot]]).ravel()
-    target_function=numpy.array([u_target_test[n_plot:2*n_plot]]).ravel()
+    
+    n_plot=10000
+    n_throwaway=100
+    plot_in=u_in_test[:n_plot+n_throwaway]
+    plot_out=u_target_test[:n_plot+n_throwaway]
+
+    plot_echo=[a.ravel() for a in machine.run(plot_in)]
+    
+    echo_states     = numpy.array(plot_echo[n_throwaway:])
+    outputs         = numpy.array(list(machine.predict(plot_in,w_out))[n_throwaway:]).ravel()
+    input_function  = numpy.array(plot_in[n_throwaway:]).ravel()
+    target_function = numpy.array(plot_out[n_throwaway:]).ravel()
+
+    # n_plot=1000
+    # echo_states=numpy.array([a.ravel() for a in machine.run(u_in_test[:n_plot],u_target_test[n_plot:2*n_plot])]).T
+    # outputs=numpy.array(list(machine.predict(u_in_test[n_plot:2*n_plot],w_out))).ravel()
+    # input_function=numpy.array([u_in_test[n_plot:2*n_plot]]).ravel()
+    # target_function=numpy.array([u_target_test[n_plot:2*n_plot]]).ravel()
 
     plt.subplot(3,1,1)
     plt.plot(input_function)
@@ -135,8 +152,8 @@ if raw_input("run sine waves? (Feedback)[y/n] ")=="y":
     print "test set created"
 
     n_plot=1000
-    echo_states=numpy.array([a.ravel() for a in machine.run(u_in_test[:n_plot],u_target_test[n_plot:2*n_plot])]).T
-    outputs=numpy.array(list(machine.predict(u_in_test[n_plot:2*n_plot],w_out))).ravel()
+    echo_states=numpy.array([a.ravel() for a in machine.run(u_in_test[2*n_plot],u_target_test[2*n_plot])][n_input:]).T
+    outputs=numpy.array(list(machine.predict(u_in_test[2*n_plot],w_out)[n_input:])).ravel()
     input_function=numpy.array([u_in_test[n_plot:2*n_plot]]).ravel()
     target_function=numpy.array([u_target_test[n_plot:2*n_plot]]).ravel()
 
