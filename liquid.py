@@ -18,7 +18,7 @@ class ESN(object):
     def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2):
         self.ninput=ninput
         self.nnodes=nnodes
-        self.gamma=numpy.vectorize(math.tanh)
+        self.gamma=numpy.vectorize(lambda a: math.tanh(a))
         self.conn_recurrent=conn_recurrent
         self.conn_input=conn_input
         
