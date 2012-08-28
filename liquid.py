@@ -1,12 +1,6 @@
 import numpy,math,random
 import numpy.linalg as linalg
-
-def connection_weight():
-    # 1 in 5 Chance for a connection
-    if random.randint(0,4)>0:
-        return 0
-    else:
-        return random.gauss(0,1)
+import itertools
 
 class ESN(object):
     def connection_weight(self,n1,n2):
@@ -49,42 +43,96 @@ class ESN(object):
         result = gamma(
             numpy.add(numpy.dot(self.w_echo,x_t_1),
                       numpy.dot(self.w_input,u_t)))
-        return result
+        return result.ravel()
     
     def run(self,u,y=None):
         # initialize state to 0
-        state = numpy.array([[0] for i in 
-                             range(self.nnodes)])
-        
-        for t in range(len(u)):
-            u_t=numpy.transpose(numpy.array([u[t]]))
+        state = numpy.zeros(self.nnodes)
+        for ut,yt in itertools.izip(u,y):
+            u_t=numpy.array(ut)
             state=self.step(self.gamma,state,u_t)
-            yield numpy.transpose(state)
+            yield state, numpy.array(yt)
+
+    def predict1(self,u,w_output):
+        state = numpy.zeros(self.nnodes)
+        for ut in u:
+            u_t=numpy.array(ut)
+            state=self.step(self.gamma,state,u_t)
+            state_1=numpy.append(state,numpy.ones(1))
+            yield numpy.dot(w_output,state_1),state
 
     def predict(self,u,w_output):
-        state = numpy.array([[0] for i in 
-                             range(self.nnodes)])
-        for t in range(len(u)):
-            u_t=numpy.transpose(numpy.array([u[t]]))
-            state=self.step(self.gamma,state,u_t)
-            state_1=numpy.append(state,numpy.ones((1,1)),axis=0)
-            yield numpy.dot(w_output,state_1)
+        for y,x in self.predict1(u,w_output):
+            yield y
 
-class Grid3dESN(ESN):
+class Grid_3D_ESN(ESN):
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
-        if random.randint() < self.conn_recurrent:
-            return random.gauss(0,1)
+        x,y,z=self.dim
+        x1=n1 % x
+        x2=n2 % x
+        y1=(n1 / x) % y
+        y2=(n2 / x) % y
+        z1=n1 / (x*y)
+        z2=n2 / (x * y)
+        p1=numpy.array([x1,y1,z1])
+        p2=numpy.array([x2,y2,z2])
+        dist=math.sqrt(numpy.inner(z1,z2))
+        if dist < self.conn_length:
+            if random.random() < self.conn_recurrent:
+                return random.gauss(0,1)
         return 0
 
     def input_weight(self,n1,n2):
         """synaptic strength for the connection from input node n1 to echo node n2"""
-        if random.randint() < self.conn_input:
+        if random.random() < self.conn_input:
             return 1
         return 0
 
-    def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2):
-        ESN.__init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2)
+    def __init__(self,ninput,(x,y,z),max_length):
+        self.dim=(x,y,z)
+        self.conn_length=max_length
+        ESN.__init__(self,ninput,x*y*z)
+        self.ninput=ninput
+
+class BubbleESN(ESN):
+    def connection_weight(self,n1,n2):
+        """recurrent synaptic strength for the connection from node n1 to node n2"""
+        for bubblemin,bubblemax in zip([0]+list(self.bubbles),self.bubbles):
+            if (bubblemin <=n1 < bubblemax and
+                bubblemin <=n2 < bubblemax):
+                if random.random() < self.conn_recurrent:
+                    return random.gauss(0,1)
+                break
+        for bubblemin,bubblemax in zip([0,0]+list(self.bubbles),self.bubbles):
+            if (bubblemin <=n1 < bubblemax and
+                bubblemin <=n2 < bubblemax and
+                n1 < n2):
+                if random.random() < self.conn_recurrent*self.conn_recurrent:
+                    return random.gauss(0,1)
+                break
+        return 0
+
+    def input_weight(self,n1,n2):
+        """synaptic strength for the connection from input node n1 to echo node n2"""
+        if random.random() < self.conn_input:
+            return 1
+        return 0
+
+    def __init__(self,ninput,bubbles):
+        self.bubbles=bubbles
+        ESN.__init__(self,ninput,sum(bubbles))
+        self.ninput=ninput
+
+
+class DiagonalESN(ESN):
+    def connection_weight(self,n1,n2):
+        """recurrent synaptic strength for the connection from node n1 to node n2"""
+        if n1==n2:
+            return 1
+        if random.random() < self.conn_recurrent:
+            return random.gauss(0,0.1)
+        return 0
 
 class FeedbackESN(ESN):
 
@@ -95,63 +143,78 @@ class FeedbackESN(ESN):
         ESN.__init__(self,ninput+noutput,nnodes)
         self.ninput=ninput
         self.noutput=noutput
-
-    def run_noisy_feedback(self,x,y):
-        state = numpy.array([[0] for i in 
-                             range(self.nnodes)])
-        for t in range(len(x)):
-            x_t =numpy.transpose(numpy.array(
-                   [x[t]+
-                    ([yn+self.noise()
-                      for yn in y[t-1]] if t>0 
-                     else [0 for yn in y[0]])]))
-
-            state=self.step(self.gamma,state,x_t)
-            yield numpy.transpose(state)
     
     def run(self,x,y):
-        return self.run_noisy_feedback(x,y)
+        state = numpy.zeros(self.nnodes)
+        t = 0
+        for xt,yt in itertools.izip(x,y):
+            if t == 0:
+                feedback = numpy.zeros(len(yt))
+            u_t = numpy.append(
+                numpy.array(xt),
+                feedback)
+            state=self.step(self.gamma,state,u_t)
+            feedback = numpy.array(yt)
+            yield state, feedback
+            t += 1
 
-    def predict(self,x,w_output):
-        state = numpy.array([[0] for i in 
-                             range(self.nnodes)])
-        feedback = numpy.array([[0] for i in 
-                             range(self.noutput)])
-        for t in range(len(x)):
-            x_t = numpy.vstack([
-                numpy.transpose(numpy.array(
-                   [x[t]])),
-                feedback])
-            state=self.step(self.gamma,state,x_t)
-            state_1= numpy.append(state,numpy.ones((1,1)),axis=0)
+    def predict1(self,x,w_output,initial_feedback=[]):
+        state = numpy.zeros(self.nnodes)
+        feedback = numpy.zeros(self.noutput)
+        l = len(initial_feedback)
+        t = 0
+        for xt in x:
+            if t < l:
+                feedback=numpy.array(initial_feedback[t])
+            u_t = numpy.append(
+                numpy.array(xt),
+                feedback)
+            state=self.step(self.gamma,state,u_t)
+            state_1= numpy.append(state,numpy.ones(1))
             feedback = numpy.dot(w_output,state_1)
-            yield feedback
+            yield feedback,state
+            t += 1
 
-def run_all(trainingdata,machine):
-    def helper1():
-        for (x,y) in trainingdata:
-            for output in machine.run(x,y):
-                yield output
-    
-    def helper2():
-        for (x,y) in trainingdata:
-            for l in y:
-                yield numpy.array(l)
-
-    return numpy.vstack(helper1()),numpy.vstack(helper2())
+def run_all(pairs,machine):
+    inp = []
+    targ = []
+    for xs,ys in pairs:
+        for xi,yi in machine.run(xs,ys):
+            inp.append(xi)
+            targ.append(yi)
+    return numpy.vstack(inp),numpy.vstack(targ)
 
 def linear_regression(X,Y):
     X=numpy.append(X,numpy.ones((X.shape[0],1)),axis=1)
     return numpy.transpose(linalg.lstsq(X,Y)[0])
+
+def linear_regression_streaming(pairs,machine):
+    A = None 
+    b = None 
+    for xs,ys in pairs:
+        for xi,yi in machine.run(xs,ys):
+            xi=numpy.append(xi,numpy.ones(1))
+            XTX=numpy.outer(xi,xi)
+            XTy=numpy.outer(xi,yi)
+            if A==None:
+                assert b==None
+                A=XTX
+                b=XTy
+            else:
+                A = numpy.add(XTX,A)
+                b = numpy.add(XTy,b)
+
+    return numpy.dot(linalg.pinv(A),b).T
+
 
 def square_error(machine,weights,testdata):
     n = 0
     err = 0.0
     for x,y in testdata:
         prediction=machine.predict(x,weights)
-        for x,y,yp in zip(x,y,prediction):
+        for yc,yp in itertools.izip(y,prediction):
             n+=1
-            err+=(y-yp)**2
+            err+=(yc-yp)**2
     return err/n
 
 def accuracy(machine,weights,testdata,threshold,index):
@@ -159,7 +222,7 @@ def accuracy(machine,weights,testdata,threshold,index):
     correct = 0.0
     for x,y in testdata:
         prediction=machine.predict(x,weights)
-        for x,y,yp in zip(x,y,prediction):
+        for y,yp in itertools.izip(y,prediction):
             n+=1
             if (yp[index] > threshold) == (y[index] > threshold):
                 correct+=1
