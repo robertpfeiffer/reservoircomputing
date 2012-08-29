@@ -197,6 +197,19 @@ def linear_regression(X,Y):
     X=numpy.append(X,numpy.ones((X.shape[0],1)),axis=1)
     return numpy.transpose(linalg.lstsq(X,Y)[0])
 
+def rprop(A,b):
+         eta = numpy.ones((b.shape[1],A.shape[1]))*0.1
+         w   = numpy.ones((b.shape[1],A.shape[1]))*numpy.std(b)/numpy.std(A)
+         diff = numpy.dot((numpy.dot(A,w.T) - b).T,A)
+	 print A,b
+         while numpy.sum(abs(diff)) > 0.1:
+             w     = w - (eta*diff)
+             diff2 = numpy.dot((numpy.dot(A,w.T) - b).T,A)
+             eta   = eta - eta * 0.5 * (diff2*diff < 0) + eta * 0.2 * (diff2*diff > 0)
+             diff  = diff2
+         return w
+
+
 def linear_regression_streaming(pairs,machine):
     A = None 
     b = None 
