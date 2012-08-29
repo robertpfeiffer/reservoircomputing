@@ -139,8 +139,8 @@ class FeedbackESN(ESN):
     def noise(self):
         return random.uniform(-0.2,0.2)
 
-    def __init__(self,ninput,nnodes,noutput):
-        ESN.__init__(self,ninput+noutput,nnodes)
+    def __init__(self,ninput,nnodes,noutput,pi=0.4,pr=0.2):
+        ESN.__init__(self,ninput+noutput,nnodes,pi,pr)
         self.ninput=ninput
         self.noutput=noutput
     
@@ -174,6 +174,15 @@ class FeedbackESN(ESN):
             feedback = numpy.dot(w_output,state_1)
             yield feedback,state
             t += 1
+
+class DiagonalFeedbackESN(FeedbackESN):
+     def connection_weight(self,n1,n2):
+         """recurrent synaptic strength for the connection from node n1 to node n2"""
+         if n1==n2:
+             return 1
+         if random.random() < self.conn_recurrent:
+             return random.gauss(0,0.1)
+         return 0
 
 def run_all(pairs,machine):
     inp = []
