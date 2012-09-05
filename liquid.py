@@ -18,6 +18,10 @@ class ESN(object):
             return random.gauss(0,0.2)
         return 0
 
+    def add_weight(self,n1):
+        """synaptic strength for the connection from input node n1 to echo node n2"""
+        return random.gauss(0,0.2)
+
     def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh):
         self.ninput=ninput
         self.nnodes=nnodes
@@ -33,6 +37,9 @@ class ESN(object):
             [[self.input_weight(i,j)
               for j in range(self.ninput)]
             for i in range(self.nnodes)])
+        w_add = numpy.array(
+            [self.add_weight(i)
+	     for i in range(self.nnodes)])
         
         eigenvalues=linalg.eigvals(w_echo)
         spectral_radius=max([abs (a) for a in eigenvalues])
@@ -41,11 +48,14 @@ class ESN(object):
         
         self.w_echo = w_echo
         self.w_input = w_input
+        self.w_add = w_add
+
         
     def step(self,gamma,x_t_1,u_t):
         result = gamma(
-            numpy.add(numpy.dot(self.w_echo,x_t_1),
-                      numpy.dot(self.w_input,u_t)))
+                numpy.dot(self.w_echo,x_t_1)
+             +  numpy.dot(self.w_input,u_t)
+             +  self.w_add)
         return result.ravel()
     
     def run(self,u,y=None):
