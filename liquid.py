@@ -89,7 +89,7 @@ class Grid_3D_ESN(ESN):
         z2=n2 / (x * y)
         p1=numpy.array([x1,y1,z1])
         p2=numpy.array([x2,y2,z2])
-        dist=math.sqrt(numpy.inner(z1,z2))
+        dist=math.sqrt(numpy.inner(z1-z2,z1-z2))
         if dist < self.conn_length:
             if random.random() < self.conn_recurrent:
                 return random.gauss(0,1)
