@@ -262,10 +262,35 @@ def square_error(machine,weights,testdata):
 def accuracy(machine,weights,testdata,threshold,index):
     n = 0.0
     correct = 0.0
+    avgcorrect = 0.0
+    precision = 0.0
+    nprecision = 0.0
+    recall = 0.0
+    nrecall = 0.0
+
     for x,y in testdata:
+        n+=1
+        print "testing accuracy", n
+
         prediction=machine.predict(x,weights)
+        cursum=0.0
+        curn=0.0
         for y,yp in itertools.izip(y,prediction):
-            n+=1
-            if (yp[index] > threshold) == (y[index] > threshold):
-                correct+=1
-    return correct/n
+            ylast=y
+            plast=yp
+            cursum+=yp[index]
+            curn+=1
+        if (cursum/curn > threshold) == (ylast[index] > threshold):
+            avgcorrect+=1
+        if (plast[index] > threshold) == (ylast[index] > threshold):
+            correct+=1
+        if (ylast[index] > threshold):
+            nrecall+=1
+            if (plast[index] > threshold):
+                recall+=1
+        if (plast[index] > threshold):
+            nprecision+=1
+            if (ylast[index] > threshold):
+                precision+=1
+
+    return correct/n, avgcorrect/n, precision/nprecision, recall/nrecall
