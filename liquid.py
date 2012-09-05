@@ -2,6 +2,9 @@ import numpy,math,random
 import numpy.linalg as linalg
 import itertools
 
+def logistic(matrix):
+    return numpy.reciprocal(1+numpy.exp(numpy.negative(matrix)))
+
 class ESN(object):
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
@@ -15,10 +18,10 @@ class ESN(object):
             return random.gauss(0,0.2)
         return 0
 
-    def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2):
+    def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh):
         self.ninput=ninput
         self.nnodes=nnodes
-        self.gamma=numpy.vectorize(lambda a: math.tanh(a))
+        self.gamma=gamma
         self.conn_recurrent=conn_recurrent
         self.conn_input=conn_input
         
