@@ -43,8 +43,7 @@ class ESN(object):
         
         eigenvalues=linalg.eigvals(w_echo)
         spectral_radius=max([abs (a) for a in eigenvalues])
-
-        #w_echo=(0.95/spectral_radius)*w_echo
+        w_echo=(0.95/spectral_radius)*w_echo
         
         self.w_echo = w_echo
         self.w_input = w_input
