@@ -3,6 +3,8 @@ import numpy.linalg as linalg
 import itertools
 
 def logistic(matrix):
+    """logistic function, applied element-wise to a matrix.
+    Can be used as a sigmoidal activation function"""
     return numpy.reciprocal(1+numpy.exp(numpy.negative(matrix)))
 
 class ESN(object):
@@ -19,7 +21,8 @@ class ESN(object):
         return 0
 
     def add_weight(self,n1):
-        """synaptic strength for the connection from input node n1 to echo node n2"""
+        """added to the neuron at each step,
+        to make the neurons more different from each other"""
         return random.gauss(0,0.2)
 
     def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh):
@@ -39,7 +42,7 @@ class ESN(object):
             for i in range(self.nnodes)])
         w_add = numpy.array(
             [self.add_weight(i)
-	     for i in range(self.nnodes)])
+             for i in range(self.nnodes)])
         
         eigenvalues=linalg.eigvals(w_echo)
         spectral_radius=max([abs (a) for a in eigenvalues])
@@ -74,10 +77,12 @@ class ESN(object):
             yield numpy.dot(w_output,state_1),state
 
     def predict(self,u,w_output):
-        for y,x in self.predict1(u,w_output):
+      for y,x in self.predict1(u,w_output):
             yield y
 
 class Grid_3D_ESN(ESN):
+    """In this ESN, the neurons are arranged in a 3D-grid.
+    Connections only happen when the distance in the grid is smaller than a set threshold"""
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         x,y,z=self.dim
@@ -108,6 +113,10 @@ class Grid_3D_ESN(ESN):
         self.ninput=ninput
 
 class BubbleESN(ESN):
+    """ESN with a n-bubble-architecture.
+    The neurons in each bubble are densely connected.
+    There are sparse connection from a bubble to later bubbles, but none back.
+    """
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         for bubblemin,bubblemax in self.bubbles:
@@ -140,6 +149,7 @@ class BubbleESN(ESN):
 
 
 class DiagonalESN(ESN):
+    """ESN that is supposed to behave like an integrator"""
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         if n1==n2:
@@ -215,14 +225,13 @@ def rprop(A,b):
          eta = numpy.ones((b.shape[1],A.shape[1]))*0.1
          w   = numpy.ones((b.shape[1],A.shape[1]))*numpy.std(b)/numpy.std(A)
          diff = numpy.dot((numpy.dot(A,w.T) - b).T,A)
-	 print A,b
+         print A,b
          while numpy.sum(abs(diff)) > 0.1:
              w     = w - (eta*diff)
              diff2 = numpy.dot((numpy.dot(A,w.T) - b).T,A)
              eta   = eta - eta * 0.5 * (diff2*diff < 0) + eta * 0.2 * (diff2*diff > 0)
              diff  = diff2
          return w
-
 
 def linear_regression_streaming(pairs,machine):
     A = None 
