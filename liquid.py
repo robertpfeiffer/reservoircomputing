@@ -110,31 +110,33 @@ class Grid_3D_ESN(ESN):
 class BubbleESN(ESN):
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
-        for bubblemin,bubblemax in zip([0]+list(self.bubbles),self.bubbles):
-            if (bubblemin <=n1 < bubblemax and
-                bubblemin <=n2 < bubblemax):
+        for bubblemin,bubblemax in self.bubbles:
+            if (bubblemin <= n1 < bubblemax and
+                bubblemin <= n2 < bubblemax):
                 if random.random() < self.conn_recurrent:
                     return random.gauss(0,1)
-                break
-        for bubblemin,bubblemax in zip([0,0]+list(self.bubbles),self.bubbles):
-            if (bubblemin <=n1 < bubblemax and
-                bubblemin <=n2 < bubblemax and
-                n1 < n2):
-                if random.random() < self.conn_recurrent*self.conn_recurrent:
-                    return random.gauss(0,1)
-                break
+        if (n1 < n2):
+            if random.random() < self.conn_recurrent/5:
+                return random.gauss(0,1)
         return 0
 
     def input_weight(self,n1,n2):
         """synaptic strength for the connection from input node n1 to echo node n2"""
         if random.random() < self.conn_input:
-            return 1
+            min_,max_=self.bubbles[0]
+            if n2<max_:
+                return 1
         return 0
 
-    def __init__(self,ninput,bubbles):
-        self.bubbles=bubbles
-        ESN.__init__(self,ninput,sum(bubbles))
-        self.ninput=ninput
+    def __init__(self,ninput,bubbles,*args):
+        self.bubbles=[]
+        s=0
+        for b in bubbles:
+            min_=s
+            max_=s+b
+            s=max_
+            self.bubbles.append((min_,max_))
+        ESN.__init__(self,ninput,sum(bubbles),*args)
 
 
 class DiagonalESN(ESN):
