@@ -153,8 +153,8 @@ class FeedbackESN(ESN):
     def noise(self):
         return random.uniform(-0.2,0.2)
 
-    def __init__(self,ninput,nnodes,noutput,pi=0.4,pr=0.2):
-        ESN.__init__(self,ninput+noutput,nnodes,pi,pr)
+    def __init__(self,ninput,nnodes,noutput,*args):
+        ESN.__init__(self,ninput+noutput,nnodes,*args)
         self.ninput=ninput
         self.noutput=noutput
     
