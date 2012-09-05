@@ -195,7 +195,7 @@ class DiagonalFeedbackESN(FeedbackESN):
          if n1==n2:
              return 1
          if random.random() < self.conn_recurrent:
-             return random.gauss(0,0.1)
+             return random.gauss(0,0.4)
          return 0
 
 def run_all(pairs,machine):
