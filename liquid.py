@@ -227,7 +227,10 @@ def rprop(A,b):
 def linear_regression_streaming(pairs,machine):
     A = None 
     b = None 
+    n = 0
     for xs,ys in pairs:
+        n += 1
+        print "training run", n
         for xi,yi in machine.run(xs,ys):
             xi=numpy.append(xi,numpy.ones(1))
             XTX=numpy.outer(xi,xi)
@@ -245,8 +248,11 @@ def linear_regression_streaming(pairs,machine):
 
 def square_error(machine,weights,testdata):
     n = 0
+    m = 0
     err = 0.0
     for x,y in testdata:
+        m += 1
+        print "testing mse", m
         prediction=machine.predict(x,weights)
         for yc,yp in itertools.izip(y,prediction):
             n+=1
