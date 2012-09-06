@@ -7,6 +7,22 @@ def logistic(matrix):
     Can be used as a sigmoidal activation function"""
     return numpy.reciprocal(1+numpy.exp(numpy.negative(matrix)))
 
+def smoothstep(matrix):
+    """Can be used as a sigmoidal activation function"""
+    clamped = numpy.clip(matrix,0.0,1.0)
+    p1 = 3 * numpy.square(clamped)
+    p2 = 2 * numpy.power(clamped,3*numpy.ones(clamped.shape))
+    return p1-p2
+
+def bad_sigmoid(matrix):
+    """Can be used as a sigmoidal activation function"""
+    return 1 +numpy.tanh(matrix)
+
+def better_sigmoid(matrix):
+    """logistic function, applied element-wise to a matrix.
+    Can be used as a sigmoidal activation function"""
+    return numpy.tanh(matrix)/2+smoothstep(matrix)
+
 class ESN(object):
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
