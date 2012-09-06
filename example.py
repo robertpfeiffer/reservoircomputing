@@ -172,7 +172,7 @@ if raw_input("run Mackey-Glass?[y/n] ")=="y":
     from mackey_glass  import mackey_glass
     print "MACKEY_GLASS"
 
-    sim_length=1000000
+    sim_length=10000
     dt=0.0001
     u_input=([1] for t in range(sim_length))
     u_train1=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=1.1,dt=dt),sim_length))
@@ -192,9 +192,7 @@ if raw_input("run Mackey-Glass?[y/n] ")=="y":
     # d = shelve.open("esn.shlv")
     # machine = d["mackeyglass"]
     # d.close()
-    machine=DiagonalFeedbackESN(1,30,1)
-
-    print "training set created"
+    machine=FeedbackESN(1,100,1)
 
     w_out= linear_regression_streaming([(u_input,u_train1),(u_input,u_train2),(u_input,u_train3),
                                         (u_input,u_train4),(u_input,u_train5),(u_input,u_train6),
@@ -202,180 +200,174 @@ if raw_input("run Mackey-Glass?[y/n] ")=="y":
 					(u_input,u_train8),(u_input,u_train9),(u_input,u_train10),
                                         (u_input,u_train11),(u_input,u_train12),(u_input,u_train13),
 					(u_input,u_train14)],machine)
-    #print train_in,train_target
-    print "ESN finished"
-    #print w_out,w_out.size
-
-    #w_out = linear_regression(train_in,train_target)
-    print "regression finished"
     print w_out,w_out.size
 
     u_in_test=([1] for t in range(sim_length))
     u_target_test=([t] for t in itertools.islice(mackey_glass(beta=2,gamma=1,tau=2,n=9.65,x=0.55,dt=0.01),sim_length))
 
-    print "test set created"
-
     plot_ESN_run(machine,u_in_test,u_target_test,w_out,10000,1000,3000)
+    u_in_test=([1] for t in range(sim_length))
+    u_target_test=([t] for t in itertools.islice(mackey_glass(beta=2,gamma=1,tau=2,n=9.65,x=0.55,dt=0.01),sim_length))
+
     print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
+esns = [(ESN,(1,15)),
+        (DiagonalESN,(1,15)),
+        (DiagonalESN,(1,50)),
+        (BubbleESN,(1,(10,10,10),0.4,0.3)),
+        (BubbleESN,(1,(10,10,10,10,10,10),0.4,0.3)),
+        (Grid_3D_ESN,(1,(5,5,5),2)),
+        (FeedbackESN,(1,15,4))]
 
-if raw_input("run sine waves?[y/n] ")=="y":
-    print "SINE WAVES"
+if raw_input("plot ESN response?[y/n] ")=="y":
+    gamma=better_sigmoid
+    machine = ESN(1,30,frac_exc=0.1,gamma=gamma)
+    input=pulse_data(300,100,50)
+    plot_ESN_response(machine,input,20)
 
-    sim_length=10000
-    u_input=([math.sin(t/100.0)] for t in range(sim_length))
-    u_train=([math.sin(t/100.0 + 0.75),math.sin(t/100.0 + 1.75)] for t in range(sim_length))
-    u_input2=([math.sin(t/140.0)] for t in range(sim_length))
-    u_train2=([math.sin(t/140.0 + 0.75),math.sin(t/140.0 + 1.75)] for t in range(sim_length))
-    u_input3=([math.sin(t/160.0)] for t in range(sim_length))
-    u_train3=([math.sin(t/160.0 + 0.75),math.sin(t/160.0 + 1.75)] for t in range(sim_length))
+    machine = ESN(1,30,frac_exc=0.9,gamma=gamma)
+    input=pulse_data(300,100,50)
+    plot_ESN_response(machine,input,20)
 
-    machine=ESN(1,15)
-    print "training set created"
-
-    w_out= linear_regression_streaming([(u_input,u_train),
-                                      (u_input2,u_train2),
-                                     (u_input3,u_train3)],machine)
-
-    print "ESN finished"
-    print "regression finished"
-
-    u_in_test=([math.sin(t/120.0)] for t in range(sim_length))
-    u_target_test=([math.sin(t/120.0 + 0.75),math.sin(t/120.0 + 1.75)] for t in range(sim_length))
-
-    print "test set created"
-
-    plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,1000)
-    print square_error(machine,w_out,[(u_in_test,u_target_test)])
-
-if raw_input("run sine waves? (Diagonal)[y/n] ")=="y":
-    print "SINE WAVES"
-
-    sim_length=10000
-    u_input=([math.sin(t/100.0)] for t in range(sim_length))
-    u_train=([math.sin(t/100.0 + 0.75),math.sin(t/100.0 + 1.75)] for t in range(sim_length))
-    u_input2=([math.sin(t/140.0)] for t in range(sim_length))
-    u_train2=([math.sin(t/140.0 + 0.75),math.sin(t/140.0 + 1.75)] for t in range(sim_length))
-    u_input3=([math.sin(t/160.0)] for t in range(sim_length))
-    u_train3=([math.sin(t/160.0 + 0.75),math.sin(t/160.0 + 1.75)] for t in range(sim_length))
-
-    machine=DiagonalESN(1,15)
-    print "training set created"
-
-    w_out= linear_regression_streaming([(u_input,u_train),
-                                      (u_input2,u_train2),
-                                     (u_input3,u_train3)],machine)
-
-    print "ESN finished"
-    print "regression finished"
-
-    u_in_test=([math.sin(t/120.0)] for t in range(sim_length))
-    u_target_test=([math.sin(t/120.0 + 0.75),math.sin(t/120.0 + 1.75)] for t in range(sim_length))
-
-    print "test set created"
-
-    plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,1000)
-    print square_error(machine,w_out,[(u_in_test,u_target_test)])
+    machine = ESN(1,30,frac_exc=0.5,gamma=gamma)
+    input=pulse_data(300,100,50)
+    plot_ESN_response(machine,input,20)
 
 
-if raw_input("run sine waves? (Bubble)[y/n] ")=="y":
-    print "SINE WAVES"
+if raw_input("different ESNs?[y/n] ")=="y":
+  for ESN1,params in esns:
+    print ESN1,params
+    if raw_input("run sine and square waves?[y/n] ")=="y":
+        print "SQUARE WAVES"
+        machine=ESN1(*params)
+        training_data=wave_training_data(10000)
+        w_out= linear_regression_streaming(training_data,machine)
+        u_in_test,u_target_test=wave_test_data(3000)
+        if ESN1==FeedbackESN:
+            plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100,500)
+        else:
+            plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
+        u_in_test,u_target_test=wave_test_data(10000)
+        print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
-    sim_length=10000
-    u_input=([math.sin(t/100.0)] for t in range(sim_length))
-    u_train=([math.sin(t/100.0 + 0.75),math.sin(t/100.0 + 1.75)] for t in range(sim_length))
-    u_input2=([math.sin(t/140.0)] for t in range(sim_length))
-    u_train2=([math.sin(t/140.0 + 0.75),math.sin(t/140.0 + 1.75)] for t in range(sim_length))
-    u_input3=([math.sin(t/160.0)] for t in range(sim_length))
-    u_train3=([math.sin(t/160.0 + 0.75),math.sin(t/160.0 + 1.75)] for t in range(sim_length))
+if raw_input("different ESNs, multiple frequencies?[y/n] ")=="y":
+  for ESN1,params in esns:
+    print ESN1,params
+    if raw_input("run sine waves?[y/n] ")=="y":
+        print "SINE WAVES"
+        machine=ESN1(*params)
+        training_data=wave_training_data_hard(10000)
+        w_out= linear_regression_streaming(training_data,machine)
+        u_in_test,u_target_test=wave_test_data_hard(3000)
+        if ESN==FeedbackESN:
+            plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100,500)
+        else:
+            plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
+        u_in_test,u_target_test=wave_test_data_hard(10000)
+        print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
-    machine=BubbleESN(1,(10,10,10))
-    print "training set created"
+if raw_input("different timescales, same ESN?[y/n] ")=="y":
+  machine=ESN(1,15)
+  timescales = [1.0,5.0,10.0,20.0,40.0,60.0,80.0,200.0,500.0,1000.0]
+  for timescale in timescales:
+    print "timescale",timescale
+    if raw_input("run sine waves?[y/n] ")=="y":
+        training_data=wave_training_data_timescale(10000,timescale)
+        w_out= linear_regression_streaming(training_data,machine)
+        u_in_test,u_target_test=wave_test_data_timescale(3000,timescale)
+        plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
+        u_in_test,u_target_test=wave_test_data_timescale(10000,timescale)
+        print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
-    w_out= linear_regression_streaming([(u_input,u_train),
-                                      (u_input2,u_train2),
-                                     (u_input3,u_train3)],machine)
+if raw_input("different timescales, square input?[y/n] ")=="y":
+  machine=ESN(1,15)
+  timescales = [1.0,5.0,10.0,20.0,40.0,60.0,80.0,200.0,500.0,1000.0]
+  for timescale in timescales:
+        print "timescale",timescale
+        training_data=square_training_data_timescale(10000,timescale)
+        w_out= linear_regression_streaming(training_data,machine)
+        u_in_test,u_target_test=square_test_data_timescale(3000,timescale)
+        plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
+        u_in_test,u_target_test=square_test_data_timescale(10000,timescale)
+        print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
-    print "ESN finished"
-    print "regression finished"
+if raw_input("different timescales, square input, Feedback?[y/n] ")=="y":
+  machine=FeedbackESN(1,15,1)
+  timescales = [1.0,5.0,10.0,20.0,40.0,60.0,80.0,200.0,500.0,1000.0]
+  for timescale in timescales:
+        print "timescale",timescale
+        training_data=square_training_data_timescale(10000,timescale)
+        w_out= linear_regression_streaming(training_data,machine)
+        u_in_test,u_target_test=square_test_data_timescale(3000,timescale)
+        plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
+        u_in_test,u_target_test=square_test_data_timescale(10000,timescale)
+        print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
-    u_in_test=([math.sin(t/120.0)] for t in range(sim_length))
-    u_target_test=([math.sin(t/120.0 + 0.75),math.sin(t/120.0 + 1.75)] for t in range(sim_length))
-
-    print "test set created"
-
-    plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,1000)
-    print square_error(machine,w_out,[(u_in_test,u_target_test)])
-
-if raw_input("run sine waves? (Grid)[y/n] ")=="y":
-    print "SINE WAVES"
-
-    sim_length=10000
-    u_input=([math.sin(t/100.0)] for t in range(sim_length))
-    u_train=([math.sin(t/100.0 + 0.75),math.sin(t/100.0 + 1.75)] for t in range(sim_length))
-    u_input2=([math.sin(t/140.0)] for t in range(sim_length))
-    u_train2=([math.sin(t/140.0 + 0.75),math.sin(t/140.0 + 1.75)] for t in range(sim_length))
-    u_input3=([math.sin(t/160.0)] for t in range(sim_length))
-    u_train3=([math.sin(t/160.0 + 0.75),math.sin(t/160.0 + 1.75)] for t in range(sim_length))
-
-    machine=Grid_3D_ESN(1,(10,10,10),4)
-    print "training set created"
-
-    w_out= linear_regression_streaming([(u_input,u_train),
-                                      (u_input2,u_train2),
-                                     (u_input3,u_train3)],machine)
-
-    print "ESN finished"
-    print "regression finished"
-
-    u_in_test=([math.sin(t/120.0)] for t in range(sim_length))
-    u_target_test=([math.sin(t/120.0 + 0.75),math.sin(t/120.0 + 1.75)] for t in range(sim_length))
-
-    print "test set created"
-
-    plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,1000)
-    print square_error(machine,w_out,[(u_in_test,u_target_test)])
-
-if raw_input("run sine waves? (Feedback)[y/n] ")=="y":
-    print "SINE WAVES"
-
-    sim_length=10000
-    u_input=([math.sin(t/100.0)] for t in range(sim_length))
-    u_train=([math.sin(t/100.0 + 0.75),math.sin(t/100.0 + 1.75)] for t in range(sim_length))
-    u_input2=([math.sin(t/140.0)] for t in range(sim_length))
-    u_train2=([math.sin(t/140.0 + 0.75),math.sin(t/140.0 + 1.75)] for t in range(sim_length))
-    u_input3=([math.sin(t/160.0)] for t in range(sim_length))
-    u_train3=([math.sin(t/160.0 + 0.75),math.sin(t/160.0 + 1.75)] for t in range(sim_length))
-    machine=FeedbackESN(1,15,2)
-
-    print "training set created"
-    w_out= linear_regression_streaming([(u_input,u_train),
-                                      (u_input2,u_train2),
-                                     (u_input3,u_train3)],machine)
-
-    print "ESN finished"
-    print "regression finished"
-
-    u_in_test=([math.sin(t/120.0)] for t in range(sim_length))
-    u_target_test=([math.sin(t/120.0 + 0.75),math.sin(t/120.0 + 1.75)] for t in range(sim_length))
-
-    print "test set created"
-
-    plot_ESN_run(machine,u_in_test,u_target_test,w_out,2000,1000,1200)
-    print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
 if raw_input("run sentiment analysis?[y/n] ")=="y":
-    import sentiment
+    machine=DiagonalESN(1500,500,gamma=logistic)
 
+    import sentiment
     print "SENTIMENT ANALYSIS"
-    machine3=FeedbackESN(500,500,1)
-    training_set=list(sentiment.gen_examples(500))
-    print "training set created"
-    train_in,train_target = run_all(training_set,machine3)
+    
+    w_out = linear_regression_streaming(sentiment.gen_examples(100),machine)
     print "ESN finished"
-    w_out=linear_regression(train_in,train_target)
-    print "regression finished"
-    test_set=list(sentiment.gen_examples(35))
+    
+    test_set1=list(sentiment.gen_examples(1))
+    plot_ESN_run(machine,test_set1[0][0],test_set1[0][1],w_out,0)
+    
+    d = shelve.open("esn.shlv")
+    d["sentiment"]={"in":machine.w_input,
+                    "echo":machine.w_echo,
+                    "add":machine.w_add,
+                    "out":w_out}
+    d.close()
+    
+    test_set=list(sentiment.gen_test(100))
     print "test set created"
-    print accuracy(machine3,w_out,test_set,5,0)
+    print accuracy(machine,w_out,test_set,5,0)
+
+
+if raw_input("run learning curve for sentiment analysis?[y/n] ")=="y":
+    import sentiment
+    machine=DiagonalESN(1500,500,gamma=logistic)
+    acc_train = []
+    avg_train = []
+    acc_test = []
+    avg_test = []
+    ks = range(10,1000,50)
+    test  = list(sentiment.gen_test(50))
+    #train_all = list(sentiment.gen_examples(5000))
+
+    for k in ks:
+        stat_iter = 15
+        sum_acc_train = 0.0
+        sum_acc_test = 0.0
+        sum_avg_train = 0.0
+        sum_avg_test = 0.0
+
+        for i in range(stat_iter):
+            #train = random.sample(train_all, k*2)
+            train = list(sentiment.gen_examples(k))
+            w_out = linear_regression_streaming(train,machine)
+            acc1, avg1, p1, r1 = accuracy(machine,w_out,train,5,0)
+            sum_acc_train += acc1
+            sum_avg_train += avg1
+            acc1, avg1, p1, r1 = accuracy(machine,w_out,test,5,0)
+            sum_acc_test += acc1
+            sum_avg_test += avg1
+        acc_train.append(sum_acc_train/stat_iter)
+        avg_train.append(sum_avg_train/stat_iter)
+        acc_test.append(sum_acc_test/stat_iter)
+        avg_test.append(sum_avg_test/stat_iter)
+
+    plt.plot(ks,acc_train)
+    plt.plot(ks,avg_train)
+
+    plt.plot(ks,acc_test)
+    plt.plot(ks,avg_test)
+    plt.show()
+    print avg_test
+    print avg_train
+    print ks
 
