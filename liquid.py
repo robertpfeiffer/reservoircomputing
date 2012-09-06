@@ -278,8 +278,8 @@ def linear_regression_streaming(pairs,machine):
             else:
                 A = numpy.add(XTX,A)
                 b = numpy.add(XTy,b)
-    return numpy.linalg.lstsq(A,b)[0].T
-    #return numpy.dot(linalg.pinv(A),b).T
+    #return numpy.linalg.lstsq(A,b)[0].T
+    return numpy.dot(linalg.pinv(A),b).T
     #return rprop(A,b)
 
 def square_error(machine,weights,testdata):
