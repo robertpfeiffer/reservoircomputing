@@ -49,7 +49,7 @@ class ESN(object):
     def add_weight(self,n1):
         """added to the neuron at each step,
         to make the neurons more different from each other"""
-        return random.gauss(0,0.2)
+        return random.gauss(0,0.05)
 
     def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5):
         self.ninput=ninput
