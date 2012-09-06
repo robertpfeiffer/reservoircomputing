@@ -11,16 +11,14 @@ def triangle(n):
 def squarewave(n):
     return int(n) % 2
 
-def plot_ESN_run(machine,input,target=None,w_out=None,n_plot=1000,n_throwaway=0,jumpstart=0):
+def plot_ESN_run(machine,input,target,w_out=None,n_plot=1000,n_throwaway=0,jumpstart=0):
         if n_plot == 0:
             plot_in=list(input)
-            if target:
-                plot_target=list(target)
+            plot_target=list(target)
             n_plot=len(plot_in)
         else:
             plot_in=list(itertools.islice(input,n_plot+n_throwaway))
-            if target:
-                plot_target=list(itertools.islice(target,n_plot+n_throwaway))
+            plot_target=list(itertools.islice(target,n_plot+n_throwaway))
 
         if jumpstart > 0:
             plot_run=list(machine.predict1(plot_in,w_out,plot_target[:jumpstart]))
@@ -32,8 +30,7 @@ def plot_ESN_run(machine,input,target=None,w_out=None,n_plot=1000,n_throwaway=0,
         plot_in=numpy.array(plot_in[n_throwaway:]).T
         plot_echo=numpy.array(plot_echo[n_throwaway:]).T
         plot_out=numpy.array(plot_out[n_throwaway:]).T
-        if target:
-            plot_target=numpy.array(plot_target[n_throwaway:]).T
+        plot_target=numpy.array(plot_target[n_throwaway:]).T
 
         plt.subplot(3,1,1)
 	if plot_in.shape[0]>50:
@@ -44,8 +41,7 @@ def plot_ESN_run(machine,input,target=None,w_out=None,n_plot=1000,n_throwaway=0,
 
         plt.subplot(3,1,2)
         for d in range(plot_out.shape[0]):
-            if target:
-                plt.plot(plot_target[d])
+            plt.plot(plot_target[d])
             plt.plot(plot_out[d])
         if jumpstart > 0 and jumpstart-n_throwaway > 0:
             plt.axvline(jumpstart-n_throwaway)
