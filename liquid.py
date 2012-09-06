@@ -321,12 +321,16 @@ def accuracy(machine,weights,testdata,threshold,index):
         if (plast[index] > threshold) == (ylast[index] > threshold):
             correct+=1
         if (ylast[index] > threshold):
+            # true positive + false negative
             nrecall+=1
             if (plast[index] > threshold):
+                # true positive
                 recall+=1
         if (plast[index] > threshold):
+            # predicted positive
             nprecision+=1
             if (ylast[index] > threshold):
+                # true positive
                 precision+=1
 
     return correct/n, avgcorrect/n, precision/nprecision, recall/nrecall
