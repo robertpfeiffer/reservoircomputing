@@ -28,3 +28,4 @@ pip-log.txt
 
 #Sentiment analysis corpus
 aclImdb/
+*.png
