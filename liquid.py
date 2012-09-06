@@ -133,10 +133,10 @@ class Grid_3D_ESN(ESN):
             return 1
         return 0
 
-    def __init__(self,ninput,(x,y,z),max_length):
+    def __init__(self,ninput,(x,y,z),max_length,*args,**kwargs):
         self.dim=(x,y,z)
         self.conn_length=max_length
-        ESN.__init__(self,ninput,x*y*z)
+        ESN.__init__(self,ninput,x*y*z,*args,**kwargs)
         self.ninput=ninput
 
 class BubbleESN(ESN):
@@ -164,7 +164,7 @@ class BubbleESN(ESN):
                 return 1
         return 0
 
-    def __init__(self,ninput,bubbles,*args):
+    def __init__(self,ninput,bubbles,*args,**kwargs):
         self.bubbles=[]
         s=0
         for b in bubbles:
@@ -172,7 +172,7 @@ class BubbleESN(ESN):
             max_=s+b
             s=max_
             self.bubbles.append((min_,max_))
-        ESN.__init__(self,ninput,sum(bubbles),*args)
+        ESN.__init__(self,ninput,sum(bubbles),*args,**kwargs)
 
 
 class DiagonalESN(ESN):
@@ -190,8 +190,8 @@ class FeedbackESN(ESN):
     def noise(self):
         return random.uniform(-0.2,0.2)
 
-    def __init__(self,ninput,nnodes,noutput,*args):
-        ESN.__init__(self,ninput+noutput,nnodes,*args)
+    def __init__(self,ninput,nnodes,noutput,*args,**kwargs):
+        ESN.__init__(self,ninput+noutput,nnodes,*args,**kwargs)
         self.ninput=ninput
         self.noutput=noutput
     
