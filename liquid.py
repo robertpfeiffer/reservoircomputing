@@ -27,7 +27,17 @@ class ESN(object):
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         if random.random() < self.conn_recurrent:
-            return random.gauss(0,1)
+            weight = random.gauss(0,1)
+            if random.uniform(0,1) < self.frac_exc:
+                if weight > 0:
+                   return weight
+                else:
+                   return -weight
+            else:
+                if weight < 0:
+                   return weight
+                else:
+                   return -weight
         return 0
 
     def input_weight(self,n1,n2):
@@ -41,13 +51,14 @@ class ESN(object):
         to make the neurons more different from each other"""
         return random.gauss(0,0.2)
 
-    def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh):
+    def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5):
         self.ninput=ninput
         self.nnodes=nnodes
         self.gamma=gamma
         self.conn_recurrent=conn_recurrent
         self.conn_input=conn_input
-        
+        self.frac_exc=frac_exc
+
         w_echo = numpy.array(
             [[self.connection_weight(i,j)
               for j in range(self.nnodes)]
