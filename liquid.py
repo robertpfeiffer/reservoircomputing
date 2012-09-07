@@ -23,6 +23,24 @@ def better_sigmoid(matrix):
     Can be used as a sigmoidal activation function"""
     return numpy.tanh(matrix)/2+smoothstep(matrix)
 
+class DummyESN(object):
+    def __init__(self,ninput,nnodes,*a,**k):
+        self.ninput=ninput
+        self.nnodes=nnodes
+
+    def run(self,u,y=None):
+        return itertools.izip(u,y)
+
+    def predict1(self,u,w_output):
+        for ut in u:
+            u_t=numpy.array(ut)
+            state_1=numpy.append(u_t,numpy.ones(1))
+            yield numpy.dot(w_output,state_1),u_t
+
+    def predict(self,u,w_output):
+      for y,x in self.predict1(u,w_output):
+            yield y
+
 class ESN(object):
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
