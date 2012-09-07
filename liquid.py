@@ -25,6 +25,8 @@ def better_sigmoid(matrix):
     return numpy.tanh(matrix)/2+smoothstep(matrix)
 
 class DummyESN(object):
+    feedback = False
+
     def __init__(self,ninput,nnodes,*a,**k):
         self.ninput=ninput
         self.nnodes=nnodes
@@ -46,6 +48,8 @@ def random_vector(size,a,b):
     return (b - a) * numpy.random.random_sample([size]) + a
 
 class ESN(object):
+    feedback = False
+
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         if random.random() < self.conn_recurrent:
@@ -208,6 +212,8 @@ class DiagonalESN(ESN):
         return 0
 
 class FeedbackESN(ESN):
+    feedback = True
+
     def noise(self):
         return random_vector(self.noutput,-0.1,0.1)
 
@@ -248,6 +254,8 @@ class FeedbackESN(ESN):
             t += 1
 
 class DelayFeedbackESN(ESN):
+    feedback = True
+
     def noise(self):
         return random_vector(self.nfeedback,-0.1,0.1)
 
@@ -268,7 +276,7 @@ class DelayFeedbackESN(ESN):
             target = numpy.array(yt)
             for delay,i in d:
                 if delay < len(memory):
-                    feedback[i*self.ninput:(i+1)*self.ninput]=memory[delay]
+                    feedback[i*self.noutput:(i+1)*self.noutput]=memory[delay]
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback+self.noise())
@@ -286,7 +294,7 @@ class DelayFeedbackESN(ESN):
         for xt in x:
             for delay,i in d:
                 if delay < len(memory):
-                    feedback[i*self.ninput:(i+1)*self.ninput]=memory[delay]
+                    feedback[i*self.noutput:(i+1)*self.noutput]=memory[delay]
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback)
