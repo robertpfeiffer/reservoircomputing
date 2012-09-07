@@ -129,7 +129,8 @@ esns = [(ESN,(1,15)),
         (BubbleESN,(1,(10,10,10),0.4,0.3)),
         (BubbleESN,(1,(10,10,10,10,10,10),0.4,0.3)),
         (Grid_3D_ESN,(1,(5,5,5),2)),
-        (FeedbackESN,(1,15,4))]
+        (FeedbackESN,(1,15,4)),
+        (DelayFeedbackESN,(1,15,4,(15,30,50,90)))]
 
 if raw_input("plot ESN response?[y/n] ")=="y":
     gamma=better_sigmoid
@@ -154,7 +155,7 @@ if raw_input("different ESNs?[y/n] ")=="y":
         training_data=wave_training_data(10000)
         w_out= linear_regression_streaming(training_data,machine)
         u_in_test,u_target_test=wave_test_data(3000)
-        if ESN1==FeedbackESN:
+        if ESN1.feedback:
             plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100,500)
         else:
             plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
@@ -170,7 +171,7 @@ if raw_input("different ESNs, multiple frequencies?[y/n] ")=="y":
         training_data=wave_training_data_hard(10000)
         w_out= linear_regression_streaming(training_data,machine)
         u_in_test,u_target_test=wave_test_data_hard(3000)
-        if ESN==FeedbackESN:
+        if ESN1.feedback:
             plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100,500)
         else:
             plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
@@ -189,8 +190,20 @@ if raw_input("different timescales, square input?[y/n] ")=="y":
         u_in_test,u_target_test=square_test_data_timescale(10000,timescale)
         print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
-if raw_input("different timescales, square input, Feedback?[y/n] ")=="y":
+if raw_input("different timescales, square input, feedback?[y/n] ")=="y":
   machine=FeedbackESN(1,15,1)
+  timescales = [1.0,5.0,10.0,20.0,40.0,60.0,80.0,200.0,500.0,1000.0]
+  for timescale in timescales:
+        print "timescale",timescale
+        training_data=square_training_data_timescale(10000,timescale)
+        w_out= linear_regression_streaming(training_data,machine)
+        u_in_test,u_target_test=square_test_data_timescale(3000,timescale)
+        plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
+        u_in_test,u_target_test=square_test_data_timescale(10000,timescale)
+        print square_error(machine,w_out,[(u_in_test,u_target_test)])
+
+if raw_input("different timescales, square input, delayed feedback?[y/n] ")=="y":
+  machine=DelayFeedbackESN(1,15,4,(15,30,50,90))
   timescales = [1.0,5.0,10.0,20.0,40.0,60.0,80.0,200.0,500.0,1000.0]
   for timescale in timescales:
         print "timescale",timescale
