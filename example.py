@@ -299,7 +299,7 @@ if raw_input("different timescales, square input, Feedback?[y/n] ")=="y":
         u_in_test,u_target_test=square_test_data_timescale(10000,timescale)
         print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
-
+"""
 if raw_input("run sentiment analysis?[y/n] ")=="y":
     machine=DiagonalESN(1500,500,gamma=logistic)
 
@@ -366,4 +366,4 @@ if raw_input("run learning curve for sentiment analysis?[y/n] ")=="y":
     print avg_test
     print avg_train
     print ks
-
+"""
