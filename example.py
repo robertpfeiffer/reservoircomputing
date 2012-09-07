@@ -2,84 +2,13 @@ from liquid import *
 import itertools
 import shelve
 import numpy
-import matplotlib
-import matplotlib.pyplot as plt
+from plotting import *
 
 def triangle(n):
     return n - int(n)
 
 def squarewave(n):
     return int(n) % 2
-
-def plot_ESN_run(machine,input,target,w_out=None,n_plot=1000,n_throwaway=0,jumpstart=0):
-        if n_plot == 0:
-            plot_in=list(input)
-            plot_target=list(target)
-            n_plot=len(plot_in)
-        else:
-            plot_in=list(itertools.islice(input,n_plot+n_throwaway))
-            plot_target=list(itertools.islice(target,n_plot+n_throwaway))
-
-        if jumpstart > 0:
-            plot_run=list(machine.predict1(plot_in,w_out,plot_target[:jumpstart]))
-        else:
-            plot_run=list(machine.predict1(plot_in,w_out))
-        plot_echo=[echo.ravel() for val,echo in plot_run]
-        plot_out=[val for val,echo in plot_run]
-
-        plot_in=numpy.array(plot_in[n_throwaway:]).T
-        plot_echo=numpy.array(plot_echo[n_throwaway:]).T
-        plot_out=numpy.array(plot_out[n_throwaway:]).T
-        plot_target=numpy.array(plot_target[n_throwaway:]).T
-
-        plt.subplot(3,1,1)
-	if plot_in.shape[0]>50:
-         plt.pcolormesh(plot_in,cmap="bone")
-        else:
-         for d in range(plot_in.shape[0]):
-            plt.plot(plot_in[d])
-
-        plt.subplot(3,1,2)
-        for d in range(plot_out.shape[0]):
-            plt.plot(plot_target[d])
-            plt.plot(plot_out[d])
-        if jumpstart > 0 and jumpstart-n_throwaway > 0:
-            plt.axvline(jumpstart-n_throwaway)
-
-        plt.subplot(3,1,3)
-        plt.pcolormesh(plot_echo,cmap="bone")
-
-        plt.matshow(machine.w_echo,cmap="bone")
-        plt.show()
-
-def plot_ESN_response(machine,input,n_throwaway=0):
-        plot_in=list(input)
-        n_plot=len(plot_in)
-        w_out=numpy.ones((1,machine.nnodes+1))
-        plot_run=list(machine.predict1(plot_in,w_out))
-        plot_echo=[echo.ravel() for val,echo in plot_run]
-        plot_out=[val for val,echo in plot_run]
-
-        plot_in=numpy.array(plot_in[n_throwaway:]).T
-        plot_echo=numpy.array(plot_echo[n_throwaway:]).T
-        plot_out=numpy.array(plot_out[n_throwaway:]).T
-
-        plt.subplot(3,1,1)
-	if plot_in.shape[0]>50:
-         plt.pcolormesh(plot_in,cmap="bone")
-        else:
-         for d in range(plot_in.shape[0]):
-            plt.plot(plot_in[d])
-
-        plt.subplot(3,1,2)
-        for d in range(plot_out.shape[0]):
-            plt.plot(plot_out[d])
-
-        plt.subplot(3,1,3)
-        plt.pcolormesh(plot_echo,cmap="bone")
-
-        plt.matshow(machine.w_echo,cmap="bone")
-        plt.show()
 
 def wave_training_data(sim_length):
     timescale=100.0
@@ -216,7 +145,6 @@ if raw_input("plot ESN response?[y/n] ")=="y":
     input=pulse_data(300,100,50)
     plot_ESN_response(machine,input,20)
 
-
 if raw_input("different ESNs?[y/n] ")=="y":
   for ESN1,params in esns:
     print ESN1,params
@@ -272,72 +200,3 @@ if raw_input("different timescales, square input, Feedback?[y/n] ")=="y":
         plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
         u_in_test,u_target_test=square_test_data_timescale(10000,timescale)
         print square_error(machine,w_out,[(u_in_test,u_target_test)])
-
-"""
-if raw_input("run sentiment analysis?[y/n] ")=="y":
-    machine=DiagonalESN(1500,500,gamma=logistic)
-
-    import sentiment
-    print "SENTIMENT ANALYSIS"
-    
-    w_out = linear_regression_streaming(sentiment.gen_examples(100),machine)
-    print "ESN finished"
-    
-    test_set1=list(sentiment.gen_examples(1))
-    plot_ESN_run(machine,test_set1[0][0],test_set1[0][1],w_out,0)
-    
-    d = shelve.open("esn.shlv")
-    d["sentiment"]={"in":machine.w_input,
-                    "echo":machine.w_echo,
-                    "add":machine.w_add,
-                    "out":w_out}
-    d.close()
-    
-    test_set=list(sentiment.gen_test(100))
-    print "test set created"
-    print accuracy(machine,w_out,test_set,5,0)
-
-
-if raw_input("run learning curve for sentiment analysis?[y/n] ")=="y":
-    import sentiment
-    machine=DiagonalESN(1500,500,gamma=logistic)
-    acc_train = []
-    avg_train = []
-    acc_test = []
-    avg_test = []
-    ks = range(10,1000,50)
-    test  = list(sentiment.gen_test(50))
-    #train_all = list(sentiment.gen_examples(5000))
-
-    for k in ks:
-        stat_iter = 15
-        sum_acc_train = 0.0
-        sum_acc_test = 0.0
-        sum_avg_train = 0.0
-        sum_avg_test = 0.0
-
-        for i in range(stat_iter):
-            #train = random.sample(train_all, k*2)
-            train = list(sentiment.gen_examples(k))
-            w_out = linear_regression_streaming(train,machine)
-            acc1, avg1, p1, r1 = accuracy(machine,w_out,train,5,0)
-            sum_acc_train += acc1
-            sum_avg_train += avg1
-            acc1, avg1, p1, r1 = accuracy(machine,w_out,test,5,0)
-            sum_acc_test += acc1
-            sum_avg_test += avg1
-        acc_train.append(sum_acc_train/stat_iter)
-        avg_train.append(sum_avg_train/stat_iter)
-        acc_test.append(sum_acc_test/stat_iter)
-        avg_test.append(sum_avg_test/stat_iter)
-
-    plt.plot(ks,acc_train)
-    plt.plot(ks,avg_train)
-
-    plt.plot(ks,acc_test)
-    plt.plot(ks,avg_test)
-    plt.show()
-    print avg_test
-    print avg_train
-    print ks
-"""
