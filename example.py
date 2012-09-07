@@ -123,15 +123,6 @@ def wave_training_data_hard(sim_length):
         pairs.append((u_input,u_target))
     return pairs
 
-
-def wave_training_data_timescale(sim_length,timescale):
-    pairs=[]
-    for timescale in [timescale * 1.1, timescale * 0.9, timescale * 0.95, timescale * 1.05]:
-        u_input=([math.sin(t/timescale)] for t in range(sim_length))
-        u_target=([math.sin(0.75+t/timescale)] for t in range(sim_length))
-        pairs.append((u_input,u_target))
-    return pairs
-
 def square_training_data_timescale(sim_length,timescale):
     pairs=[]
     for timescale in [timescale * 1.1, timescale * 0.9, timescale * 0.95, timescale * 1.05]:
@@ -151,13 +142,8 @@ def wave_test_data_hard(sim_length):
     timescale=120.0
     u_input=([math.sin(t/timescale)] for t in range(sim_length))
     u_target=([math.sin(0.75+t/(timescale/n**2))+m for n,m in [(1,3),(1.5,5),(2,7),(3,9)]] for t in range(sim_length))
-
     return u_input,u_target
 
-def wave_test_data_timescale(sim_length,timescale):
-    u_input=([math.sin(t/timescale)] for t in range(sim_length))
-    u_target=([math.sin(0.75+t/timescale)] for t in range(sim_length))
-    return u_input,u_target
 
 def square_test_data_timescale(sim_length,timescale):
     u_input=([squarewave(t/timescale)] for t in range(sim_length))
@@ -189,9 +175,6 @@ if raw_input("run Mackey-Glass?[y/n] ")=="y":
     u_train12=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.4,dt=dt),sim_length))
     u_train13=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.1,dt=dt),sim_length))
     u_train14=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.3,dt=dt),sim_length))
-    # d = shelve.open("esn.shlv")
-    # machine = d["mackeyglass"]
-    # d.close()
     machine=DelayFeedbackESN(1,300,1,(15,50,90,140,210,300,350,500))
 
     w_out= linear_regression_streaming([(u_input,u_train1),(u_input,u_train2),(u_input,u_train3),
@@ -264,19 +247,6 @@ if raw_input("different ESNs, multiple frequencies?[y/n] ")=="y":
         else:
             plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
         u_in_test,u_target_test=wave_test_data_hard(10000)
-        print square_error(machine,w_out,[(u_in_test,u_target_test)])
-
-if raw_input("different timescales, same ESN?[y/n] ")=="y":
-  machine=ESN(1,15)
-  timescales = [1.0,5.0,10.0,20.0,40.0,60.0,80.0,200.0,500.0,1000.0]
-  for timescale in timescales:
-    print "timescale",timescale
-    if raw_input("run sine waves?[y/n] ")=="y":
-        training_data=wave_training_data_timescale(10000,timescale)
-        w_out= linear_regression_streaming(training_data,machine)
-        u_in_test,u_target_test=wave_test_data_timescale(3000,timescale)
-        plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
-        u_in_test,u_target_test=wave_test_data_timescale(10000,timescale)
         print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
 if raw_input("different timescales, square input?[y/n] ")=="y":
