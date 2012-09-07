@@ -1,6 +1,7 @@
 import numpy,math,random
 import numpy.linalg as linalg
 import itertools
+import collections
 
 def logistic(matrix):
     """logistic function, applied element-wise to a matrix.
@@ -40,6 +41,9 @@ class DummyESN(object):
     def predict(self,u,w_output):
       for y,x in self.predict1(u,w_output):
             yield y
+
+def random_vector(size,a,b):
+    return (b - a) * numpy.random.random_sample([size]) + a
 
 class ESN(object):
     def connection_weight(self,n1,n2):
@@ -204,9 +208,8 @@ class DiagonalESN(ESN):
         return 0
 
 class FeedbackESN(ESN):
-
     def noise(self):
-        return random.uniform(-0.2,0.2)
+        return random_vector(self.noutput,-0.1,0.1)
 
     def __init__(self,ninput,nnodes,noutput,*args,**kwargs):
         ESN.__init__(self,ninput+noutput,nnodes,*args,**kwargs)
@@ -221,7 +224,7 @@ class FeedbackESN(ESN):
                 feedback = numpy.zeros(len(yt))
             u_t = numpy.append(
                 numpy.array(xt),
-                feedback)
+                feedback+self.noise())
             state=self.step(self.gamma,state,u_t)
             feedback = numpy.array(yt)
             yield state, feedback
@@ -243,6 +246,61 @@ class FeedbackESN(ESN):
             feedback = numpy.dot(w_output,state_1)
             yield feedback,state
             t += 1
+
+class DelayFeedbackESN(ESN):
+    def noise(self):
+        return random_vector(self.nfeedback,-0.1,0.1)
+
+    def __init__(self,ninput,nnodes,noutput,delays,*args,**kwargs):
+        self.nfeedback=noutput*len(delays)
+        self.delays=delays
+        self.maxdelay=max(*delays)+2
+        ESN.__init__(self,ninput+noutput*len(delays),nnodes,*args,**kwargs)
+        self.ninput=ninput
+        self.noutput=noutput
+    
+    def run(self,x,y):
+        state = numpy.zeros(self.nnodes)
+        memory = collections.deque([],maxlen=self.maxdelay)
+        feedback = numpy.zeros(self.nfeedback)
+        d = zip(self.delays,range(len(self.delays)))
+        for xt,yt in itertools.izip(x,y):
+            target = numpy.array(yt)
+            for delay,i in d:
+                if delay < len(memory):
+                    feedback[i*self.ninput:(i+1)*self.ninput]=memory[delay]
+            u_t = numpy.append(
+                numpy.array(xt),
+                feedback+self.noise())
+            state=self.step(self.gamma,state,u_t)
+            memory.append(target)
+            yield state, target
+
+    def predict1(self,x,w_output,initial_feedback=[]):
+        state = numpy.zeros(self.nnodes)
+        memory = collections.deque([],maxlen=self.maxdelay)
+        feedback = numpy.zeros(self.nfeedback)
+        l = len(initial_feedback)
+        t=0
+        d = zip(self.delays,range(len(self.delays)))
+        for xt in x:
+            for delay,i in d:
+                if delay < len(memory):
+                    feedback[i*self.ninput:(i+1)*self.ninput]=memory[delay]
+            u_t = numpy.append(
+                numpy.array(xt),
+                feedback)
+            state=self.step(self.gamma,state,u_t)
+            state_1= numpy.append(state,numpy.ones(1))
+            value = numpy.dot(w_output,state_1)
+            if t < l:
+                memory.append(numpy.array(initial_feedback[t]))
+            else:
+                memory.append(value)
+
+            yield value,state
+            t += 1
+
 
 class DiagonalFeedbackESN(FeedbackESN):
      def connection_weight(self,n1,n2):

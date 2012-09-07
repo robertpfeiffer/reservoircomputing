@@ -169,26 +169,30 @@ if raw_input("run Mackey-Glass?[y/n] ")=="y":
     print "MACKEY_GLASS"
 
     sim_length=10000
-    dt=0.0001
-    u_input=([1] for t in range(sim_length))
-    u_train1=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=1.1,dt=dt),sim_length))
-    u_train2=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=1.0,dt=dt),sim_length))
-    u_train3=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.9,dt=dt),sim_length))
-    u_train4=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.5,dt=dt),sim_length))
-    u_train5=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.4,dt=dt),sim_length))
-    u_train6=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.1,dt=dt),sim_length))
-    u_train7=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.3,dt=dt),sim_length))
-    u_train8=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=1.1,dt=dt),sim_length))
-    u_train9=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=1.0,dt=dt),sim_length))
-    u_train10=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.9,dt=dt),sim_length))
-    u_train11=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.5,dt=dt),sim_length))
-    u_train12=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.4,dt=dt),sim_length))
-    u_train13=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.1,dt=dt),sim_length))
-    u_train14=([t] for t in itertools.islice(mackey_glass(beta=2.0,gamma=1.0,tau=2.0,n=9.65,x=0.3,dt=dt),sim_length))
+    dt=0.01
+    tau=2.0
+    gamma=1.0
+    n=9.65
+    beta=2.0
+    u_input=[[1] for t in range(sim_length)]
+    u_train1=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=1.1,dt=dt),sim_length))
+    u_train2=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=1.0,dt=dt),sim_length))
+    u_train3=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.9,dt=dt),sim_length))
+    u_train4=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.5,dt=dt),sim_length))
+    u_train5=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.4,dt=dt),sim_length))
+    u_train6=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.1,dt=dt),sim_length))
+    u_train7=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.3,dt=dt),sim_length))
+    u_train8=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=1.1,dt=dt),sim_length))
+    u_train9=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=1.0,dt=dt),sim_length))
+    u_train10=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.9,dt=dt),sim_length))
+    u_train11=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.5,dt=dt),sim_length))
+    u_train12=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.4,dt=dt),sim_length))
+    u_train13=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.1,dt=dt),sim_length))
+    u_train14=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.3,dt=dt),sim_length))
     # d = shelve.open("esn.shlv")
     # machine = d["mackeyglass"]
     # d.close()
-    machine=FeedbackESN(1,100,1)
+    machine=DelayFeedbackESN(1,300,1,(15,50,90,140,210,300,350,500))
 
     w_out= linear_regression_streaming([(u_input,u_train1),(u_input,u_train2),(u_input,u_train3),
                                         (u_input,u_train4),(u_input,u_train5),(u_input,u_train6),
@@ -199,11 +203,11 @@ if raw_input("run Mackey-Glass?[y/n] ")=="y":
     print w_out,w_out.size
 
     u_in_test=([1] for t in range(sim_length))
-    u_target_test=([t] for t in itertools.islice(mackey_glass(beta=2,gamma=1,tau=2,n=9.65,x=0.55,dt=0.01),sim_length))
+    u_target_test=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.55,dt=dt),sim_length))
 
     plot_ESN_run(machine,u_in_test,u_target_test,w_out,10000,1000,3000)
     u_in_test=([1] for t in range(sim_length))
-    u_target_test=([t] for t in itertools.islice(mackey_glass(beta=2,gamma=1,tau=2,n=9.65,x=0.55,dt=0.01),sim_length))
+    u_target_test=([t] for t in itertools.islice(mackey_glass(beta=2,gamma=gamma,tau=tau,n=n,x=0.55,dt=dt),sim_length))
 
     print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
