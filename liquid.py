@@ -25,6 +25,8 @@ def better_sigmoid(matrix):
     return numpy.tanh(matrix)/2+smoothstep(matrix)
 
 class DummyESN(object):
+    """This class implements the ESN interface, but it does not actually carry any
+    state. Use it to compare the kernel quality against no kernel at all."""
     feedback = False
 
     def __init__(self,ninput,nnodes,*a,**k):
@@ -97,8 +99,9 @@ class ESN(object):
             [self.add_weight(i)
              for i in range(self.nnodes)])
         
+        # set spectral radius of w_echo to 0.95
         eigenvalues=linalg.eigvals(w_echo)
-        spectral_radius=max([abs (a) for a in eigenvalues])
+        spectral_radius=max([abs(a) for a in eigenvalues])
         w_echo=(0.95/spectral_radius)*w_echo
         
         self.w_echo = w_echo
@@ -106,26 +109,28 @@ class ESN(object):
         self.w_add = w_add
 
         
-    def step(self,gamma,x_t_1,u_t):
-        result = gamma(
+    def step(self,x_t_1,u_t):
+        result = self.gamma(
                 numpy.dot(self.w_echo,x_t_1)
              +  numpy.dot(self.w_input,u_t)
              +  self.w_add)
         return result.ravel()
     
     def run(self,u,y=None):
+        """generate echo states and target values for training"""
         # initialize state to 0
         state = numpy.zeros(self.nnodes)
         for ut,yt in itertools.izip(u,y):
             u_t=numpy.array(ut)
-            state=self.step(self.gamma,state,u_t)
+            state=self.step(state,u_t)
             yield state, numpy.array(yt)
 
     def predict1(self,u,w_output):
+        """generate echo states and predictions """
         state = numpy.zeros(self.nnodes)
         for ut in u:
             u_t=numpy.array(ut)
-            state=self.step(self.gamma,state,u_t)
+            state=self.step(state,u_t)
             state_1=numpy.append(state,numpy.ones(1))
             yield numpy.dot(w_output,state_1),state
 
@@ -231,7 +236,7 @@ class FeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback+self.noise())
-            state=self.step(self.gamma,state,u_t)
+            state=self.step(state,u_t)
             feedback = numpy.array(yt)
             yield state, feedback
             t += 1
@@ -247,7 +252,7 @@ class FeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback)
-            state=self.step(self.gamma,state,u_t)
+            state=self.step(state,u_t)
             state_1= numpy.append(state,numpy.ones(1))
             feedback = numpy.dot(w_output,state_1)
             yield feedback,state
@@ -280,7 +285,7 @@ class DelayFeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback+self.noise())
-            state=self.step(self.gamma,state,u_t)
+            state=self.step(state,u_t)
             memory.append(target)
             yield state, target
 
@@ -298,7 +303,7 @@ class DelayFeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback)
-            state=self.step(self.gamma,state,u_t)
+            state=self.step(state,u_t)
             state_1= numpy.append(state,numpy.ones(1))
             value = numpy.dot(w_output,state_1)
             if t < l:
@@ -345,6 +350,11 @@ def rprop(A,b):
          return w
 
 def linear_regression_streaming(pairs,machine):
+    """input parameters:
+    pairs: pairs of lists of inputs and outputs
+    machine: an ESN
+    output:
+    output weight matrix"""
     A = None 
     b = None 
     n = 0
