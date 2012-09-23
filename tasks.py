@@ -1,5 +1,6 @@
 from liquid import *
 from esn_trainer import *
+from one_two_a_x_task import *
 import itertools
 import shelve
 import numpy as np
@@ -43,12 +44,30 @@ def run_NARMA_task():
     prediction = trainer.predict(test_input[0])
     mse = Oger.utils.nrmse(prediction,test_target[0])
     printf("NRMSE: %f\n", mse)
-    
-#run_NARMA_task()
 
-if raw_input("memory task?[ja/nein] ")=="ja": 
+def run_one_two_a_x_task():
+    length = 10000
+    [train_input, train_target] = one_two_ax_task(length)
+    [test_input, test_target] = one_two_ax_task(length)
+    
+    print "train machine..."
+    machine = ESN(9,100)
+    trainer = LinearRegressionTrainer(machine)
+    trainer.train(train_input, train_target)
+    
+    print "predict..."
+    machine.reset_state()
+    prediction = trainer.predict(test_input)
+    prediction[prediction<0.5] = 0
+    prediction[prediction>0.5] = 1
+    error_percentage = (1-abs(test_target - prediction).mean())*100;
+    printf("Success %.2f", error_percentage)
+ 
+if raw_input("memory task?[ja/nein] ").startswith('j'): 
     run_memory_task()
-elif raw_input("NARMA 30[ja/nein] ")=="ja":
+elif raw_input("1_2_A_X task?[ja/nein] ").startswith('j'): 
+    run_one_two_a_x_task()
+elif raw_input("NARMA 30[ja/nein] ").startswith('j'): 
     run_NARMA_task()
 else:
-    print "do nothing" 
+    print "do nothing"
