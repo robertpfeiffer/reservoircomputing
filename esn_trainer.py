@@ -1,5 +1,6 @@
 import numpy as np
 
+""" Trains an esn and uses it for prediction """
 class LinearRegressionTrainer(object):
 
     def __init__(self, machine):

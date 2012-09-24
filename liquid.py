@@ -114,7 +114,10 @@ class ESN(object):
              +  self.w_add)
         return result.ravel()
     
-    def run2(self,u,y=None):
+    def run2(self, u):
+        """ Runs the machine, returns the last state, saves previous states in state_echo
+            Parameter u is the input, a 2dnumpy-array (time x input-dim) 
+        """
         length = u.shape[0]
         self.state_echo = numpy.zeros((length, self.nnodes))
         for i in range(length):
