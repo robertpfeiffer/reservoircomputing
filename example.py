@@ -3,6 +3,8 @@ import itertools
 import shelve
 import numpy
 from plotting import *
+import math
+import random
 
 def triangle(n):
     return n - int(n)
@@ -112,14 +114,13 @@ if raw_input("run Mackey-Glass?[y/n] ")=="y":
 					(u_input,u_train8),(u_input,u_train9),(u_input,u_train10),
                                         (u_input,u_train11),(u_input,u_train12),(u_input,u_train13),
 					(u_input,u_train14)],machine)
-    print w_out,w_out.size
-
+ 
     u_in_test=([1] for t in range(sim_length))
     u_target_test=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.55,dt=dt),sim_length))
 
     plot_ESN_run(machine,u_in_test,u_target_test,w_out,10000,1000,3000)
     u_in_test=([1] for t in range(sim_length))
-    u_target_test=([t] for t in itertools.islice(mackey_glass(beta=2,gamma=gamma,tau=tau,n=n,x=0.55,dt=dt),sim_length))
+    u_target_test=([t] for t in itertools.islice(mackey_glass(beta=beta,gamma=gamma,tau=tau,n=n,x=0.55,dt=dt),sim_length))
 
     print square_error(machine,w_out,[(u_in_test,u_target_test)])
 
@@ -213,3 +214,30 @@ if raw_input("different timescales, square input, delayed feedback?[y/n] ")=="y"
         plot_ESN_run(machine,u_in_test,u_target_test,w_out,1000,100)
         u_in_test,u_target_test=square_test_data_timescale(10000,timescale)
         print square_error(machine,w_out,[(u_in_test,u_target_test)])
+
+if raw_input("multiple superimposed oscillations?")=="y":
+    #machine=Grid_3D_ESN(1,(8, 10, 10), 3)
+    machine=DiagonalESN(1,800)
+
+    def components(n, timescale):
+        return (math.sin(n/timescale),  math.sin(2.1*n/timescale), math.sin(3.4*n/timescale))
+    
+    def combine((a, b, c)):
+        return a*math.cos(b+2.345*c)
+    
+    timescale=10.0
+    input1 = [[combine(components(x, timescale))] for x in xrange(3000)]
+    output1 = [components(x, timescale) for x in xrange(3000)]
+    w_out= linear_regression_streaming([(input1[:2000], output1[:2000])],machine)
+    plot_ESN_run(machine,input1[2000:],output1[2000:],w_out,1000, 100)
+
+if raw_input("memory task?")=="y":
+    machine=ESN(1,800, conn_input=0.02,  conn_recurrent=0.15)
+    rng = 2
+    timestep = 10
+    input1 = [[random.randint(1, rng )] for x in xrange(3000)]
+    output1 = [[ input1[x-timestep][0], rng+input1[x-2*timestep][0], 2*rng +input1[x-3*timestep][0], 3*rng +input1[x-4*timestep][0],4*rng +input1[x-5*timestep][0], 5*rng +input1[x-6*timestep][0], 6*rng +input1[x-7*timestep][0], 7*rng+input1[x-8*timestep][0]  ] for x in xrange(3000)]
+    w_out= linear_regression_streaming([(input1[:2000], output1[:2000])],machine)
+    plot_ESN_run(machine,input1[2000:],output1[2000:],w_out,1000, 100)
+    print square_error(machine, w_out,[(input1[:2000], output1[:2000])])
+
