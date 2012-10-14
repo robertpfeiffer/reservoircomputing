@@ -108,35 +108,51 @@ class ESN(object):
         self.w_input = w_input
         self.w_add = w_add
 
+        self.state = numpy.zeros(self.nnodes)
         
-    def step(self,x_t_1,u_t):
+    def step(self, u_t):
         result = self.gamma(
-                numpy.dot(self.w_echo,x_t_1)
+                numpy.dot(self.w_echo,self.state)
              +  numpy.dot(self.w_input,u_t)
              +  self.w_add)
         return result.ravel()
     
+    def run2(self, u):
+        """ Runs the machine, returns the last state, saves previous states in state_echo
+            Parameter u is the input, a 2dnumpy-array (time x input-dim) 
+        """
+        length = u.shape[0]
+        self.state_echo = numpy.zeros((length, self.nnodes))
+        for i in range(length):
+            u_t = u[i,:]
+            self.state=self.step(u_t)
+            self.state_echo[i,:] = self.state[:]
+        
+        return self.state
+        
     def run(self,u,y=None):
         """generate echo states and target values for training"""
-        # initialize state to 0
-        state = numpy.zeros(self.nnodes)
-        for ut,yt in itertools.izip(u,y):
-            u_t=numpy.array(ut)
-            state=self.step(state,u_t)
-            yield state, numpy.array(yt)
+        for ut, yt in itertools.izip(u, y):
+            u_t = numpy.array(ut)
+            self.state = self.step(u_t)
+            yield self.state, numpy.array(yt)
 
     def predict1(self,u,w_output):
         """generate echo states and predictions """
         state = numpy.zeros(self.nnodes)
         for ut in u:
             u_t=numpy.array(ut)
-            state=self.step(state,u_t)
+            state=self.step(u_t)
             state_1=numpy.append(state,numpy.ones(1))
             yield numpy.dot(w_output,state_1),state
 
     def predict(self,u,w_output):
       for y,x in self.predict1(u,w_output):
             yield y
+            
+    def reset_state(self):
+        self.state = numpy.zeros(self.nnodes)
+        self.state_echo = None
 
 class Grid_3D_ESN(ESN):
     """In this ESN, the neurons are arranged in a 3D-grid.
@@ -236,7 +252,7 @@ class FeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback+self.noise())
-            state=self.step(state,u_t)
+            self.state=self.step(u_t)
             feedback = numpy.array(yt)
             yield state, feedback
             t += 1
@@ -252,8 +268,8 @@ class FeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback)
-            state=self.step(state,u_t)
-            state_1= numpy.append(state,numpy.ones(1))
+            self.state=self.step(u_t)
+            state_1= numpy.append(self.state,numpy.ones(1))
             feedback = numpy.dot(w_output,state_1)
             yield feedback,state
             t += 1
@@ -273,7 +289,6 @@ class DelayFeedbackESN(ESN):
         self.noutput=noutput
     
     def run(self,x,y):
-        state = numpy.zeros(self.nnodes)
         memory = collections.deque([],maxlen=self.maxdelay)
         feedback = numpy.zeros(self.nfeedback)
         d = zip(self.delays,range(len(self.delays)))
@@ -285,12 +300,11 @@ class DelayFeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback+self.noise())
-            state=self.step(state,u_t)
+            self.state=self.step(u_t)
             memory.append(target)
-            yield state, target
+            yield self.state, target
 
     def predict1(self,x,w_output,initial_feedback=[]):
-        state = numpy.zeros(self.nnodes)
         memory = collections.deque([],maxlen=self.maxdelay)
         feedback = numpy.zeros(self.nfeedback)
         l = len(initial_feedback)
@@ -303,15 +317,15 @@ class DelayFeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback)
-            state=self.step(state,u_t)
-            state_1= numpy.append(state,numpy.ones(1))
+            self.state=self.step(u_t)
+            state_1= numpy.append(self.state,numpy.ones(1))
             value = numpy.dot(w_output,state_1)
             if t < l:
                 memory.append(numpy.array(initial_feedback[t]))
             else:
                 memory.append(value)
 
-            yield value,state
+            yield value,self.state
             t += 1
 
 
