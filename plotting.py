@@ -42,7 +42,6 @@ def plot_ESN_run(machine,input,target,w_out=None,n_plot=1000,n_throwaway=0,jumps
         plt.subplot(3,1,3)
         plt.pcolormesh(plot_echo,cmap="bone")
 
-        plt.matshow(machine.w_input.T,cmap="copper")
         plt.matshow(machine.w_echo,cmap="bone")
         plt.show()
 
