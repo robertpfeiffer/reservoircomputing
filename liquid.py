@@ -108,11 +108,22 @@ class ESN(object):
         self.w_input = w_input
         self.w_add = w_add
 
-        self.state = numpy.zeros(self.nnodes)
-        
-    def step(self, u_t):
+        state1 = numpy.zeros(self.nnodes)
+        zero_input=numpy.zeros(self.ninput)
+        state2 = self.step(state1, zero_input)
+        i = 0
+        while not numpy.allclose(state1,state2):
+            state1=state2
+            state2=self.step(state1,zero_input)
+            i +=1
+            if i > 15000:
+                break
+            
+        self.equilibrium_state = state2
+
+    def step(self, x_t_1, u_t):
         result = self.gamma(
-                numpy.dot(self.w_echo,self.state)
+                numpy.dot(self.w_echo,x_t_1)
              +  numpy.dot(self.w_input,u_t)
              +  self.w_add)
         return result.ravel()
@@ -122,37 +133,35 @@ class ESN(object):
             Parameter u is the input, a 2dnumpy-array (time x input-dim) 
         """
         length = u.shape[0]
-        self.state_echo = numpy.zeros((length, self.nnodes))
+        state=self.equilibrium_state
+        state_echo = numpy.zeros((length, self.nnodes))
         for i in range(length):
             u_t = u[i,:]
-            self.state=self.step(u_t)
-            self.state_echo[i,:] = self.state[:]
-        
-        return self.state
+            state = self.step(state,u_t)
+            state_echo[i,:] = state[:]        
+        return state_echo
         
     def run(self,u,y=None):
         """generate echo states and target values for training"""
+        state=self.equilibrium_state
         for ut, yt in itertools.izip(u, y):
             u_t = numpy.array(ut)
-            self.state = self.step(u_t)
-            yield self.state, numpy.array(yt)
+            state = self.step(state,u_t)
+            yield state, numpy.array(yt)
+
 
     def predict1(self,u,w_output):
         """generate echo states and predictions """
-        state = numpy.zeros(self.nnodes)
+        state=self.equilibrium_state
         for ut in u:
             u_t=numpy.array(ut)
-            state=self.step(u_t)
+            state=self.step(state,u_t)
             state_1=numpy.append(state,numpy.ones(1))
             yield numpy.dot(w_output,state_1),state
 
     def predict(self,u,w_output):
       for y,x in self.predict1(u,w_output):
             yield y
-            
-    def reset_state(self):
-        self.state = numpy.zeros(self.nnodes)
-        self.state_echo = None
 
 class Grid_3D_ESN(ESN):
     """In this ESN, the neurons are arranged in a 3D-grid.
@@ -244,7 +253,7 @@ class FeedbackESN(ESN):
         self.noutput=noutput
     
     def run(self,x,y):
-        state = numpy.zeros(self.nnodes)
+        state = self.equilibrium_state
         t = 0
         for xt,yt in itertools.izip(x,y):
             if t == 0:
@@ -252,13 +261,13 @@ class FeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback+self.noise())
-            self.state=self.step(u_t)
+            state=self.step(state,u_t)
             feedback = numpy.array(yt)
             yield state, feedback
             t += 1
 
     def predict1(self,x,w_output,initial_feedback=[]):
-        state = numpy.zeros(self.nnodes)
+        state = self.equilibrium_state
         feedback = numpy.zeros(self.noutput)
         l = len(initial_feedback)
         t = 0
@@ -268,7 +277,7 @@ class FeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback)
-            self.state=self.step(u_t)
+            state=self.step(u_t)
             state_1= numpy.append(self.state,numpy.ones(1))
             feedback = numpy.dot(w_output,state_1)
             yield feedback,state
@@ -289,6 +298,7 @@ class DelayFeedbackESN(ESN):
         self.noutput=noutput
     
     def run(self,x,y):
+        state = self.equilibrium_state
         memory = collections.deque([],maxlen=self.maxdelay)
         feedback = numpy.zeros(self.nfeedback)
         d = zip(self.delays,range(len(self.delays)))
@@ -300,9 +310,9 @@ class DelayFeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback+self.noise())
-            self.state=self.step(u_t)
+            state=self.step(state,u_t)
             memory.append(target)
-            yield self.state, target
+            yield state, target
 
     def predict1(self,x,w_output,initial_feedback=[]):
         memory = collections.deque([],maxlen=self.maxdelay)
@@ -317,15 +327,15 @@ class DelayFeedbackESN(ESN):
             u_t = numpy.append(
                 numpy.array(xt),
                 feedback)
-            self.state=self.step(u_t)
-            state_1= numpy.append(self.state,numpy.ones(1))
+            state=self.step(state,u_t)
+            state_1= numpy.append(state,numpy.ones(1))
             value = numpy.dot(w_output,state_1)
             if t < l:
                 memory.append(numpy.array(initial_feedback[t]))
             else:
                 memory.append(value)
 
-            yield value,self.state
+            yield value,state
             t += 1
 
 

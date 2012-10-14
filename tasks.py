@@ -56,7 +56,6 @@ def run_one_two_a_x_task():
     trainer.train(train_input, train_target)
     
     print "predict..."
-    machine.reset_state()
     prediction = trainer.predict(test_input)
     prediction[prediction<0.5] = 0
     prediction[prediction>0.5] = 1
