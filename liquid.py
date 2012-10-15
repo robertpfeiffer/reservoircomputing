@@ -79,9 +79,10 @@ class ESN(object):
         to make the neurons more different from each other"""
         return random.gauss(0,0.05)
 
-    def __init__(self,ninput,nnodes,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5):
+    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5):
         self.ninput=ninput
         self.nnodes=nnodes
+        self.leak_rate=leak_rate
         self.gamma=gamma
         self.conn_recurrent=conn_recurrent
         self.conn_input=conn_input
@@ -122,7 +123,7 @@ class ESN(object):
         self.equilibrium_state = state2
 
     def step(self, x_t_1, u_t):
-        result = self.gamma(
+        result = (1-self.leak_rate)*x_t_1 + self.leak_rate*self.gamma(
                 numpy.dot(self.w_echo,x_t_1)
              +  numpy.dot(self.w_input,u_t)
              +  self.w_add)
@@ -315,6 +316,7 @@ class DelayFeedbackESN(ESN):
             yield state, target
 
     def predict1(self,x,w_output,initial_feedback=[]):
+        state = self.equilibrium_state
         memory = collections.deque([],maxlen=self.maxdelay)
         feedback = numpy.zeros(self.nfeedback)
         l = len(initial_feedback)
