@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import sys
 import Oger
+import time
 
 def printf(format, *args):
     sys.stdout.write(format % args)  
@@ -56,14 +57,47 @@ def run_one_two_a_x_task():
     trainer.train(train_input, train_target)
     
     print "predict..."
-    machine.reset_state()
+    #machine.reset_state()
     prediction = trainer.predict(test_input)
     prediction[prediction<0.5] = 0
     prediction[prediction>0.5] = 1
     error_percentage = (1-abs(test_target - prediction).mean())*100;
     printf("Success %.2f", error_percentage)
- 
-if raw_input("memory task?[ja/nein] ").startswith('j'): 
+    
+def multiple_superimposed_oscillators_task():
+    input_range = np.arange(3000) #np.array([range(2000)])
+    timescale=10.0
+    osc1 = np.sin(input_range/timescale)
+    osc2 = np.sin(2.1*input_range/timescale)
+    osc3 = np.sin(3.4*input_range/timescale)
+    train_target = np.column_stack((osc1, osc2, osc3))
+    train_input = osc1*np.cos(osc2+2.345*osc3)
+    train_input = train_input[:, None]
+    
+    machine = ESN(1, 800, leak_rate=0.5)
+    print 'Starting training...'
+    start = time.time()
+    trainer = LinearRegressionTrainer(machine)
+    trainer.train(train_input[:2000], train_target[:2000])
+    print 'Training Time: ', time.time() - start, 's'
+    prediction = trainer.predict(train_input[2000:])
+    mse = Oger.utils.mse(prediction,train_target[2000:])
+    print 'MSE: ', mse
+    
+    plt.subplot(3,1,1)
+    plt.plot(train_input[2800:3000])
+    plt.title('Input')
+    plt.subplot(3,1,2)
+    plt.plot(train_target[2800:3000])
+    plt.title('Targets')
+    plt.subplot(3,1,3)
+    plt.plot(prediction[800:1000])
+    plt.title('Predictions')
+    plt.show()
+     
+if  raw_input("multiple superimposed oscillators task?[ja/nein] ").startswith('j'): 
+    multiple_superimposed_oscillators_task()
+elif raw_input("memory task?[ja/nein] ").startswith('j'): 
     run_memory_task()
 elif raw_input("1_2_A_X task?[ja/nein] ").startswith('j'): 
     run_one_two_a_x_task()
