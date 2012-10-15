@@ -5,6 +5,7 @@ import numpy
 from plotting import *
 import math
 import random
+import time
 
 def triangle(n):
     return n - int(n)
@@ -218,6 +219,7 @@ if raw_input("different timescales, square input, delayed feedback?[y/n] ")=="y"
 if raw_input("multiple superimposed oscillations?")=="y":
     #machine=Grid_3D_ESN(1,(8, 10, 10), 3)
     machine=DiagonalESN(1,800)
+    #machine=ESN(1,800)
 
     def components(n, timescale):
         return (math.sin(n/timescale),  math.sin(2.1*n/timescale), math.sin(3.4*n/timescale))
@@ -228,8 +230,12 @@ if raw_input("multiple superimposed oscillations?")=="y":
     timescale=10.0
     input1 = [[combine(components(x, timescale))] for x in xrange(3000)]
     output1 = [components(x, timescale) for x in xrange(3000)]
+    print 'Starting training...'
+    start = time.time()
     w_out= linear_regression_streaming([(input1[:2000], output1[:2000])],machine)
-    plot_ESN_run(machine,input1[2000:],output1[2000:],w_out,1000, 100)
+    print 'Training Time: ', time.time() - start, 's'
+    print square_error(machine, w_out,[(input1[:2000], output1[:2000])])
+    plot_ESN_run(machine,input1[2000:],output1[2000:],w_out,1000, 800)
 
 if raw_input("memory task?")=="y":
     machine=ESN(1,800, conn_input=0.02,  conn_recurrent=0.15)
