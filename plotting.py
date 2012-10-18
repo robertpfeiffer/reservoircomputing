@@ -14,9 +14,9 @@ def plot_ESN_run(machine,input,target,w_out=None,n_plot=1000,n_throwaway=0,jumps
             plot_target=list(itertools.islice(target,n_plot+n_throwaway))
 
         if jumpstart > 0:
-            plot_run=list(machine.predict1(plot_in,w_out,plot_target[:jumpstart]))
+            plot_run=list(machine.predict_with_echo(plot_in,w_out,plot_target[:jumpstart]))
         else:
-            plot_run=list(machine.predict1(plot_in,w_out))
+            plot_run=list(machine.predict_with_echo(plot_in,w_out))
         plot_echo=[echo.ravel() for val,echo in plot_run]
         plot_out=[val for val,echo in plot_run]
 
@@ -50,7 +50,7 @@ def plot_ESN_response(machine,input,n_throwaway=0):
         plot_in=list(input)
         n_plot=len(plot_in)
         w_out=numpy.ones((1,machine.nnodes+1))
-        plot_run=list(machine.predict1(plot_in,w_out))
+        plot_run=list(machine.predict_with_echo(plot_in,w_out))
         plot_echo=[echo.ravel() for val,echo in plot_run]
         plot_out=[val for val,echo in plot_run]
 

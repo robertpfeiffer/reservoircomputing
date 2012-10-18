@@ -13,7 +13,7 @@ def mapfn(series_id, values):
 
     A = None 
     b = None 
-    for xi,yi in zip(machine.run(xs,ys),ys):
+    for xi,yi in zip(machine.run_streaming(xs,ys),ys):
         xi=numpy.append(xi,numpy.ones((1,1),dtype=numpy.double),axis=1)
         yi=yi[0]
         if A==None:
@@ -44,7 +44,7 @@ def mapfn_sentiment(job_id, path_pol):
 
     A = None 
     b = None 
-    for xi,yi in zip(machine.run(xs,ys),ys):
+    for xi,yi in zip(machine.run_streaming(xs,ys),ys):
         xi=numpy.append(xi,numpy.ones((1,1),dtype=numpy.double),axis=1)
         yi=yi[0]
         if A==None:

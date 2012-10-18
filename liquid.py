@@ -26,24 +26,25 @@ def better_sigmoid(matrix):
 
 class DummyESN(object):
     """This class implements the ESN interface, but it does not actually carry any
-    state. Use it to compare the kernel quality against no kernel at all."""
+    state. Output = Input. Use it to compare the kernel quality against no kernel at all.
+    Thus the regression is applied directly to the inputs."""
     feedback = False
 
     def __init__(self,ninput,nnodes,*a,**k):
         self.ninput=ninput
         self.nnodes=nnodes
 
-    def run(self,u,y=None):
+    def run_streaming(self,u,y=None):
         return itertools.izip(u,y)
 
-    def predict1(self,u,w_output):
+    def predict_with_echo(self,u,w_output):
         for ut in u:
             u_t=numpy.array(ut)
             state_1=numpy.append(u_t,numpy.ones(1))
             yield numpy.dot(w_output,state_1),u_t
 
     def predict(self,u,w_output):
-      for y,x in self.predict1(u,w_output):
+      for y,x in self.predict_with_echo(u,w_output):
             yield y
 
 def random_vector(size,a,b):
@@ -129,7 +130,7 @@ class ESN(object):
              +  self.w_add)
         return result.ravel()
     
-    def run2(self, u):
+    def run_batch(self, u):
         """ Runs the machine, returns the last state, saves previous states in state_echo
             Parameter u is the input, a 2dnumpy-array (time x input-dim) 
         """
@@ -142,7 +143,7 @@ class ESN(object):
             state_echo[i,:] = state[:]        
         return state_echo
         
-    def run(self,u,y=None):
+    def run_streaming(self,u,y=None):
         """generate echo states and target values for training"""
         state=self.equilibrium_state
         for ut, yt in itertools.izip(u, y):
@@ -151,7 +152,7 @@ class ESN(object):
             yield state, numpy.array(yt)
 
 
-    def predict1(self,u,w_output):
+    def predict_with_echo(self,u,w_output):
         """generate echo states and predictions """
         state=self.equilibrium_state
         for ut in u:
@@ -161,7 +162,7 @@ class ESN(object):
             yield numpy.dot(w_output,state_1),state
 
     def predict(self,u,w_output):
-      for y,x in self.predict1(u,w_output):
+      for y,x in self.predict_with_echo(u,w_output):
             yield y
 
 class Grid_3D_ESN(ESN):
@@ -252,8 +253,21 @@ class FeedbackESN(ESN):
         ESN.__init__(self,ninput+noutput,nnodes,*args,**kwargs)
         self.ninput=ninput
         self.noutput=noutput
+                
+    def run_batch(self, u, y):
+        """ Runs the machine, returns the last state, saves previous states in state_echo
+            Parameter u is the input, a 2dnumpy-array (time x input-dim) 
+        """
+        length = u.shape[0]
+        state=self.equilibrium_state
+        state_echo = numpy.zeros((length, self.nnodes))
+        i = 0
+        for state, fb in self.run_streaming(state,y):
+            state_echo[i,:] = state
+            i = i + 1        
+        return state_echo
     
-    def run(self,x,y):
+    def run_streaming(self,x,y):
         state = self.equilibrium_state
         t = 0
         for xt,yt in itertools.izip(x,y):
@@ -267,7 +281,7 @@ class FeedbackESN(ESN):
             yield state, feedback
             t += 1
 
-    def predict1(self,x,w_output,initial_feedback=[]):
+    def predict_with_echo(self,x,w_output,initial_feedback=[]):
         state = self.equilibrium_state
         feedback = numpy.zeros(self.noutput)
         l = len(initial_feedback)
@@ -298,7 +312,7 @@ class DelayFeedbackESN(ESN):
         self.ninput=ninput
         self.noutput=noutput
     
-    def run(self,x,y):
+    def run_streaming(self,x,y):
         state = self.equilibrium_state
         memory = collections.deque([],maxlen=self.maxdelay)
         feedback = numpy.zeros(self.nfeedback)
@@ -315,7 +329,7 @@ class DelayFeedbackESN(ESN):
             memory.append(target)
             yield state, target
 
-    def predict1(self,x,w_output,initial_feedback=[]):
+    def predict_with_echo(self,x,w_output,initial_feedback=[]):
         state = self.equilibrium_state
         memory = collections.deque([],maxlen=self.maxdelay)
         feedback = numpy.zeros(self.nfeedback)
@@ -354,7 +368,7 @@ def run_all(pairs,machine):
     inp = []
     targ = []
     for xs,ys in pairs:
-        for xi,yi in machine.run(xs,ys):
+        for xi,yi in machine.run_streaming(xs,ys):
             inp.append(xi)
             targ.append(yi)
     return numpy.vstack(inp),numpy.vstack(targ)
@@ -386,8 +400,8 @@ def linear_regression_streaming(pairs,machine):
     n = 0
     for xs,ys in pairs:
         n += 1
-        print "training run", n
-        for xi,yi in machine.run(xs,ys):
+        print "training run_streaming", n
+        for xi,yi in machine.run_streaming(xs,ys):
             xi=numpy.append(xi,numpy.ones(1))
             XTX=numpy.outer(xi,xi)
             XTy=numpy.outer(xi,yi)

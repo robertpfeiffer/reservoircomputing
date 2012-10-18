@@ -17,7 +17,7 @@ class LinearRegressionTrainer(object):
         return Y
     
     def _createX(self, data):
-        state_echo = self.machine.run2(data)
+        state_echo = self.machine.run_batch(data)
         X = np.append(np.ones((state_echo.shape[0],1)), state_echo, 1)
         return X
 

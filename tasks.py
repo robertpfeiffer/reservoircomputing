@@ -72,7 +72,7 @@ def multiple_superimposed_oscillators_task():
     osc3 = np.sin(3.4*input_range/timescale)
     train_target = np.column_stack((osc1, osc2, osc3))
     train_input = osc1*np.cos(osc2+2.345*osc3)
-    train_input = train_input[:, None]
+    train_input = train_input[:, None] #1d->2d
     
     machine = ESN(1, 800, leak_rate=0.5)
     print 'Starting training...'
