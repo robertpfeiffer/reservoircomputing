@@ -80,7 +80,7 @@ class ESN(object):
         to make the neurons more different from each other"""
         return random.gauss(0,0.05)
 
-    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5):
+    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, spectral_radius_scaling=0.95, reset_state=True):
         self.ninput=ninput
         self.nnodes=nnodes
         self.leak_rate=leak_rate
@@ -88,6 +88,8 @@ class ESN(object):
         self.conn_recurrent=conn_recurrent
         self.conn_input=conn_input
         self.frac_exc=frac_exc
+        self.reset_state = reset_state
+        self.spectral_radius_scaling = spectral_radius_scaling
 
         w_echo = numpy.array(
             [[self.connection_weight(i,j)
@@ -104,7 +106,8 @@ class ESN(object):
         # set spectral radius of w_echo to 0.95
         eigenvalues=linalg.eigvals(w_echo)
         spectral_radius=max([abs(a) for a in eigenvalues])
-        w_echo=(0.95/spectral_radius)*w_echo
+       # w_echo=(0.95/spectral_radius)*w_echo
+        w_echo *= self.spectral_radius_scaling/spectral_radius
         
         self.w_echo = w_echo
         self.w_input = w_input
@@ -122,6 +125,7 @@ class ESN(object):
                 break
             
         self.equilibrium_state = state2
+        self.current_state = self.equilibrium_state
 
     def step(self, x_t_1, u_t):
         result = (1-self.leak_rate)*x_t_1 + self.leak_rate*self.gamma(
@@ -135,13 +139,21 @@ class ESN(object):
             Parameter u is the input, a 2dnumpy-array (time x input-dim) 
         """
         length = u.shape[0]
-        state=self.equilibrium_state
+        if self.reset_state:
+            state=self.equilibrium_state
+        else:
+            state = self.current_state
+        
         state_echo = numpy.zeros((length, self.nnodes))
         for i in range(length):
             u_t = u[i,:]
             state = self.step(state,u_t)
-            state_echo[i,:] = state[:]        
+            state_echo[i,:] = state[:]
+        self.current_state = state        
         return state_echo
+    
+    def reset(self):
+        self.current_state = self.equilibrium_state
         
     def run_streaming(self,u,y=None):
         """generate echo states and target values for training"""

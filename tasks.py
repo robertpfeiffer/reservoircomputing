@@ -82,7 +82,8 @@ def multiple_superimposed_oscillators_task():
     print 'Training Time: ', time.time() - start, 's'
     prediction = trainer.predict(train_input[2000:])
     mse = Oger.utils.mse(prediction,train_target[2000:])
-    print 'MSE: ', mse
+    nrmse = Oger.utils.nrmse(prediction,train_target[2000:])
+    print 'MSE: ', mse, 'NRMSE:' , nrmse
     
     plt.subplot(3,1,1)
     plt.plot(train_input[2800:3000])
@@ -94,8 +95,86 @@ def multiple_superimposed_oscillators_task():
     plt.plot(prediction[800:1000])
     plt.title('Predictions')
     plt.show()
-     
-if  raw_input("multiple superimposed oscillators task?[ja/nein] ").startswith('j'): 
+
+def mackey_glass_task():
+    data = np.loadtxt('MackeyGlass_t17.txt') 
+    data = data[:,None]
+    trainLen = 2000
+    testLen = 2000
+    initLen = 100
+    N = 1000
+
+    print 'Create ESN...'
+    machine = ESN(1, N, leak_rate=0.3, spectral_radius_scaling = 1.25, reset_state = False)
+    trainer = FeedbackTrainer(machine, LinearRegressionTrainer(machine, ridge=1e-8));
+    print 'Training...'
+    start = time.time()
+    trainer.train(data[:trainLen])
+    print 'Training Time: ', time.time() - start, 's'
+    
+    #machine.reset()
+    #trainer.initial_input = data[0,None]
+    prediction = trainer.generate(testLen)
+    testData = data[trainLen+1:trainLen+1+testLen]
+    nrmse = Oger.utils.nrmse(prediction,testData)
+    print 'NRMSE: ', nrmse
+    
+    plt.figure(1).clear()
+    #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
+    #plt.plot( prediction, 'b' )
+    plt.plot( testData[:500], 'g' )
+    plt.plot( prediction[:500], 'b' )
+    plt.title('Target and generated signals $y(n)$ starting at $n=0$')
+    plt.legend(['Target signal', 'Free-running predicted signal'])
+    plt.show()
+    
+    plt.figure(2).clear()
+    plt.bar( range(1+N), trainer.w_out)
+    plt.title('Output weights $\mathbf{W}^{out}$')
+    plt.show()
+    
+    """ Peformance on Training Data: """
+    machine.reset()
+    trainer.initial_input = data[0,None]
+    prediction = trainer.generate(trainLen)
+    testData = data[1:trainLen+1]
+    nrmse = Oger.utils.nrmse(prediction,testData)
+    print 'Training NRMSE: ', nrmse
+    
+    plt.figure(3).clear()
+    #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
+    #plt.plot( prediction, 'b' )
+    plt.plot( testData, 'g' )
+    plt.plot( prediction, 'b' )
+    plt.title('Target and generated signals $y(n)$ starting at $n=0$')
+    plt.legend(['Target signal', 'Free-running predicted signal'])
+    plt.show()
+    
+    
+    """
+    prediction = trainer.generate(testLen)
+    mse = Oger.utils.mse(prediction,data[trainLen:trainLen+testLen])
+    nrmse = Oger.utils.nrmse(prediction,data[trainLen:trainLen+testLen])
+    print 'MSE: ', mse, 'NRMSE: ', nrmse
+    
+    plt.figure(1).clear()
+    #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
+    #plt.plot( prediction, 'b' )
+    plt.plot( data[trainLen+1:trainLen+100+1], 'g' )
+    plt.plot( prediction[:100], 'b' )
+    plt.title('Target and generated signals $y(n)$ starting at $n=0$')
+    plt.legend(['Target signal', 'Free-running predicted signal'])
+    plt.show()
+    
+    plt.figure(2).clear()
+    plt.bar( range(1+N), trainer.w_out)
+    plt.title('Output weights $\mathbf{W}^{out}$')
+    plt.show()
+    """
+    
+if 1:
+    mackey_glass_task()
+elif  raw_input("multiple superimposed oscillators task?[ja/nein] ").startswith('j'): 
     multiple_superimposed_oscillators_task()
 elif raw_input("memory task?[ja/nein] ").startswith('j'): 
     run_memory_task()
