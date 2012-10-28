@@ -6,7 +6,7 @@ def add_noise(data, var):
     #return data + np.random.normal(0, var, data.shape)
     return data
     
-class LinearRegressionTrainer(object):
+class LinearRegressionReadout(object):
     """ Trains an esn and uses it for prediction """
 
     def __init__(self, machine, ridge=0):
@@ -37,7 +37,7 @@ class LinearRegressionTrainer(object):
 
 
 
-class FeedbackTrainer(object):
+class FeedbackReadout(object):
     """ Trains an ESN in generative mode and uses it for time series creation """
     #TODO: Zwischen fortgesetzten Folgen und wiederholten Sequenzen unterscheiden
     

@@ -57,16 +57,15 @@ class ESN(object):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         if random.random() < self.conn_recurrent:
             weight = random.gauss(0,1)
+            #This stabilizes in the case of feedback. TODO: Investigate
             if random.uniform(0,1) < self.frac_exc:
-                if weight > 0:
-                   return weight
-                else:
-                   return -weight
+                if weight <= 0:
+                    weight=-weight
             else:
-                if weight < 0:
-                   return weight
-                else:
-                   return -weight
+                if weight >= 0:
+                    weight =-weight
+            
+            return weight
         return 0
 
     def input_weight(self,n1,n2):
