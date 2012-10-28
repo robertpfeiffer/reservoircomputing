@@ -41,7 +41,7 @@ def run_NARMA_task():
     trainer.train(train_input[0], train_target[0])
     
     print "predict..."
-    machine.reset_state()
+    machine.reset()
     prediction = trainer.predict(test_input[0])
     mse = Oger.utils.nrmse(prediction,test_target[0])
     printf("NRMSE: %f\n", mse)
@@ -105,7 +105,7 @@ def mackey_glass_task():
     N = 1000
 
     print 'Create ESN...'
-    machine = ESN(1, N, leak_rate=0.3, spectral_radius_scaling = 1.25, reset_state = False)
+    machine = ESN(1, N, leak_rate=0.3, input_scaling = 0.5, bias_scaling = 0.5, spectral_radius_scaling = 1.25, reset_state = False, start_in_equilibrium = False)
     trainer = FeedbackTrainer(machine, LinearRegressionTrainer(machine, ridge=1e-8));
     print 'Training...'
     start = time.time()
@@ -116,37 +116,39 @@ def mackey_glass_task():
     #trainer.initial_input = data[0,None]
     prediction = trainer.generate(testLen)
     testData = data[trainLen+1:trainLen+1+testLen]
+    mse = Oger.utils.mse(prediction,testData)
     nrmse = Oger.utils.nrmse(prediction,testData)
-    print 'NRMSE: ', nrmse
+    print 'TEST MSE: ', mse, 'NRMSE: ', nrmse
     
     plt.figure(1).clear()
     #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
     #plt.plot( prediction, 'b' )
     plt.plot( testData[:500], 'g' )
     plt.plot( prediction[:500], 'b' )
-    plt.title('Target and generated signals $y(n)$ starting at $n=0$')
+    plt.title('Test Performance')
     plt.legend(['Target signal', 'Free-running predicted signal'])
-    plt.show()
+    #plt.show()
     
     plt.figure(2).clear()
     plt.bar( range(1+N), trainer.w_out)
     plt.title('Output weights $\mathbf{W}^{out}$')
-    plt.show()
+    #plt.show()
     
     """ Peformance on Training Data: """
     machine.reset()
     trainer.initial_input = data[0,None]
     prediction = trainer.generate(trainLen)
     testData = data[1:trainLen+1]
+    mse = Oger.utils.mse(prediction,testData)
     nrmse = Oger.utils.nrmse(prediction,testData)
-    print 'Training NRMSE: ', nrmse
+    print 'Training MSE: ', mse, 'NRMSE: ', nrmse
     
     plt.figure(3).clear()
     #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
     #plt.plot( prediction, 'b' )
     plt.plot( testData, 'g' )
     plt.plot( prediction, 'b' )
-    plt.title('Target and generated signals $y(n)$ starting at $n=0$')
+    plt.title('Training Performance')
     plt.legend(['Target signal', 'Free-running predicted signal'])
     plt.show()
     
@@ -172,9 +174,9 @@ def mackey_glass_task():
     plt.show()
     """
     
-if 1:
+if 1: #raw_input("mackey glass?[ja/nein] ").startswith('j'): 
     mackey_glass_task()
-elif  raw_input("multiple superimposed oscillators task?[ja/nein] ").startswith('j'): 
+elif  raw_input("multiple superimposed oscillators separation task?[ja/nein] ").startswith('j'): 
     multiple_superimposed_oscillators_task()
 elif raw_input("memory task?[ja/nein] ").startswith('j'): 
     run_memory_task()

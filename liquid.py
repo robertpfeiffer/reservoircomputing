@@ -72,15 +72,15 @@ class ESN(object):
     def input_weight(self,n1,n2):
         """synaptic strength for the connection from input node n1 to echo node n2"""
         if random.random() < self.conn_input:
-            return random.gauss(0,0.2)
+            return random.uniform(-1, 1)*self.input_scaling
         return 0
 
-    def add_weight(self,n1):
+    def add_bias(self,n1):
         """added to the neuron at each step,
         to make the neurons more different from each other"""
-        return random.gauss(0,0.05)
+        return random.uniform(-1, 1) * self.bias_scaling
 
-    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, spectral_radius_scaling=0.95, reset_state=True):
+    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius_scaling=0.95, reset_state=True, start_in_equilibrium=True):
         self.ninput=ninput
         self.nnodes=nnodes
         self.leak_rate=leak_rate
@@ -89,6 +89,8 @@ class ESN(object):
         self.conn_input=conn_input
         self.frac_exc=frac_exc
         self.reset_state = reset_state
+        self.input_scaling = input_scaling
+        self.bias_scaling = bias_scaling
         self.spectral_radius_scaling = spectral_radius_scaling
 
         w_echo = numpy.array(
@@ -100,13 +102,12 @@ class ESN(object):
               for j in range(self.ninput)]
             for i in range(self.nnodes)])
         w_add = numpy.array(
-            [self.add_weight(i)
+            [self.add_bias(i)
              for i in range(self.nnodes)])
         
         # set spectral radius of w_echo to 0.95
         eigenvalues=linalg.eigvals(w_echo)
         spectral_radius=max([abs(a) for a in eigenvalues])
-       # w_echo=(0.95/spectral_radius)*w_echo
         w_echo *= self.spectral_radius_scaling/spectral_radius
         
         self.w_echo = w_echo
@@ -114,17 +115,20 @@ class ESN(object):
         self.w_add = w_add
 
         state1 = numpy.zeros(self.nnodes)
-        zero_input=numpy.zeros(self.ninput)
-        state2 = self.step(state1, zero_input)
-        i = 0
-        while not numpy.allclose(state1,state2):
-            state1=state2
-            state2=self.step(state1,zero_input)
-            i +=1
-            if i > 15000:
-                break
-            
-        self.equilibrium_state = state2
+        if start_in_equilibrium:
+            zero_input=numpy.zeros(self.ninput)
+            state2 = self.step(state1, zero_input)
+            i = 0
+            while not numpy.allclose(state1,state2):
+                state1=state2
+                state2=self.step(state1,zero_input)
+                i +=1
+                if i > 15000:
+                    break
+                
+            self.equilibrium_state = state2
+        else:
+            self.equilibrium_state = state1
         self.current_state = self.equilibrium_state
 
     def step(self, x_t_1, u_t):
