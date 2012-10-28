@@ -99,7 +99,7 @@ def mso_separation_task():
     plt.show()
     
 def mso_task():
-    print 'MSO - Task'
+    print 'MSO Task'
     washout_time = 100
     training_time = 1000
     testing_time = 600
@@ -110,21 +110,36 @@ def mso_task():
     data = sin(0.2*input_range) + sin(0.311*input_range) + sin(0.42*input_range) 
     #+ sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
     data = data[:, None]
-
-    machine = ESN(1, 100, leak_rate=0.8, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
-    machine.run_batch(data[:washout_time])
-    print 'Training...'
-    trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8));
-    trainer.train(data[washout_time:washout_time+training_time])
+    N = 500
     
-    prediction = trainer.generate(testing_time)
-    testData = data[washout_time+training_time:washout_time+training_time+testing_time]
+    T = 1
+    nrmses = np.zeros(T)
     
-    evaluation_data = data[washout_time+training_time+(testing_time-evaluation_time):washout_time+training_time+testing_time]
-    evaluaton_prediction = prediction[-evaluation_time:]
-    mse = Oger.utils.mse(evaluaton_prediction,evaluation_data)
-    nrmse = Oger.utils.nrmse(evaluaton_prediction,evaluation_data)
-    print 'TEST MSE: ', mse, 'NRMSE: ', nrmse
+    for i in range(T):
+        leak_rate = 0.2
+        #leak_rate = random.uniform(0.2, 0.3, N)
+        #leak_rate = np.append(random.uniform(0.2, 0.25, N-100), random.uniform(0.8, 1, 100))
+        #leak_rate = np.append(0.2*np.ones(480), 1*np.ones(20))
+        machine = ESN(1, N, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
+        machine.run_batch(data[:washout_time])
+        print 'Training...'
+        trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8));
+        trainer.train(data[washout_time:washout_time+training_time])
+        
+        prediction = trainer.generate(testing_time)
+        testData = data[washout_time+training_time:washout_time+training_time+testing_time]
+        
+        evaluation_data = data[washout_time+training_time+(testing_time-evaluation_time):washout_time+training_time+testing_time]
+        evaluaton_prediction = prediction[-evaluation_time:]
+        mse = Oger.utils.mse(evaluaton_prediction,evaluation_data)
+        nrmse = Oger.utils.nrmse(evaluaton_prediction,evaluation_data)
+        nrmses[i] = nrmse
+        print 'TEST MSE: ', mse, 'NRMSE: ', nrmse
+    
+    mean_nrmse = mean(nrmses)
+    std_nrmse = std(nrmses)
+    min_nrmse = min(nrmses)
+    print 'Min NRMSE: ', min_nrmse, 'Mean NRMSE: ', mean_nrmse, 'Std: ', std_nrmse
     
     plt.figure(1).clear()
     plt.plot( evaluation_data, 'g' )
@@ -132,6 +147,7 @@ def mso_task():
     plt.title('Test Performance')
     plt.legend(['Target signal', 'Free-running predicted signal'])
     plt.show()
+    
 
 def mackey_glass_task():
     #from http://minds.jacobs-university.de/mantas/code
