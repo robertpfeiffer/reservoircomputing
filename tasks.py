@@ -102,25 +102,28 @@ def mso_task():
     print 'MSO Task'
     washout_time = 100
     training_time = 1000
-    testing_time = 600
-    evaluation_time = 300 #only last 300 steps evaluated
+    testing_time = 800
+    evaluation_time = 500 #only last 300 steps evaluated
     
-    input_range = np.arange(10000) #np.array([range(2000)])
-    #data = np.sin(0.2*input_range) + np.sin(0.311*input_range)
-    data = sin(0.2*input_range) + sin(0.311*input_range) + sin(0.42*input_range) 
-    #+ sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
+    input_range = np.arange(0,10000,1) #np.array([range(2000)])
+    #data = np.sin(0.8*input_range)
+    #data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) #+ np.sin(0.74*input_range) 
+    data = sin(0.2*input_range) + sin(0.311*input_range) + sin(0.42*input_range) #+ sin(0.51*input_range) + sin(0.74*input_range)
+    #data = sin(0.2*input_range)  * sin(0.311*input_range) + sin(0.42*input_range) 
     data = data[:, None]
-    N = 500
+    N = 400
     
-    T = 1
+    T = 10
     nrmses = np.zeros(T)
+    best_nrmse = 100000;
     
     for i in range(T):
-        leak_rate = 0.2
-        #leak_rate = random.uniform(0.2, 0.3, N)
-        #leak_rate = np.append(random.uniform(0.2, 0.25, N-100), random.uniform(0.8, 1, 100))
-        #leak_rate = np.append(0.2*np.ones(480), 1*np.ones(20))
-        machine = ESN(1, N, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
+        leak_rate = 0.3
+        #leak_rate = random.uniform(0.5, 1, N)
+        #leak_rate = np.append(np.append(random.uniform(0.3, 1, N/3), random.uniform(0.3, 1, N/3)), random.uniform(0.3, 1, N/3))
+        #leak_rate = np.append(0.3*np.ones(N/2), 0.7*np.ones(N/2))
+        #machine = ESN(1, N, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
+        machine = BubbleESN(1, (N/4, N/4, N/4, N/4), bubble_type=3, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         machine.run_batch(data[:washout_time])
         print 'Training...'
         trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8));
@@ -133,8 +136,17 @@ def mso_task():
         evaluaton_prediction = prediction[-evaluation_time:]
         mse = Oger.utils.mse(evaluaton_prediction,evaluation_data)
         nrmse = Oger.utils.nrmse(evaluaton_prediction,evaluation_data)
+        if (nrmse < best_nrmse):
+            best_evaluation_prediction = evaluaton_prediction
+            best_nrmse = nrmse
+            best_machine = machine
+            best_trainer = trainer
         nrmses[i] = nrmse
-        print 'TEST MSE: ', mse, 'NRMSE: ', nrmse
+        
+        #plt.pcolormesh(plot_echo,cmap="bone")
+        
+        #print 'TEST MSE: ', mse, 'NRMSE: ', nrmse
+        print 'NRMSE:', nrmse
     
     mean_nrmse = mean(nrmses)
     std_nrmse = std(nrmses)
@@ -143,11 +155,23 @@ def mso_task():
     
     plt.figure(1).clear()
     plt.plot( evaluation_data, 'g' )
-    plt.plot( evaluaton_prediction, 'b' )
+    plt.plot( best_evaluation_prediction, 'b' )
     plt.title('Test Performance')
     plt.legend(['Target signal', 'Free-running predicted signal'])
     plt.show()
     
+    
+    #plt.plot(3,1,3)
+    #plt.pcolormesh(plot_echo,cmap="bone")
+
+    #plt.matshow(machine.w_input.T,cmap="copper")
+    plt.matshow(best_machine.w_echo,cmap="bone")
+    plt.show()
+    
+    #plt.matshow(best_trainer.w_out,cmap="bone")
+    hist=np.histogram(best_trainer.w_out,bins=np.linspace(0,6,num=61))
+    plt.hist(best_trainer.w_out)
+    plt.show()
 
 def mackey_glass_task():
     #from http://minds.jacobs-university.de/mantas/code
@@ -156,7 +180,7 @@ def mackey_glass_task():
     data = data[:,None]
     trainLen = 2000
     testLen = 500
-    N = 1000
+    N = 300
 
     print 'Create ESN...'
     random.seed(42)

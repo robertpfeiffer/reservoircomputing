@@ -219,22 +219,70 @@ class BubbleESN(ESN):
     """
     def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
-        #connectivity between neurons in the same bubble
+        
+        #bubble index of the neuron (e.g. n1 in bubble 3: n1_bubble=3)
+        n1_bubble = 0;
+        n2_bubble = 0;
+        # bubble index for neuron 1
+        k = 1
         for bubblemin,bubblemax in self.bubble_borders:
-            #if the nodes are in the same bubble
-            if (bubblemin <= n1 < bubblemax and
-                bubblemin <= n2 < bubblemax):
+            if (bubblemin <= n1 and n1 < bubblemax):
+                n1_bubble = k
+                break
+            k = k + 1
+        # bubble index for neuron 2
+        k = 1
+        for bubblemin,bubblemax in self.bubble_borders:
+            if (bubblemin <= n2 and n2 < bubblemax):
+                n2_bubble = k
+                break
+            k = k + 1
+        
+        ### DECOUPLED WEIGHTS ###
+        if (self.bubble_type == 1):
+            # weights if both neurons are in the same bubble
+            if (n1_bubble == n2_bubble):
                 if random.random() < self.conn_recurrent:
+                    return random.gauss(0,1)  
+    
+        
+        ### PUSH FORWARD/ SEQUENTIAL WEIGHTS ###
+        elif self.bubble_type == 2:
+        # weights if both neurons are in the same bubble
+            if (n1_bubble == n2_bubble):
+                if random.random() < self.conn_recurrent:
+                    return random.gauss(0,1)  
+            # weights if the neurons are one bubble apart
+            if (n1_bubble == n2_bubble-1):
+                if random.random() < self.conn_recurrent/5:
                     return random.gauss(0,1)
+        
+        ### NEIGHBORHOOD WEIGHTS ###
+        elif self.bubble_type == 3: 
+            # weights if both neurons are in the same bubble
+            if (n1_bubble == n2_bubble):
+                if random.random() < self.conn_recurrent:
+                    return random.gauss(0,1)  
+            # weights if the neurons are one bubble apart
+            if (n1_bubble == n2_bubble+1 or n1_bubble == n2_bubble-1):
+                if random.random() < self.conn_recurrent/5:
+                    return random.gauss(0,1)
+                
+        ### FULLY CONNECTED WEIGHTS ###
+        elif self.bubble_type == 4: 
+            # weights if both neurons are in the same bubble
+            if (n1_bubble == n2_bubble):
+                if random.random() < self.conn_recurrent:
+                    return random.gauss(0,1)  
+            # weights if the neurons are one bubble apart
             else:
                 if random.random() < self.conn_recurrent/5:
                     return random.gauss(0,1)
-        #connectivity between ascending neurons (also in different bubbles)??
-        """
-        if (n1 < n2):
-            if random.random() < self.conn_recurrent/5:
-                return random.gauss(0,1)
-        """
+            
+        # no weights at all if bubble_type incorrectly specified      
+        else:
+            return 0  # hier stattdessen besser ne exception werfen
+            
         return 0
 
 
@@ -246,7 +294,8 @@ class BubbleESN(ESN):
       #          return 1
       #  return 0
 
-    def __init__(self,ninput,bubble_sizes,*args,**kwargs):
+    def __init__(self,ninput,bubble_sizes,bubble_type,*args,**kwargs):
+        self.bubble_type = bubble_type
         self.bubble_borders=[]
         s=0
         for bubble_size in bubble_sizes:
