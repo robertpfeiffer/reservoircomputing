@@ -215,37 +215,46 @@ class Grid_3D_ESN(ESN):
 class BubbleESN(ESN):
     """ESN with a n-bubble-architecture.
     The neurons in each bubble are densely connected.
-    There are sparse connection from a bubble to later bubbles, but none back.
+    There are sparse connection from a bubble to later bubble_borders, but none back.
     """
-    def connection_weight(self,n1,n2):
+    def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
-        for bubblemin,bubblemax in self.bubbles:
+        #connectivity between neurons in the same bubble
+        for bubblemin,bubblemax in self.bubble_borders:
+            #if the nodes are in the same bubble
             if (bubblemin <= n1 < bubblemax and
                 bubblemin <= n2 < bubblemax):
                 if random.random() < self.conn_recurrent:
                     return random.gauss(0,1)
+            else:
+                if random.random() < self.conn_recurrent/5:
+                    return random.gauss(0,1)
+        #connectivity between ascending neurons (also in different bubbles)??
+        """
         if (n1 < n2):
             if random.random() < self.conn_recurrent/5:
                 return random.gauss(0,1)
+        """
         return 0
 
-    def input_weight(self,n1,n2):
+
+    #def input_weight(self,n1,n2):
         """synaptic strength for the connection from input node n1 to echo node n2"""
-        if random.random() < self.conn_input:
-            min_,max_=self.bubbles[0]
-            if n2<max_:
-                return 1
-        return 0
+      #  if random.random() < self.conn_input:
+      #      min_,max_=self.bubble_borders[0]
+      #      if n2<max_:
+      #          return 1
+      #  return 0
 
-    def __init__(self,ninput,bubbles,*args,**kwargs):
-        self.bubbles=[]
+    def __init__(self,ninput,bubble_sizes,*args,**kwargs):
+        self.bubble_borders=[]
         s=0
-        for b in bubbles:
+        for bubble_size in bubble_sizes:
             min_=s
-            max_=s+b
+            max_=s+bubble_size
             s=max_
-            self.bubbles.append((min_,max_))
-        ESN.__init__(self,ninput,sum(bubbles),*args,**kwargs)
+            self.bubble_borders.append((min_,max_))
+        ESN.__init__(self,ninput,sum(bubble_sizes),*args,**kwargs)
 
 
 class DiagonalESN(ESN):
