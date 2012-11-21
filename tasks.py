@@ -77,6 +77,7 @@ def mso_separation_task():
     train_input = train_input[:, None] #1d->2d
     
     machine = ESN(1, 800, leak_rate=0.5)
+    #machine = BubbleESN(1, (200,200,200,200), leak_rate=0.5)
     print 'Starting training...'
     start = time.time()
     trainer = LinearRegressionReadout(machine)
@@ -96,6 +97,11 @@ def mso_separation_task():
     plt.subplot(3,1,3)
     plt.plot(prediction[800:1000])
     plt.title('Predictions')
+    state_echo = machine.run_batch(train_input[2000:3000])
+    plt.matshow(state_echo.T,cmap="copper")
+    plt.matshow(machine.w_echo,cmap="bone")
+    plt.matshow(machine.w_input,cmap="bone")
+
     plt.show()
     
 def mso_task():
@@ -229,7 +235,7 @@ def mackey_glass_task():
     plt.show()
     """
 
-if 1:
+if raw_input("MSO signal generation?[ja/nein] ").startswith('j'):
     mso_task()  
 elif raw_input("mackey glass?[ja/nein] ").startswith('j'): 
     mackey_glass_task()

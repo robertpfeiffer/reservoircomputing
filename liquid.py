@@ -3,27 +3,6 @@ import numpy.linalg as linalg
 import itertools
 import collections
 
-def logistic(matrix):
-    """logistic function, applied element-wise to a matrix.
-    Can be used as a sigmoidal activation function"""
-    return numpy.reciprocal(1+numpy.exp(numpy.negative(matrix)))
-
-def smoothstep(matrix):
-    """Can be used as a sigmoidal activation function"""
-    clamped = numpy.clip(matrix,0.0,1.0)
-    p1 = 3 * numpy.square(clamped)
-    p2 = 2 * numpy.power(clamped,3*numpy.ones(clamped.shape))
-    return p1-p2
-
-def bad_sigmoid(matrix):
-    """Can be used as a sigmoidal activation function"""
-    return 1 +numpy.tanh(matrix)
-
-def better_sigmoid(matrix):
-    """logistic function, applied element-wise to a matrix.
-    Can be used as a sigmoidal activation function"""
-    return numpy.tanh(matrix)/2+smoothstep(matrix)
-
 class DummyESN(object):
     """This class implements the ESN interface, but it does not actually carry any
     state. Output = Input. Use it to compare the kernel quality against no kernel at all.
@@ -79,7 +58,7 @@ class ESN(object):
         to make the neurons more different from each other"""
         return random.uniform(-1, 1) * self.bias_scaling
 
-    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius_scaling=0.95, reset_state=True, start_in_equilibrium=True):
+    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
         self.ninput=ninput
         self.nnodes=nnodes
         self.leak_rate=leak_rate
@@ -90,7 +69,7 @@ class ESN(object):
         self.reset_state = reset_state
         self.input_scaling = input_scaling
         self.bias_scaling = bias_scaling
-        self.spectral_radius_scaling = spectral_radius_scaling
+        self.spectral_radius = spectral_radius
 
         w_echo = numpy.array(
             [[self.connection_weight(i,j)
@@ -107,52 +86,76 @@ class ESN(object):
         # set spectral radius of w_echo to 0.95
         eigenvalues=linalg.eigvals(w_echo)
         spectral_radius=max([abs(a) for a in eigenvalues])
-        w_echo *= self.spectral_radius_scaling/spectral_radius
+        w_echo *= self.spectral_radius/spectral_radius
         
         self.w_echo = w_echo
         self.w_input = w_input
         self.w_add = w_add
+        self.w_feedback=None
 
         state1 = numpy.zeros(self.nnodes)
-        if start_in_equilibrium:
-            zero_input=numpy.zeros(self.ninput)
-            state2 = self.step(state1, zero_input)
-            i = 0
-            while not numpy.allclose(state1,state2):
-                state1=state2
-                state2=self.step(state1,zero_input)
-                i +=1
-                if i > 15000:
-                    break
-                
-            self.equilibrium_state = state2
-        else:
-            self.equilibrium_state = state1
-        self.current_state = self.equilibrium_state
+        zero_input=numpy.zeros(self.ninput)
+        state2 = self.step(state1, zero_input)
+        i = 0
+        while not numpy.allclose(state1,state2):
+            state1=state2
+            state2=self.step(state1,zero_input)
+            i +=1
+            if i > 15000:
+                break
+        self.equilibrium_state = state2
 
-    def step(self, x_t_1, u_t):
-        result = (1-self.leak_rate)*x_t_1 + self.leak_rate*self.gamma(
-                numpy.dot(self.w_echo,x_t_1)
-             +  numpy.dot(self.w_input,u_t)
-             +  self.w_add)
+        if start_in_equilibrium:
+            self.current_state = self.equilibrium_state
+        else:
+            self.current_state = numpy.zeros(self.nnodes)
+
+    def step(self, x_t_1, u_t, f_t=None):
+        result = (1 - self.leak_rate) * x_t_1
+        recur = numpy.dot(self.w_echo,x_t_1)
+        inp   = numpy.dot(self.w_input,u_t)
+        result += self.leak_rate * self.gamma(
+                   recur+inp+self.w_add)
         return result.ravel()
     
-    def run_batch(self, u):
+    def run_batch(self, u, state=None):
         """ Runs the machine, returns the last state, saves previous states in state_echo
             Parameter u is the input, a 2dnumpy-array (time x input-dim) 
         """
         length = u.shape[0]
-        if self.reset_state:
-            state=self.equilibrium_state
-        else:
+        if state is None:
             state = self.current_state
-        
         state_echo = numpy.zeros((length, self.nnodes))
         for i in range(length):
             u_t = u[i,:]
             state = self.step(state,u_t)
             state_echo[i,:] = state[:]
-        self.current_state = state        
+        if not self.reset_state:
+            self.current_state = state
+        return state_echo
+
+    def run_batch_feedback(self, u, state=None):
+        """ Runs the machine, returns the last state, saves previous states in state_echo
+            Parameter u is the input, a 2dnumpy-array (time x input-dim) 
+        """
+        length,inputs = u.shape
+        state_echo = numpy.zeros((length, self.nnodes))
+        if state is None:
+            state = self.current_state
+        if self.w_feedback is not None:
+            feedback = numpy.zeros(self.ninput-inputs)
+        u_t=numpy.zeros(self.ninput)
+        for i in range(length):
+            u_t[:inputs] = u[i,:]
+            if self.w_feedback is not None:
+                u_t[inputs:]= feedback
+            state    = self.step(state,u_t)
+            state_echo[i,:] = state[:]
+            if self.w_feedback is not None:
+                state_1  = numpy.append(state,numpy.ones(1))
+                feedback = numpy.dot(self.w_feedback.T,state_1)
+        if not self.reset_state:
+            self.current_state = state
         return state_echo
     
     def reset(self):
@@ -160,12 +163,13 @@ class ESN(object):
         
     def run_streaming(self,u,y=None):
         """generate echo states and target values for training"""
-        state=self.equilibrium_state
+        state = self.current_state
         for ut, yt in itertools.izip(u, y):
             u_t = numpy.array(ut)
             state = self.step(state,u_t)
             yield state, numpy.array(yt)
-
+        if not self.reset_state:
+            self.current_state = state
 
     def predict_with_echo(self,u,w_output):
         """generate echo states and predictions """
@@ -203,7 +207,7 @@ class Grid_3D_ESN(ESN):
     def input_weight(self,n1,n2):
         """synaptic strength for the connection from input node n1 to echo node n2"""
         if random.random() < self.conn_input:
-            return 1
+            return random.uniform(-1, 1)*self.input_scaling
         return 0
 
     def __init__(self,ninput,(x,y,z),max_length,*args,**kwargs):
@@ -224,20 +228,21 @@ class BubbleESN(ESN):
                 bubblemin <= n2 < bubblemax):
                 if random.random() < self.conn_recurrent:
                     return random.gauss(0,1)
-        if (n1 < n2):
+                return 0
+        if (n1 > n2) and abs(n1-n2) < self.nnodes ** 0.5 + self.nnodes*0.1:
             if random.random() < self.conn_recurrent/5:
-                return random.gauss(0,1)
+                return random.gauss(0,1)*5
         return 0
 
     def input_weight(self,n1,n2):
         """synaptic strength for the connection from input node n1 to echo node n2"""
         if random.random() < self.conn_input:
             min_,max_=self.bubbles[0]
-            if n2<max_:
-                return 1
+            if n1<max_:
+                return random.uniform(-1, 1)*self.input_scaling
         return 0
 
-    def __init__(self,ninput,bubbles,*args,**kwargs):
+    def __init__(self,ninput,bubbles,leak_rates=None,*args,**kwargs):
         self.bubbles=[]
         s=0
         for b in bubbles:
@@ -246,138 +251,10 @@ class BubbleESN(ESN):
             s=max_
             self.bubbles.append((min_,max_))
         ESN.__init__(self,ninput,sum(bubbles),*args,**kwargs)
-
-
-class DiagonalESN(ESN):
-    """ESN that is supposed to behave like an integrator"""
-    def connection_weight(self,n1,n2):
-        """recurrent synaptic strength for the connection from node n1 to node n2"""
-        if n1==n2:
-            return 1
-        if random.random() < self.conn_recurrent:
-            return random.gauss(0,0.1)
-        return 0
-
-class FeedbackESN(ESN):
-    feedback = True
-
-    def noise(self):
-        return random_vector(self.noutput,-0.1,0.1)
-
-    def __init__(self,ninput,nnodes,noutput,*args,**kwargs):
-        ESN.__init__(self,ninput+noutput,nnodes,*args,**kwargs)
-        self.ninput=ninput
-        self.noutput=noutput
-                
-    def run_batch(self, u, y):
-        """ Runs the machine, returns the last state, saves previous states in state_echo
-            Parameter u is the input, a 2dnumpy-array (time x input-dim) 
-        """
-        length = u.shape[0]
-        state=self.equilibrium_state
-        state_echo = numpy.zeros((length, self.nnodes))
-        i = 0
-        for state, fb in self.run_streaming(state,y):
-            state_echo[i,:] = state
-            i = i + 1        
-        return state_echo
-    
-    def run_streaming(self,x,y):
-        state = self.equilibrium_state
-        t = 0
-        for xt,yt in itertools.izip(x,y):
-            if t == 0:
-                feedback = numpy.zeros(len(yt))
-            u_t = numpy.append(
-                numpy.array(xt),
-                feedback+self.noise())
-            state=self.step(state,u_t)
-            feedback = numpy.array(yt)
-            yield state, feedback
-            t += 1
-
-    def predict_with_echo(self,x,w_output,initial_feedback=[]):
-        state = self.equilibrium_state
-        feedback = numpy.zeros(self.noutput)
-        l = len(initial_feedback)
-        t = 0
-        for xt in x:
-            if t < l:
-                feedback=numpy.array(initial_feedback[t])
-            u_t = numpy.append(
-                numpy.array(xt),
-                feedback)
-            state=self.step(u_t)
-            state_1= numpy.append(self.state,numpy.ones(1))
-            feedback = numpy.dot(w_output,state_1)
-            yield feedback,state
-            t += 1
-
-class DelayFeedbackESN(ESN):
-    feedback = True
-
-    def noise(self):
-        return random_vector(self.nfeedback,-0.1,0.1)
-
-    def __init__(self,ninput,nnodes,noutput,delays,*args,**kwargs):
-        self.nfeedback=noutput*len(delays)
-        self.delays=delays
-        self.maxdelay=max(*delays)+2
-        ESN.__init__(self,ninput+noutput*len(delays),nnodes,*args,**kwargs)
-        self.ninput=ninput
-        self.noutput=noutput
-    
-    def run_streaming(self,x,y):
-        state = self.equilibrium_state
-        memory = collections.deque([],maxlen=self.maxdelay)
-        feedback = numpy.zeros(self.nfeedback)
-        d = zip(self.delays,range(len(self.delays)))
-        for xt,yt in itertools.izip(x,y):
-            target = numpy.array(yt)
-            for delay,i in d:
-                if delay < len(memory):
-                    feedback[i*self.noutput:(i+1)*self.noutput]=memory[delay]
-            u_t = numpy.append(
-                numpy.array(xt),
-                feedback+self.noise())
-            state=self.step(state,u_t)
-            memory.append(target)
-            yield state, target
-
-    def predict_with_echo(self,x,w_output,initial_feedback=[]):
-        state = self.equilibrium_state
-        memory = collections.deque([],maxlen=self.maxdelay)
-        feedback = numpy.zeros(self.nfeedback)
-        l = len(initial_feedback)
-        t=0
-        d = zip(self.delays,range(len(self.delays)))
-        for xt in x:
-            for delay,i in d:
-                if delay < len(memory):
-                    feedback[i*self.noutput:(i+1)*self.noutput]=memory[delay]
-            u_t = numpy.append(
-                numpy.array(xt),
-                feedback)
-            state=self.step(state,u_t)
-            state_1= numpy.append(state,numpy.ones(1))
-            value = numpy.dot(w_output,state_1)
-            if t < l:
-                memory.append(numpy.array(initial_feedback[t]))
-            else:
-                memory.append(value)
-
-            yield value,state
-            t += 1
-
-
-class DiagonalFeedbackESN(FeedbackESN):
-     def connection_weight(self,n1,n2):
-         """recurrent synaptic strength for the connection from node n1 to node n2"""
-         if n1==n2:
-             return 1
-         if random.random() < self.conn_recurrent:
-             return random.gauss(0,0.4)
-         return 0
+        if leak_rates is not None:
+            self.leak_rate=numpy.ones(self.nnodes)
+            for (bmin,bmax),lr in zip(self.bubbles,leak_rates):
+                self.leak_rate[bmin:bmax]=numpy.ones(bmax-bmin)*lr
 
 def run_all(pairs,machine):
     inp = []
@@ -387,49 +264,6 @@ def run_all(pairs,machine):
             inp.append(xi)
             targ.append(yi)
     return numpy.vstack(inp),numpy.vstack(targ)
-
-def linear_regression(X,Y):
-    X=numpy.append(X,numpy.ones((X.shape[0],1)),axis=1)
-    return numpy.transpose(linalg.lstsq(X,Y)[0])
-
-def rprop(A,b):
-         eta = numpy.ones((b.shape[1],A.shape[1]))*0.1
-         w   = numpy.ones((b.shape[1],A.shape[1]))*numpy.std(b)/numpy.std(A)
-         diff = numpy.dot((numpy.dot(A,w.T) - b).T,A)
-         print A,b
-         while numpy.sum(abs(diff)) > 0.1:
-             w     = w - (eta*diff)
-             diff2 = numpy.dot((numpy.dot(A,w.T) - b).T,A)
-             eta   = eta - eta * 0.5 * (diff2*diff < 0) + eta * 0.2 * (diff2*diff > 0)
-             diff  = diff2
-         return w
-
-def linear_regression_streaming(pairs,machine):
-    """input parameters:
-    pairs: pairs of lists of inputs and outputs
-    machine: an ESN
-    output:
-    output weight matrix"""
-    A = None 
-    b = None 
-    n = 0
-    for xs,ys in pairs:
-        n += 1
-        print "training run_streaming", n
-        for xi,yi in machine.run_streaming(xs,ys):
-            xi=numpy.append(xi,numpy.ones(1))
-            XTX=numpy.outer(xi,xi)
-            XTy=numpy.outer(xi,yi)
-            if A==None:
-                assert b==None
-                A=XTX
-                b=XTy
-            else:
-                A = numpy.add(XTX,A)
-                b = numpy.add(XTy,b)
-    #return numpy.linalg.lstsq(A,b)[0].T
-    return numpy.dot(linalg.pinv(A),b).T
-    #return rprop(A,b)
 
 def square_error(machine,weights,testdata):
     n = 0
