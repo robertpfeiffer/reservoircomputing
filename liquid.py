@@ -85,13 +85,14 @@ class ESN(object):
         
         # set spectral radius of w_echo to 0.95
         eigenvalues=linalg.eigvals(w_echo)
-        spectral_radius=max([abs(a) for a in eigenvalues])
-        w_echo *= self.spectral_radius/spectral_radius
+        network_spectral_radius=max([abs(a) for a in eigenvalues])
+        w_echo *= self.spectral_radius/network_spectral_radius
         
         self.w_echo = w_echo
         self.w_input = w_input
         self.w_add = w_add
-        self.w_feedback=None
+        self.w_feedback = None
+        self.current_feedback = None
 
         state1 = numpy.zeros(self.nnodes)
         zero_input=numpy.zeros(self.ninput)
@@ -142,18 +143,18 @@ class ESN(object):
         state_echo = numpy.zeros((length, self.nnodes))
         if state is None:
             state = self.current_state
-        if self.w_feedback is not None:
-            feedback = numpy.zeros(self.ninput-inputs)
+        if self.w_feedback is not None and self.current_feedback is None:
+            self.current_feedback = numpy.zeros(self.ninput-inputs)
         u_t=numpy.zeros(self.ninput)
         for i in range(length):
             u_t[:inputs] = u[i,:]
             if self.w_feedback is not None:
-                u_t[inputs:]= feedback
+                u_t[inputs:]= self.current_feedback
             state    = self.step(state,u_t)
             state_echo[i,:] = state[:]
             if self.w_feedback is not None:
-                state_1  = numpy.append(state,numpy.ones(1))
-                feedback = numpy.dot(self.w_feedback.T,state_1)
+                state_1  = numpy.append(numpy.ones(1), state)
+                self.current_feedback = numpy.dot(self.w_feedback.T,state_1)
         if not self.reset_state:
             self.current_state = state
         return state_echo
@@ -301,6 +302,7 @@ class BubbleESN(ESN):
     def __init__(self,ninput,bubble_sizes,bubble_type,*args,**kwargs):
         self.bubble_type = bubble_type
         self.bubble_borders=[]
+        self.leak_rates = None
         s=0
         for bubble_size in bubble_sizes:
             min_=s
@@ -308,9 +310,9 @@ class BubbleESN(ESN):
             s=max_
             self.bubble_borders.append((min_,max_))
         ESN.__init__(self,ninput,sum(bubble_sizes),*args,**kwargs)
-        if leak_rates is not None:
+        if self.leak_rates is not None:
             self.leak_rate=numpy.ones(self.nnodes)
-            for (bmin,bmax),lr in zip(self.bubbles,leak_rates):
+            for (bmin,bmax),lr in zip(self.bubbles,self.leak_rates):
                 self.leak_rate[bmin:bmax]=numpy.ones(bmax-bmin)*lr
 
 def run_all(pairs,machine):

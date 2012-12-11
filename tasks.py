@@ -108,34 +108,34 @@ def mso_task():
     print 'MSO Task'
     washout_time = 100
     training_time = 1000
-    testing_time = 800
+    testing_time = 600
     evaluation_time = 500 #only last 300 steps evaluated
     
     input_range = np.arange(0,10000,1) #np.array([range(2000)])
     #data = np.sin(0.8*input_range)
     #data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) #+ np.sin(0.74*input_range) 
-    data = sin(0.2*input_range) + sin(0.311*input_range) + sin(0.42*input_range) #+ sin(0.51*input_range) + sin(0.74*input_range)
+    data = sin(0.2*input_range) #+ sin(0.311*input_range) + sin(0.42*input_range) #+ sin(0.51*input_range) + sin(0.74*input_range)
     #data = sin(0.2*input_range)  * sin(0.311*input_range) + sin(0.42*input_range) 
     data = data[:, None]
-    N = 400
+    N = 50
     
-    T = 10
+    T = 20
     nrmses = np.zeros(T)
     best_nrmse = 100000;
     
     for i in range(T):
-        leak_rate = 0.3
+        leak_rate = 0.7
         #leak_rate = random.uniform(0.5, 1, N)
         #leak_rate = np.append(np.append(random.uniform(0.3, 1, N/3), random.uniform(0.3, 1, N/3)), random.uniform(0.3, 1, N/3))
         #leak_rate = np.append(0.3*np.ones(N/2), 0.7*np.ones(N/2))
-        #machine = ESN(1, N, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
-        machine = BubbleESN(1, (N/4, N/4, N/4, N/4), bubble_type=3, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
+        machine = ESN(1, N, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
+        #machine = BubbleESN(1, (N/4, N/4, N/4, N/4), bubble_type=3, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         machine.run_batch(data[:washout_time])
-        print 'Training...'
-        trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8));
-        trainer.train(data[washout_time:washout_time+training_time])
+        linRegTrainer = LinearRegressionReadout(machine, ridge=1e-8)
+        trainer = FeedbackReadout(machine, linRegTrainer);
+        trainer.train(train_input=None, train_target=data[washout_time:washout_time+training_time])
         
-        prediction = trainer.generate(testing_time)
+        prediction = trainer.generate(testing_time, None)
         testData = data[washout_time+training_time:washout_time+training_time+testing_time]
         
         evaluation_data = data[washout_time+training_time+(testing_time-evaluation_time):washout_time+training_time+testing_time]
@@ -190,7 +190,7 @@ def mackey_glass_task():
 
     print 'Create ESN...'
     random.seed(42)
-    machine = ESN(1, N, leak_rate=0.3, input_scaling=0.5, bias_scaling=0.5, spectral_radius_scaling=1.25, reset_state=False, start_in_equilibrium=False)
+    machine = ESN(1, N, leak_rate=0.3, input_scaling=0.5, bias_scaling=0.5, spectral_radius=1.25, reset_state=False, start_in_equilibrium=False)
     trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8));
     print 'Training...'
     start = time.time()
@@ -259,7 +259,7 @@ def mackey_glass_task():
     plt.show()
     """
 
-if raw_input("MSO signal generation?[ja/nein] ").startswith('j'):
+if 1:#raw_input("MSO signal generation?[ja/nein] ").startswith('j'):
     mso_task()  
 elif raw_input("mackey glass?[ja/nein] ").startswith('j'): 
     mackey_glass_task()

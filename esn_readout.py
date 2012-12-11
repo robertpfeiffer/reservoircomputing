@@ -18,7 +18,6 @@ class LinearRegressionReadout(object):
         self.ridge = ridge
 
     def train(self, train_input, train_target):
-        print "train linear"
         X = self._createX(train_input)
         if self.ridge==0:
             self.w_out = np.linalg.lstsq(X, train_target)[0]
@@ -42,28 +41,34 @@ class LinearRegressionReadout(object):
 class FeedbackReadout(object):
     """ Trains an ESN in generative mode and uses it for time series creation """
     #TODO: Zwischen fortgesetzten Folgen und wiederholten Sequenzen unterscheiden    
-    def __init__(self, machine, Trainer,**kwargs):
+    def __init__(self, machine, trainer):
         self.machine = machine
-        self.trainer = Trainer(machine,**kwargs)
+        self.trainer = trainer
         
     def train(self, train_input, train_target):
-        feedback = add_noise(train_target, 0.0001)[:-1];
+        """ train_target is taken as feedback """
+        feedback = add_noise(train_target, 0.0001)[:-1]; #all except the last
         self.feedback_dim=feedback.shape[1]
         if train_input is not None:
-            train_input=np.hstack((train_input[1:],feedback))
-            self.input_dim=train_input.shape[1]
+            train_input=np.hstack((train_input[1:],feedback)) #train_input[1:] so that input and feedback match
+            self.input_dim=train_input.shape[1] #TODO: Muesste die Zeile vor der oberen Zeile stehen?
         else:
             train_input=feedback
             self.input_dim=0
         self.trainer.train(train_input, train_target[1:])
         self.machine.w_feedback=self.trainer.w_out
 
-    def generate(self, length, initial_feedback):
-        echo1=self.machine.run_batch(initial_feedback)
-        echo1=echo1[-1,:]
+    def generate(self, length, initial_feedback=None):
         inputs=np.zeros((length,0))
-        return self.trainer.predict(inputs,echo1)
-
+        if initial_feedback is not None:
+            echo1=self.machine.run_batch(initial_feedback)
+            echo1=echo1[-1,:]
+            return self.trainer.predict(inputs,echo1)
+        else:
+            #states = self.machine.run_batch_feedback(inputs)
+            #Feedback must not be equal to readouts, so we need to compute them separately
+            return self.trainer.predict(inputs, None)
+    
     def predict(self, *args, **kwarks):
         return self.trainer.predict(*args, **kwarks)
     
