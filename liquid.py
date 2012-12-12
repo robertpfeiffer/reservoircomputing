@@ -290,14 +290,14 @@ class BubbleESN(ESN):
             
         return 0
 
-
-    def input_weight(self,n1,n2):
-        """synaptic strength for the connection from input node n1 to echo node n2"""
-        if random.random() < self.conn_input or self.bubble_type in (2,3):
-            min_,max_=self.bubble_borders[0]
-            if n2<max_:
-                return 1
-        return 0
+# TODO: Input Konfigurierbar machen: nur erste bubble/alle Bubbles. Folgender Code ist fuer den Fall 'nur erste Bubble'. Ergebnisse: schrottig.
+#    def input_weight(self,n1,n2):
+#        """synaptic strength for the connection from input node n1 to echo node n2"""
+#        if random.random() < self.conn_input or self.bubble_type in (2,3):
+#            min_,max_=self.bubble_borders[0]
+#            if n2<max_:
+#                return 1
+#        return 0
 
     def __init__(self,ninput,bubble_sizes,bubble_type,*args,**kwargs):
         self.bubble_type = bubble_type
