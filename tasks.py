@@ -106,7 +106,7 @@ def mso_task():
     testing_time = 600
     evaluation_time = 500 #only last X steps evaluated
     
-    plots = True
+    plots = False
     
     input_range = np.arange(0, 10000, 1) #np.array([range(2000)])
     #data = np.sin(2.92*input_range) + np.sin(1.074*input_range) 
@@ -134,8 +134,8 @@ def mso_task():
     for i in range(T):
         machine = ESN(1, N, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = BubbleESN(1, (N/4, N/4, N/4, N/4), bubble_type=3, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
-        #machine = BubbleESN(1, (N/2, N/2), bubble_type=1, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
-        #machine.run_batch(data[:washout_time])
+        #machine = BubbleESN(1, (N/2, N/2), bubble_type=3, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
+        machine.run_batch(data[:washout_time])
         #save_object(machine, 'm1')
         #machine = load_object('m1');
         
