@@ -243,7 +243,7 @@ class BubbleESN(ESN):
                 break
             k = k + 1
         
-        ### DECOUPLED WEIGHTS ###
+        ### BUBBLES ARE DECOUPLED WEIGHTS ###
         if (self.bubble_type == 1):
             # weights if both neurons are in the same bubble
             if (n1_bubble == n2_bubble):
@@ -251,7 +251,7 @@ class BubbleESN(ESN):
                     return random.gauss(0,1)  
     
         
-        ### PUSH FORWARD/ SEQUENTIAL WEIGHTS ###
+        ### PUSH FORWARD/ SEQUENTIAL WEIGHTS - ONLY CONNECTED FROM ONE BUBBLE TO THE NEXT ###
         elif self.bubble_type == 2:
         # weights if both neurons are in the same bubble
             if (n1_bubble == n2_bubble):
@@ -262,7 +262,7 @@ class BubbleESN(ESN):
                 if random.random() < self.conn_recurrent/5:
                     return random.gauss(0,1)
         
-        ### NEIGHBORHOOD WEIGHTS ###
+        ### ONLY NEIGHBORING BUBBLES ARE CONNECTED ###
         elif self.bubble_type == 3: 
             # weights if both neurons are in the same bubble
             if (n1_bubble == n2_bubble):
@@ -273,7 +273,7 @@ class BubbleESN(ESN):
                 if random.random() < self.conn_recurrent/5:
                     return random.gauss(0,1)
                 
-        ### FULLY CONNECTED WEIGHTS ###
+        ### ALL BUBBLES FULLY (YET SPARSELY) CONNECTED ###
         elif self.bubble_type == 4: 
             # weights if both neurons are in the same bubble
             if (n1_bubble == n2_bubble):

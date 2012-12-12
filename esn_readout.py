@@ -2,9 +2,6 @@ import numpy as np
 import liquid
 import mdp.utils
 
-#def random_matrix(size,a,b):
-#    return (b - a) * numpy.random.random_sample(size) + a
-
 def add_noise(data, var):
     #return data + np.random.normal(0, var, data.shape)
     return data
@@ -37,6 +34,19 @@ class LinearRegressionReadout(object):
         state_echo = self.machine.run_batch_feedback(data, state=state)
         X = np.append(np.ones((state_echo.shape[0],1)), state_echo, 1)
         return X
+            
+    def predict_old(self, test_input):
+        X = self._createX_old(test_input)
+        Y = np.dot(X, self.w_out) 
+        return Y
+    
+    def _createX_old(self, data):
+        if len(data.shape) == 1:
+            data = data[:,None] #1d->2d
+        state_echo = self.machine.run_batch(data)
+        X = np.append(np.ones((state_echo.shape[0],1)), state_echo, 1)
+        return X
+
 
 class FeedbackReadout(object):
     """ Trains an ESN in generative mode and uses it for time series creation """
@@ -75,4 +85,18 @@ class FeedbackReadout(object):
     @property
     def w_out(self):
         return self.trainer.w_out
-            
+        
+    def train_old(self, train_input):
+        feedback = add_noise(train_input, 0.0001)[:-1];
+        self.trainer.train(feedback, train_input[1:])
+        self.gen_dim = train_input.shape[1]
+        self.initial_input = np.empty((1, self.gen_dim))
+        self.initial_input[0] = train_input[-1]
+
+    def generate_old(self, length):
+        feedback = self.initial_input
+        output = np.zeros((length, feedback.shape[1]))
+        for i in range(length):
+            output[i] = self.trainer.predict(feedback)
+            feedback = output[i]
+        return output       
