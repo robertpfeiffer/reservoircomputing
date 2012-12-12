@@ -1,12 +1,12 @@
 import shelve
 
-def save_object(obj, name):
+def save_object(obj, name, file_name):
 
-    shelf = shelve.open('shelved_esns.txt')
+    shelf = shelve.open(file_name)
     shelf[name] = obj
     
-def load_object(name):
+def load_object(name, file_name):
     
-    shelf = shelve.open('shelved_esns.txt')
+    shelf = shelve.open(file_name)
     obj = shelf[name]
     return obj

@@ -70,6 +70,7 @@ class ESN(object):
         self.input_scaling = input_scaling
         self.bias_scaling = bias_scaling
         self.spectral_radius = spectral_radius
+        self.start_in_equilibrium = start_in_equilibrium
 
         w_echo = numpy.array(
             [[self.connection_weight(i,j)
@@ -106,10 +107,7 @@ class ESN(object):
                 break
         self.equilibrium_state = state2
 
-        if start_in_equilibrium:
-            self.current_state = self.equilibrium_state
-        else:
-            self.current_state = numpy.zeros(self.nnodes)
+        self.reset()
 
     def step(self, x_t_1, u_t, f_t=None):
         result = (1 - self.leak_rate) * x_t_1
@@ -160,7 +158,10 @@ class ESN(object):
         return state_echo
     
     def reset(self):
-        self.current_state = self.equilibrium_state
+        if self.start_in_equilibrium:
+            self.current_state = self.equilibrium_state
+        else:
+            self.current_state = numpy.zeros(self.nnodes)
         
     def run_streaming(self,u,y=None):
         """generate echo states and target values for training"""

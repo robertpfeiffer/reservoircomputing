@@ -5,6 +5,22 @@ import mdp.utils
 def add_noise(data, var):
     #return data + np.random.normal(0, var, data.shape)
     return data
+
+def lin_regression_predict (inputs, weights):
+    X = np.append(np.ones((inputs.shape[0],1)), inputs, 1)
+    Y = np.dot(X, weights)
+    return Y;
+     
+def lin_regression_train(inputs, targets, ridge):
+    X = np.append(np.ones((inputs.shape[0],1)), inputs, 1)
+    if ridge==0:
+        w_out = np.linalg.lstsq(inputs, targets)[0]
+    else:
+        X_T = X.T
+        beta = np.dot( np.dot(targets.T,X), mdp.utils.inv(np.dot(X_T,X) + ridge*np.eye(X.shape[1]) ) )
+        w_out = beta.T
+    Y = np.dot(X, w_out)
+    return (w_out, Y) # weights and training prediction
     
 class LinearRegressionReadout(object):
     """ Trains an esn and uses it for prediction """
@@ -15,6 +31,7 @@ class LinearRegressionReadout(object):
         self.ridge = ridge
 
     def train(self, train_input, train_target):
+        """ returns (echos, predictions) """
         X = self._createX(train_input)
         if self.ridge==0:
             self.w_out = np.linalg.lstsq(X, train_target)[0]
@@ -22,11 +39,14 @@ class LinearRegressionReadout(object):
             X_T = X.T
             beta = np.dot( np.dot(train_target.T,X), mdp.utils.inv(np.dot(X_T,X) + self.ridge*np.eye(X.shape[1]) ) )
             self.w_out = beta.T
+        Y = np.dot(X, self.w_out)
+        return (X[:, 1:],Y) #echos without constant
             
     def predict(self, test_input,state=None):
+        """ returns (echos, predictions) """
         X = self._createX(test_input,state=state)
         Y = np.dot(X, self.w_out) 
-        return Y
+        return (X[:, 1:],Y)
     
     def _createX(self, data, state=None):
         if len(data.shape) == 1:
@@ -34,7 +54,7 @@ class LinearRegressionReadout(object):
         state_echo = self.machine.run_batch_feedback(data, state=state)
         X = np.append(np.ones((state_echo.shape[0],1)), state_echo, 1)
         return X
-            
+    """        
     def predict_old(self, test_input):
         X = self._createX_old(test_input)
         Y = np.dot(X, self.w_out) 
@@ -46,7 +66,7 @@ class LinearRegressionReadout(object):
         state_echo = self.machine.run_batch(data)
         X = np.append(np.ones((state_echo.shape[0],1)), state_echo, 1)
         return X
-
+    """
 
 class FeedbackReadout(object):
     """ Trains an ESN in generative mode and uses it for time series creation """
@@ -56,7 +76,8 @@ class FeedbackReadout(object):
         self.trainer = trainer
         
     def train(self, train_input, train_target):
-        """ train_target is taken as feedback """
+        """ train_target is taken as feedback. 
+        returns (states, prediction) """
         feedback = add_noise(train_target, 0.0001)[:-1]; #all except the last
         self.feedback_dim=feedback.shape[1]
         if train_input is not None:
@@ -65,10 +86,12 @@ class FeedbackReadout(object):
         else:
             train_input=feedback
             self.input_dim=0
-        self.trainer.train(train_input, train_target[1:])
+        X, Y = self.trainer.train(train_input, train_target[1:])
         self.machine.w_feedback=self.trainer.w_out
+        return (X,Y)
 
     def generate(self, length, initial_feedback=None):
+        """ returns (states, prediction) """
         inputs=np.zeros((length,0))
         if initial_feedback is not None:
             echo1=self.machine.run_batch(initial_feedback)
