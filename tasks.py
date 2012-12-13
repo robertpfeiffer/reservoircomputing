@@ -99,17 +99,29 @@ def mso_separation_task():
     plt.title('Predictions')
     plt.show()
     
-def mso_task():
+def mso_task(task_type=1, plots=False):
     print 'MSO Task'
     washout_time = 100
     training_time = 1000
     testing_time = 600
     evaluation_time = 500 #only last X steps evaluated
     
-    plots = False
-    
     input_range = np.arange(0, 10000, 1) #np.array([range(2000)])
-    data = np.sin(0.2*input_range) + np.sin(0.0311*input_range) 
+    if task_type==1:
+        data = np.sin(0.2*input_range)
+    elif task_type==2:
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) 
+    elif task_type==3:
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range)
+    elif task_type==4: 
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range)
+    elif task_type==5: 
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
+    else:
+        print 'Unknown MSO Task Type: ', task_type
+        raise ValueError 
+    
+    #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range)                    
     #data = np.sin(2.92*input_range) + np.sin(1.074*input_range) 
     #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range) + np.sin(2.92*input_range) + np.sin(1.074*input_range) 
     #data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + np.sin(0.74*input_range) 
@@ -129,7 +141,7 @@ def mso_task():
     nrmses = np.empty(T)
     best_nrmse = 100000;
     
-    leak_rate = 0.2
+    leak_rate = 0.3
     #leak_rate = random.uniform(0.3, 1, N)
     #leak_rate = np.append(np.append(random.uniform(0.3, 1, N/3), random.uniform(0.3, 1, N/3)), random.uniform(0.3, 1, N/3))
     #leak_rate = np.append(1*np.ones(N/2), 0.7*np.ones(N/2))
@@ -146,11 +158,11 @@ def mso_task():
         #trainer = FeedbackReadout(machine, LinearRegressionReadout(machine));
         trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8))
         #trainer.train_old(data[washout_time:washout_time+training_time])
-        (train_echo, train_prediction) = trainer.train(train_input=None, train_target=train_target)
+        train_echo, train_prediction = trainer.train(train_input=None, train_target=train_target)
 
         machine.current_feedback = train_target[-1]
         #prediction = trainer.generate_old(testing_time)
-        (test_echo, prediction) = trainer.generate(testing_time, None)
+        test_echo, prediction = trainer.generate(testing_time, None)
         #testData = data[washout_time+training_time:washout_time+training_time+testing_time]
         
         evaluation_data = data[washout_time+training_time+(testing_time-evaluation_time):washout_time+training_time+testing_time]
@@ -204,6 +216,8 @@ def mso_task():
         hist=np.histogram(best_trainer.w_out,bins=np.linspace(0,6,num=61))
         plt.hist(best_trainer.w_out)
         plt.show()
+        
+    return best_nrmse
     
 
 def mso_task_regression_analysis():
@@ -263,7 +277,7 @@ def mso_task_regression_analysis():
     plt.legend(['Target signal', 'Free-running predicted signal'])
     plt.show()
     
-def mackey_glass_task():
+def mackey_glass_task(plots=False):
     #from http://minds.jacobs-university.de/mantas/code
     print 'Mackey-Glass t17 - Task'
     data = np.loadtxt('MackeyGlass_t17.txt') 
@@ -272,89 +286,82 @@ def mackey_glass_task():
     testLen = 500
     N = 300
 
-    print 'Create ESN...'
     random.seed(42)
-    machine = ESN(1, N, leak_rate=0.3, input_scaling=0.5, bias_scaling=0.5, spectral_radius_scaling=1.25, reset_state=False, start_in_equilibrium=False)
-    trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8));
-    print 'Training...'
-    start = time.time()
-    trainer.train(data[:trainLen])
-    print 'Training Time: ', time.time() - start, 's'
     
-    #machine.reset()
-    #trainer.initial_input = data[0,None]
-    prediction = trainer.generate(testLen)
-    testData = data[trainLen:trainLen+testLen]
-    mse = Oger.utils.mse(prediction,testData)
-    nrmse = Oger.utils.nrmse(prediction,testData)
-    print 'TEST MSE: ', mse, 'NRMSE: ', nrmse
+    best_nrmse = float('inf')
     
-    plt.figure(1).clear()
-    #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
-    #plt.plot( prediction, 'b' )
-    plt.plot( testData, 'g' )
-    plt.plot( prediction, 'b' )
-    plt.title('Test Performance')
-    plt.legend(['Target signal', 'Free-running predicted signal'])
-    #plt.show()
+    for i in range(10):
+        machine = ESN(1, N, leak_rate=0.3, input_scaling=0.5, bias_scaling=0.5, spectral_radius=1.25, reset_state=False, start_in_equilibrium=False)
+        trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8));
+        #start = time.time()
+        trainer.train(train_input=None, train_target=data[:trainLen])
+        #print 'Training Time: ', time.time() - start, 's'
+        
+        #machine.reset()
+        #trainer.initial_input = data[0,None]
+        machine.current_feedback = data[trainLen-1]
+        echo, prediction = trainer.generate(testLen)
+        testData = data[trainLen:trainLen+testLen]
+        mse = Oger.utils.mse(prediction,testData)
+        nrmse = Oger.utils.nrmse(prediction,testData)
+        print 'TEST MSE', i,':' , mse, 'NRMSE', i,':' , nrmse
+        if nrmse < best_nrmse:
+            best_nrmse = nrmse
     
-    plt.figure(2).clear()
-    plt.bar( range(1+N), trainer.w_out)
-    plt.title('Output weights $\mathbf{W}^{out}$')
-    #plt.show()
+    if plots:
+        plt.figure(1).clear()
+        #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
+        #plt.plot( prediction, 'b' )
+        plt.plot( testData, 'g' )
+        plt.plot( prediction, 'b' )
+        plt.title('Test Performance')
+        plt.legend(['Target signal', 'Free-running predicted signal'])
+        #plt.show()
+        
+        plt.figure(2).clear()
+        plt.bar( range(1+N), trainer.w_out)
+        plt.title('Output weights $\mathbf{W}^{out}$')
+        plt.show()
+        
+    return best_nrmse
     
-    """ Peformance on Training Data: """
+    """ Peformance on Training Data. Hier schlechtere Ergebnisse - wahrscheinlich wegen washout time
     machine.reset()
-    trainer.initial_input = data[0,None]
-    prediction = trainer.generate(trainLen)
+    machine.current_feedback = 0
+    echo, prediction = trainer.generate(trainLen)
     testData = data[1:trainLen+1]
     mse = Oger.utils.mse(prediction,testData)
     nrmse = Oger.utils.nrmse(prediction,testData)
     print 'Training MSE: ', mse, 'NRMSE: ', nrmse
     
-    plt.figure(3).clear()
-    #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
-    #plt.plot( prediction, 'b' )
-    plt.plot( testData, 'g' )
-    plt.plot( prediction, 'b' )
-    plt.title('Training Performance')
-    plt.legend(['Target signal', 'Free-running predicted signal'])
-    plt.show()
+    if plots:
+        plt.figure(3).clear()
+        #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
+        #plt.plot( prediction, 'b' )
+        plt.plot( testData, 'g' )
+        plt.plot( prediction, 'b' )
+        plt.title('Training Performance')
+        plt.legend(['Target signal', 'Free-running predicted signal'])
+        plt.show()
     
-    
-    """
-    prediction = trainer.generate(testLen)
-    mse = Oger.utils.mse(prediction,data[trainLen:trainLen+testLen])
-    nrmse = Oger.utils.nrmse(prediction,data[trainLen:trainLen+testLen])
-    print 'MSE: ', mse, 'NRMSE: ', nrmse
-    
-    plt.figure(1).clear()
-    #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
-    #plt.plot( prediction, 'b' )
-    plt.plot( data[trainLen+1:trainLen+100+1], 'g' )
-    plt.plot( prediction[:100], 'b' )
-    plt.title('Target and generated signals $y(n)$ starting at $n=0$')
-    plt.legend(['Target signal', 'Free-running predicted signal'])
-    plt.show()
-    
-    plt.figure(2).clear()
-    plt.bar( range(1+N), trainer.w_out)
-    plt.title('Output weights $\mathbf{W}^{out}$')
-    plt.show()
     """
 
-if 1:
-    #mso_task()
-    mso_task_regression_analysis()  
-elif raw_input("mackey glass?[ja/nein] ").startswith('j'): 
-    mackey_glass_task()
-elif  raw_input("multiple superimposed oscillators separation task?[ja/nein] ").startswith('j'): 
-    mso_separation_task()
-elif raw_input("memory task?[ja/nein] ").startswith('j'): 
-    run_memory_task()
-elif raw_input("1_2_A_X task?[ja/nein] ").startswith('j'): 
-    run_one_two_a_x_task()
-elif raw_input("NARMA 30[ja/nein] ").startswith('j'): 
-    run_NARMA_task()
-else:
-    print "do nothing"
+if __name__ == "__main__":
+    if 1:
+        mackey_glass_task(True)
+    elif raw_input("mso-task_regression_analysis?[ja/nein] ").startswith('j'): 
+        mso_task_regression_analysis()  
+    elif raw_input("mso-task?[ja/nein] ").startswith('j'): 
+        mso_task(2)
+    elif raw_input("mackey glass?[ja/nein] ").startswith('j'): 
+        mackey_glass_task()
+    elif  raw_input("multiple superimposed oscillators separation task?[ja/nein] ").startswith('j'): 
+        mso_separation_task()
+    elif raw_input("memory task?[ja/nein] ").startswith('j'): 
+        run_memory_task()
+    elif raw_input("1_2_A_X task?[ja/nein] ").startswith('j'): 
+        run_one_two_a_x_task()
+    elif raw_input("NARMA 30[ja/nein] ").startswith('j'): 
+        run_NARMA_task()
+    else:
+        print "do nothing"
