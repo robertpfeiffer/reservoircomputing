@@ -32,32 +32,6 @@ def random_vector(size,a,b):
 class ESN(object):
     feedback = False
 
-    def connection_weight(self,n1,n2):
-        """recurrent synaptic strength for the connection from node n1 to node n2"""
-        if random.random() < self.conn_recurrent:
-            weight = random.gauss(0,1)
-            #This stabilizes in the case of feedback. TODO: Investigate
-            if random.uniform(0,1) < self.frac_exc:
-                if weight <= 0:
-                    weight=-weight
-            else:
-                if weight >= 0:
-                    weight =-weight
-            
-            return weight
-        return 0
-
-    def input_weight(self,n1,n2):
-        """synaptic strength for the connection from input node n1 to echo node n2"""
-        if random.random() < self.conn_input:
-            return random.uniform(-1, 1)*self.input_scaling
-        return 0
-
-    def add_bias(self,n1):
-        """added to the neuron at each step,
-        to make the neurons more different from each other"""
-        return random.uniform(-1, 1) * self.bias_scaling
-
     def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
         self.ninput=ninput
         self.nnodes=nnodes
@@ -108,6 +82,32 @@ class ESN(object):
         self.equilibrium_state = state2
 
         self.reset()
+        
+    def connection_weight(self,n1,n2):
+        """recurrent synaptic strength for the connection from node n1 to node n2"""
+        if random.random() < self.conn_recurrent:
+            weight = random.gauss(0,1)
+            #This stabilizes in the case of feedback. TODO: Investigate
+            if random.uniform(0,1) < self.frac_exc:
+                if weight <= 0:
+                    weight=-weight
+            else:
+                if weight >= 0:
+                    weight =-weight
+            
+            return weight
+        return 0
+
+    def input_weight(self,n1,n2):
+        """synaptic strength for the connection from input node n1 to echo node n2"""
+        if random.random() < self.conn_input:
+            return random.uniform(-1, 1)*self.input_scaling
+        return 0
+
+    def add_bias(self,n1):
+        """added to the neuron at each step,
+        to make the neurons more different from each other"""
+        return random.uniform(-1, 1) * self.bias_scaling
 
     def step(self, x_t_1, u_t, f_t=None):
         result = (1 - self.leak_rate) * x_t_1

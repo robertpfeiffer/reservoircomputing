@@ -16,37 +16,53 @@ from esn_persistence import *
 def printf(format, *args):
     sys.stdout.write(format % args)  
 
-def run_memory_task():
-    delay = 20
-    print "create data..."
+def run_memory_task(N=15, delay=20):
+    print "Memory Task"
+    #print "create data..."
     train_input, train_target = Oger.datasets.memtest(n_samples=1, sample_len=10000, n_delays=delay)
     test_input, test_target = Oger.datasets.memtest(n_samples=1, sample_len=1000, n_delays=delay)
     
-    print "train machine..."
-    machine = ESN(1,15)
-    trainer = LinearRegressionReadout(machine)
-    trainer.train(train_input[0], train_target[0])
+    best_capacity = 0
+    for i in range(5):
+        #print "train machine..."
+        machine = ESN(1,N)
+        trainer = LinearRegressionReadout(machine)
+        trainer.train(train_input[0], train_target[0])
+        
+        #print "predict..."
+        echo, prediction = trainer.predict(test_input[0])
+        memory_capacity = -Oger.utils.mem_capacity(prediction, test_target[0])
+        mse = Oger.utils.mse(prediction,test_target[0])
+        printf("%d Memory Capacity: %f MSE: %f\n" , i, memory_capacity, mse)
+        
+        if memory_capacity > best_capacity:
+            best_capacity = memory_capacity
     
-    print "predict..."
-    prediction = trainer.predict(test_input[0])
-    memory_capacity = -Oger.utils.mem_capacity(prediction, test_target[0])
-    mse = Oger.utils.mse(prediction,test_target[0])
-    printf("MSE: %f Memory Capacity: %f\n", mse, memory_capacity)
+    print 'Highest Capacity: ', best_capacity 
+    return best_capacity
         
 def run_NARMA_task():
+    print 'NARMA task'
     [train_input, train_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
     [test_input, test_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
     
-    print "train machine..."
-    machine = ESN(1,100)
-    trainer = LinearRegressionReadout(machine)
-    trainer.train(train_input[0], train_target[0])
-    
-    print "predict..."
-    machine.reset()
-    prediction = trainer.predict(test_input[0])
-    mse = Oger.utils.nrmse(prediction,test_target[0])
-    printf("NRMSE: %f\n", mse)
+    best_nrmse = float('Inf')
+    for i in range(10):
+        #print "train machine..."
+        machine = ESN(ninput=1, nnodes=100, input_scaling=0.05, start_in_equilibrium=True)
+        trainer = LinearRegressionReadout(machine)
+        trainer.train(train_input[0], train_target[0])
+        
+        #print "predict..."
+        #machine.reset()
+        echo, prediction = trainer.predict(test_input[0])
+        nrmse = Oger.utils.nrmse(prediction,test_target[0])
+        if nrmse < best_nrmse:
+            best_nrmse = nrmse
+        printf("%d NRMSE: %f\n", i+1, nrmse)
+        
+    print 'Min NRMSE: ', best_nrmse
+    return best_nrmse
 
 def run_one_two_a_x_task():
     length = 10000
@@ -181,7 +197,7 @@ def mso_task(task_type=1, plots=False):
         #plt.pcolormesh(plot_echo,cmap="bone")
         
         #print 'TEST MSE: ', mse, 'NRMSE: ', nrmse
-        print i,' :NRMSE:', nrmse
+        print i,'NRMSE:', nrmse
         #if best_nrmse < math.pow(10,-4):
          #   T = i + 1
           #  break
@@ -304,9 +320,11 @@ def mackey_glass_task(plots=False):
         testData = data[trainLen:trainLen+testLen]
         mse = Oger.utils.mse(prediction,testData)
         nrmse = Oger.utils.nrmse(prediction,testData)
-        print 'TEST MSE', i,':' , mse, 'NRMSE', i,':' , nrmse
+        print i+1,'TEST MSE:', mse, ' NRMSE:' , nrmse
         if nrmse < best_nrmse:
             best_nrmse = nrmse
+            
+    print 'Min NRMSE: ', best_nrmse 
     
     if plots:
         plt.figure(1).clear()
@@ -348,7 +366,7 @@ def mackey_glass_task(plots=False):
 
 if __name__ == "__main__":
     if 1:
-        mackey_glass_task(True)
+        mso_task(1)
     elif raw_input("mso-task_regression_analysis?[ja/nein] ").startswith('j'): 
         mso_task_regression_analysis()  
     elif raw_input("mso-task?[ja/nein] ").startswith('j'): 
