@@ -21,7 +21,6 @@ def lin_regression_train(inputs, targets, ridge):
         w_out = beta.T
     Y = np.dot(X, w_out)
     return (w_out, Y) # weights and training prediction
->>>>>>> cb939aa976bb70c8d8fb3c37156e657da0517dc6
     
 class LinearRegressionReadout(object):
     """ Trains an esn and uses it for prediction """
