@@ -32,6 +32,57 @@ def random_vector(size,a,b):
 class ESN(object):
     feedback = False
 
+    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
+        self.ninput=ninput
+        self.nnodes=nnodes
+        self.leak_rate=leak_rate
+        self.gamma=gamma
+        self.conn_recurrent=conn_recurrent
+        self.conn_input=conn_input
+        self.frac_exc=frac_exc
+        self.reset_state = reset_state
+        self.input_scaling = input_scaling
+        self.bias_scaling = bias_scaling
+        self.spectral_radius = spectral_radius
+        self.start_in_equilibrium = start_in_equilibrium
+
+        w_echo = numpy.array(
+            [[self.connection_weight(i,j)
+              for j in range(self.nnodes)]
+            for i in range(self.nnodes)])
+        w_input=numpy.array(
+            [[self.input_weight(i,j)
+              for j in range(self.ninput)]
+            for i in range(self.nnodes)])
+        w_add = numpy.array(
+            [self.add_bias(i)
+             for i in range(self.nnodes)])
+        
+        # set spectral radius of w_echo to 0.95
+        eigenvalues=linalg.eigvals(w_echo)
+        network_spectral_radius=max([abs(a) for a in eigenvalues])
+        w_echo *= self.spectral_radius/network_spectral_radius
+        
+        self.w_echo = w_echo
+        self.w_input = w_input
+        self.w_add = w_add
+        self.w_feedback = None
+        self.current_feedback = None
+
+        state1 = numpy.zeros(self.nnodes)
+        zero_input=numpy.zeros(self.ninput)
+        state2 = self.step(state1, zero_input)
+        i = 0
+        while not numpy.allclose(state1,state2):
+            state1=state2
+            state2=self.step(state1,zero_input)
+            i +=1
+            if i > 15000:
+                break
+        self.equilibrium_state = state2
+
+        self.reset()
+        
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         if random.random() < self.conn_recurrent:
@@ -57,58 +108,6 @@ class ESN(object):
         """added to the neuron at each step,
         to make the neurons more different from each other"""
         return random.uniform(-1, 1) * self.bias_scaling
-
-    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
-        self.ninput=ninput
-        self.nnodes=nnodes
-        self.leak_rate=leak_rate
-        self.gamma=gamma
-        self.conn_recurrent=conn_recurrent
-        self.conn_input=conn_input
-        self.frac_exc=frac_exc
-        self.reset_state = reset_state
-        self.input_scaling = input_scaling
-        self.bias_scaling = bias_scaling
-        self.spectral_radius = spectral_radius
-
-        w_echo = numpy.array(
-            [[self.connection_weight(i,j)
-              for j in range(self.nnodes)]
-            for i in range(self.nnodes)])
-        w_input=numpy.array(
-            [[self.input_weight(i,j)
-              for j in range(self.ninput)]
-            for i in range(self.nnodes)])
-        w_add = numpy.array(
-            [self.add_bias(i)
-             for i in range(self.nnodes)])
-        
-        # set spectral radius of w_echo to 0.95
-        eigenvalues=linalg.eigvals(w_echo)
-        spectral_radius=max([abs(a) for a in eigenvalues])
-        w_echo *= self.spectral_radius/spectral_radius
-        
-        self.w_echo = w_echo
-        self.w_input = w_input
-        self.w_add = w_add
-        self.w_feedback=None
-
-        state1 = numpy.zeros(self.nnodes)
-        zero_input=numpy.zeros(self.ninput)
-        state2 = self.step(state1, zero_input)
-        i = 0
-        while not numpy.allclose(state1,state2):
-            state1=state2
-            state2=self.step(state1,zero_input)
-            i +=1
-            if i > 15000:
-                break
-        self.equilibrium_state = state2
-
-        if start_in_equilibrium:
-            self.current_state = self.equilibrium_state
-        else:
-            self.current_state = numpy.zeros(self.nnodes)
 
     def step(self, x_t_1, u_t, f_t=None):
         result = (1 - self.leak_rate) * x_t_1
@@ -142,26 +141,29 @@ class ESN(object):
         state_echo = numpy.zeros((length, self.nnodes))
         if state is None:
             state = self.current_state
-        if self.w_feedback is not None:
-            feedback = numpy.zeros(self.ninput-inputs)
+        if self.w_feedback is not None and self.current_feedback is None:
+            self.current_feedback = numpy.zeros(self.ninput-inputs)
         u_t=numpy.zeros(self.ninput)
         for i in range(length):
             print u.shape
             print u_t.shape
             u_t[:inputs] = u[i,:].ravel()
             if self.w_feedback is not None:
-                u_t[inputs:]= feedback
+                u_t[inputs:]= self.current_feedback
             state    = self.step(state,u_t)
             state_echo[i,:] = state[:]
             if self.w_feedback is not None:
-                state_1  = numpy.append(state,numpy.ones(1))
-                feedback = numpy.dot(self.w_feedback.T,state_1)
+                state_1  = numpy.append(numpy.ones(1), state)
+                self.current_feedback = numpy.dot(self.w_feedback.T,state_1)
         if not self.reset_state:
             self.current_state = state
         return state_echo
     
     def reset(self):
-        self.current_state = self.equilibrium_state
+        if self.start_in_equilibrium:
+            self.current_state = self.equilibrium_state
+        else:
+            self.current_state = numpy.zeros(self.nnodes)
         
     def run_streaming(self,u,y=None):
         """generate echo states and target values for training"""
@@ -244,7 +246,7 @@ class BubbleESN(ESN):
                 break
             k = k + 1
         
-        ### DECOUPLED WEIGHTS ###
+        ### BUBBLES ARE DECOUPLED WEIGHTS ###
         if (self.bubble_type == 1):
             # weights if both neurons are in the same bubble
             if (n1_bubble == n2_bubble):
@@ -252,7 +254,7 @@ class BubbleESN(ESN):
                     return random.gauss(0,1)  
     
         
-        ### PUSH FORWARD/ SEQUENTIAL WEIGHTS ###
+        ### PUSH FORWARD/ SEQUENTIAL WEIGHTS - ONLY CONNECTED FROM ONE BUBBLE TO THE NEXT ###
         elif self.bubble_type == 2:
         # weights if both neurons are in the same bubble
             if (n1_bubble == n2_bubble):
@@ -263,7 +265,7 @@ class BubbleESN(ESN):
                 if random.random() < self.conn_recurrent/5:
                     return random.gauss(0,1)
         
-        ### NEIGHBORHOOD WEIGHTS ###
+        ### ONLY NEIGHBORING BUBBLES ARE CONNECTED ###
         elif self.bubble_type == 3: 
             # weights if both neurons are in the same bubble
             if (n1_bubble == n2_bubble):
@@ -274,7 +276,7 @@ class BubbleESN(ESN):
                 if random.random() < self.conn_recurrent/5:
                     return random.gauss(0,1)
                 
-        ### FULLY CONNECTED WEIGHTS ###
+        ### ALL BUBBLES FULLY (YET SPARSELY) CONNECTED ###
         elif self.bubble_type == 4: 
             # weights if both neurons are in the same bubble
             if (n1_bubble == n2_bubble):
@@ -291,18 +293,19 @@ class BubbleESN(ESN):
             
         return 0
 
-
-    def input_weight(self,n1,n2):
-        """synaptic strength for the connection from input node n1 to echo node n2"""
-        if random.random() < self.conn_input or self.bubble_type in (2,3):
-            min_,max_=self.bubble_borders[0]
-            if n2<max_:
-                return 1
-        return 0
+# TODO: Input Konfigurierbar machen: nur erste bubble/alle Bubbles. Folgender Code ist fuer den Fall 'nur erste Bubble'. Ergebnisse: schrottig.
+#    def input_weight(self,n1,n2):
+#        """synaptic strength for the connection from input node n1 to echo node n2"""
+#        if random.random() < self.conn_input or self.bubble_type in (2,3):
+#            min_,max_=self.bubble_borders[0]
+#            if n2<max_:
+#                return 1
+#        return 0
 
     def __init__(self,ninput,bubble_sizes,bubble_type,*args,**kwargs):
         self.bubble_type = bubble_type
         self.bubble_borders=[]
+        self.leak_rates = None
         s=0
         for bubble_size in bubble_sizes:
             min_=s
@@ -310,9 +313,9 @@ class BubbleESN(ESN):
             s=max_
             self.bubble_borders.append((min_,max_))
         ESN.__init__(self,ninput,sum(bubble_sizes),*args,**kwargs)
-        if leak_rates is not None:
+        if self.leak_rates is not None:
             self.leak_rate=numpy.ones(self.nnodes)
-            for (bmin,bmax),lr in zip(self.bubbles,leak_rates):
+            for (bmin,bmax),lr in zip(self.bubbles,self.leak_rates):
                 self.leak_rate[bmin:bmax]=numpy.ones(bmax-bmin)*lr
 
 def run_all(pairs,machine):
