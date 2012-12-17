@@ -28,4 +28,8 @@ pip-log.txt
 
 #Sentiment analysis corpus
 aclImdb/
+#Music corpus
+music/
+
+#plotting
 *.png
