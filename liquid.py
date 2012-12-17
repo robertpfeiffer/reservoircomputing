@@ -146,7 +146,9 @@ class ESN(object):
             feedback = numpy.zeros(self.ninput-inputs)
         u_t=numpy.zeros(self.ninput)
         for i in range(length):
-            u_t[:inputs] = u[i,:]
+            print u.shape
+            print u_t.shape
+            u_t[:inputs] = u[i,:].ravel()
             if self.w_feedback is not None:
                 u_t[inputs:]= feedback
             state    = self.step(state,u_t)

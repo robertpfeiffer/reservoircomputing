@@ -6,8 +6,8 @@ import mdp.utils
 #    return (b - a) * numpy.random.random_sample(size) + a
 
 def add_noise(data, var):
-    #return data + np.random.normal(0, var, data.shape)
-    return data
+    return data + np.random.normal(0, var, data.shape)
+    #return data
     
 class LinearRegressionReadout(object):
     """ Trains an esn and uses it for prediction """
