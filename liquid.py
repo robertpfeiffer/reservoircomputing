@@ -145,8 +145,6 @@ class ESN(object):
             self.current_feedback = numpy.zeros(self.ninput-inputs)
         u_t=numpy.zeros(self.ninput)
         for i in range(length):
-            print u.shape
-            print u_t.shape
             u_t[:inputs] = u[i,:].ravel()
             if self.w_feedback is not None:
                 u_t[inputs:]= self.current_feedback
@@ -164,29 +162,6 @@ class ESN(object):
             self.current_state = self.equilibrium_state
         else:
             self.current_state = numpy.zeros(self.nnodes)
-        
-    def run_streaming(self,u,y=None):
-        """generate echo states and target values for training"""
-        state = self.current_state
-        for ut, yt in itertools.izip(u, y):
-            u_t = numpy.array(ut)
-            state = self.step(state,u_t)
-            yield state, numpy.array(yt)
-        if not self.reset_state:
-            self.current_state = state
-
-    def predict_with_echo(self,u,w_output):
-        """generate echo states and predictions """
-        state=self.equilibrium_state
-        for ut in u:
-            u_t=numpy.array(ut)
-            state=self.step(state,u_t)
-            state_1=numpy.append(state,numpy.ones(1))
-            yield numpy.dot(w_output,state_1),state
-
-    def predict(self,u,w_output):
-      for y,x in self.predict_with_echo(u,w_output):
-            yield y
 
 class Grid_3D_ESN(ESN):
     """In this ESN, the neurons are arranged in a 3D-grid.
@@ -208,102 +183,40 @@ class Grid_3D_ESN(ESN):
                 return random.gauss(0,1)
         return 0
 
-    def input_weight(self,n1,n2):
-        """synaptic strength for the connection from input node n1 to echo node n2"""
-        if random.random() < self.conn_input:
-            return random.uniform(-1, 1)*self.input_scaling
-        return 0
-
     def __init__(self,ninput,(x,y,z),max_length,*args,**kwargs):
         self.dim=(x,y,z)
         self.conn_length=max_length
         ESN.__init__(self,ninput,x*y*z,*args,**kwargs)
         self.ninput=ninput
 
+BUBBLE_RATIO=5
+
 class BubbleESN(ESN):
     """ESN with a n-bubble-architecture.
     The neurons in each bubble are densely connected.
     There are sparse connection from a bubble to later bubble_borders, but none back.
     """
+    def bubble_index(self,n):
+        k = 0
+        for bubblemin,bubblemax in self.bubble_borders:
+            if (bubblemin <= n and n < bubblemax):
+                return k
+            k += 1
+        
     def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
-        
-        #bubble index of the neuron (e.g. n1 in bubble 3: n1_bubble=3)
-        n1_bubble = 0;
-        n2_bubble = 0;
-        # bubble index for neuron 1
-        k = 1
-        for bubblemin,bubblemax in self.bubble_borders:
-            if (bubblemin <= n1 and n1 < bubblemax):
-                n1_bubble = k
-                break
-            k = k + 1
-        # bubble index for neuron 2
-        k = 1
-        for bubblemin,bubblemax in self.bubble_borders:
-            if (bubblemin <= n2 and n2 < bubblemax):
-                n2_bubble = k
-                break
-            k = k + 1
-        
-        ### BUBBLES ARE DECOUPLED WEIGHTS ###
-        if (self.bubble_type == 1):
-            # weights if both neurons are in the same bubble
-            if (n1_bubble == n2_bubble):
-                if random.random() < self.conn_recurrent:
-                    return random.gauss(0,1)  
-    
-        
-        ### PUSH FORWARD/ SEQUENTIAL WEIGHTS - ONLY CONNECTED FROM ONE BUBBLE TO THE NEXT ###
-        elif self.bubble_type == 2:
-        # weights if both neurons are in the same bubble
-            if (n1_bubble == n2_bubble):
-                if random.random() < self.conn_recurrent:
-                    return random.gauss(0,1)  
-            # weights if the neurons are one bubble apart
-            if (n1_bubble == n2_bubble-1):
-                if random.random() < self.conn_recurrent/5:
-                    return random.gauss(0,1)
-        
-        ### ONLY NEIGHBORING BUBBLES ARE CONNECTED ###
-        elif self.bubble_type == 3: 
-            # weights if both neurons are in the same bubble
-            if (n1_bubble == n2_bubble):
-                if random.random() < self.conn_recurrent:
-                    return random.gauss(0,1)  
-            # weights if the neurons are one bubble apart
-            if (n1_bubble == n2_bubble+1 or n1_bubble == n2_bubble-1):
-                if random.random() < self.conn_recurrent/5:
-                    return random.gauss(0,1)
-                
-        ### ALL BUBBLES FULLY (YET SPARSELY) CONNECTED ###
-        elif self.bubble_type == 4: 
-            # weights if both neurons are in the same bubble
-            if (n1_bubble == n2_bubble):
-                if random.random() < self.conn_recurrent:
-                    return random.gauss(0,1)  
-            # weights if the neurons are one bubble apart
-            else:
-                if random.random() < self.conn_recurrent/5:
-                    return random.gauss(0,1)
-            
-        # no weights at all if bubble_type incorrectly specified      
-        else:
-            return 0  # hier stattdessen besser ne exception werfen
-            
+        n1_bubble = self.bubble_index(n1)
+        n2_bubble = self.bubble_index(n2)
+
+        if (n1_bubble == n2_bubble):
+            if random.random() < self.conn_recurrent:
+                return random.gauss(0,1)  
+        if random.random() < self.conn_recurrent/BUBBLE_RATIO:
+            return BUBBLE_RATIO * random.gauss(0,1)
+
         return 0
 
-# TODO: Input Konfigurierbar machen: nur erste bubble/alle Bubbles. Folgender Code ist fuer den Fall 'nur erste Bubble'. Ergebnisse: schrottig.
-#    def input_weight(self,n1,n2):
-#        """synaptic strength for the connection from input node n1 to echo node n2"""
-#        if random.random() < self.conn_input or self.bubble_type in (2,3):
-#            min_,max_=self.bubble_borders[0]
-#            if n2<max_:
-#                return 1
-#        return 0
-
-    def __init__(self,ninput,bubble_sizes,bubble_type,*args,**kwargs):
-        self.bubble_type = bubble_type
+    def __init__(self,ninput,bubble_sizes,leak_rates=None,*args,**kwargs):
         self.bubble_borders=[]
         self.leak_rates = None
         s=0
@@ -315,8 +228,63 @@ class BubbleESN(ESN):
         ESN.__init__(self,ninput,sum(bubble_sizes),*args,**kwargs)
         if self.leak_rates is not None:
             self.leak_rate=numpy.ones(self.nnodes)
-            for (bmin,bmax),lr in zip(self.bubbles,self.leak_rates):
+            for (bmin,bmax),lr in zip(self.bubble_borders,leak_rates):
                 self.leak_rate[bmin:bmax]=numpy.ones(bmax-bmin)*lr
+
+class DecoupledBubbleESN(BubbleESN):
+    def connection_weight(self,n2,n1):
+        """recurrent synaptic strength for the connection from node n1 to node n2"""
+        n1_bubble = self.bubble_index(n1)
+        n2_bubble = self.bubble_index(n2)
+        
+        # weights if both neurons are in the same bubble
+        if (n1_bubble == n2_bubble):
+            if random.random() < self.conn_recurrent:
+                return random.gauss(0,1)
+        return 0
+
+class FirstBubbleInput(BubbleESN):
+    def input_weight(self,n2,n1):
+        """synaptic strength for the connection from input node n1 to echo node n2"""
+        if random.random() < self.conn_input:
+            min_,max_=self.bubble_borders[0]
+            if n2<max_:
+                return random.uniform(-1, 1)*self.input_scaling
+        return 0
+
+class ForwardBubbleESN(FirstBubbleInput):
+    def connection_weight(self,n2,n1):
+        """recurrent synaptic strength for the connection from node n1 to node n2"""
+        n1_bubble = self.bubble_index(n1)
+        n2_bubble = self.bubble_index(n2)
+        
+        # weights if both neurons are in the same bubble
+        if (n1_bubble == n2_bubble):
+            if random.random() < self.conn_recurrent:
+                return random.gauss(0,1)  
+        # weights if the neurons are one bubble apart
+        if (n1_bubble == n2_bubble-1):
+            if random.random() < self.conn_recurrent/5:
+                return random.gauss(0,1)
+        return 0
+
+class NeighbourBubbleESN(FirstBubbleInput):
+    def connection_weight(self,n2,n1):
+        """recurrent synaptic strength for the connection from node n1 to node n2"""
+        n1_bubble = self.bubble_index(n1)
+        n2_bubble = self.bubble_index(n2)
+        
+        # weights if both neurons are in the same bubble
+        if (n1_bubble == n2_bubble):
+            if random.random() < self.conn_recurrent:
+                return random.gauss(0,1)  
+        # weights if the neurons are one bubble apart
+        if (n1_bubble == n2_bubble+1 or n1_bubble == n2_bubble-1):
+            if random.random() < self.conn_recurrent/5:
+                return random.gauss(0,1)
+        return 0
+
+
 
 def run_all(pairs,machine):
     inp = []
