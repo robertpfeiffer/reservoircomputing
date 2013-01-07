@@ -1,4 +1,4 @@
-from liquid import *
+from reservoir import *
 from esn_readout import *
 from activations import *
 import numpy as np

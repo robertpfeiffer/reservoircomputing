@@ -1,5 +1,5 @@
 import numpy as np
-import liquid
+import reservoir
 import mdp.utils
 
 def add_noise(data, var):

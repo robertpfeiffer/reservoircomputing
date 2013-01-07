@@ -1,4 +1,4 @@
-from liquid import *
+from reservoir import *
 from esn_readout import *
 from one_two_a_x_task import *
 from numpy import *
