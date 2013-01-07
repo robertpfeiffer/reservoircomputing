@@ -78,7 +78,7 @@ class FeedbackReadout(object):
     def train(self, train_input, train_target):
         """ train_target is taken as feedback. 
         returns (states, prediction) """
-        feedback = add_noise(train_target, 0.0001)[:-1]; #all except the last
+        feedback = add_noise(train_target, 0.01)[:-1]; #all except the last
         self.feedback_dim=feedback.shape[1]
         if train_input is not None:
             train_input=np.hstack((train_input[1:],feedback)) #train_input[1:] so that input and feedback match
@@ -110,7 +110,7 @@ class FeedbackReadout(object):
         return self.trainer.w_out
         
     def train_old(self, train_input):
-        feedback = add_noise(train_input, 0.0001)[:-1];
+        feedback = add_noise(train_input, 0.01)[:-1];
         self.trainer.train(feedback, train_input[1:])
         self.gen_dim = train_input.shape[1]
         self.initial_input = np.empty((1, self.gen_dim))
