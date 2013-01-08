@@ -26,6 +26,16 @@ def run_ESN(esn,input):
 def set_weights(weights):
     d["weights"]=weights
 
+def run_task(readout,input,target):
+    d["output"]=readout.predict(input)
+    d["target"]=target
+    d["input"]=input
+
+def show_task():
+    plt.plot(d["target"][0,:1000].ravel())
+    plt.plot(d["output"][0,:1000].ravel())
+    plt.show()
+
 def plot_activations(max_duration=1000,max_nodes=300):
     echo_states = d["echo_states"]
     x,y = echo_states.shape
@@ -70,17 +80,16 @@ def plot_spectrum(max_freq=1000,max_nodes=300):
     plt.pcolormesh(spectrum[:max_freq,:].T)
     plt.show()
 
-def set_weights_(Wout):
-    d_["w_out"]=Wout
-
 def plot_activations_weighted(max_duration=1000,max_nodes=300,out_unit=0):
-    echo_states = d["echo_states"]
+    echo_states = numpy.copy(d["echo_states"])
     x,y = echo_states.shape
+    w_out=d["weights"]
     if x > max_duration:
         echo_states = echo_states[0:max_duration,:]
     if y > max_nodes:
         echo_states = echo_states[:,0:max_nodes]
-    echo_states = echo_states*w_echo[1:,out_unit]
+    for i in range(echo_states.shape[0]):
+        echo_states[i,:] = echo_states[i,:]*w_out[1:,out_unit]
     echo_states = echo_states.T
     plt.pcolormesh(echo_states,cmap="bone")
     plt.show()
@@ -88,9 +97,12 @@ def plot_activations_weighted(max_duration=1000,max_nodes=300,out_unit=0):
 def plot_spectrum_weighted(max_freq=1000,max_nodes=300,out_unit=0):
     echo_states = d["echo_states"]
     x,y = echo_states.shape
+    w_out=d["weights"]
     spectrum=numpy.fft.rfft(echo_states[:max_freq,:], axis = 0)
     spectrum[0,:]=0 # we do not care about constants
     spectrum=numpy.abs(spectrum)
-    spectrum = spectrum*w_echo[1:,out_unit]
+    for i in range(spectrum.shape[0]):
+        spectrum[i,:] = spectrum[i,:]*w_out[1:,out_unit]
+    #spectrum = spectrum*w_out[1:,out_unit]
     plt.pcolormesh(spectrum[:max_freq,:].T)
     plt.show()

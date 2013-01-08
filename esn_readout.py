@@ -98,8 +98,8 @@ class FeedbackReadout(object):
             echo1=echo1[-1,:]
             return self.trainer.predict(inputs,echo1)
         else:
-            #states = self.machine.run_batch_feedback(inputs)
-            #Feedback must not be equal to readouts, so we need to compute them separately
+            #Feedback might not be equal to readouts,
+            # so we need to compute them separately
             return self.trainer.predict(inputs, None)
     
     def predict(self, *args, **kwarks):
