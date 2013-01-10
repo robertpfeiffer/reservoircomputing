@@ -84,7 +84,12 @@ class ESN(object):
         self.reset()
         
     def connection_weight(self,n1,n2):
-        """recurrent synaptic strength for the connection from node n1 to node n2"""
+        """recurrent synaptic strength for the connection from node n1 to node n2 """
+        """ #Verteilung der Gewichte: Unform oder Gauss? Was bewirkt frac_exc?
+        if random.random() < self.conn_recurrent:
+            return numpy.random.rand()*2-1
+        return 0
+        """
         if random.random() < self.conn_recurrent:
             weight = random.gauss(0,1)
             #This stabilizes in the case of feedback. TODO: Investigate
