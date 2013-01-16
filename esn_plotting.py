@@ -27,13 +27,14 @@ def set_weights(weights):
     d["weights"]=weights
 
 def run_task(readout,input,target):
-    d["output"]=readout.predict(input)
+    d["output"]=readout.predict(input)[1]
     d["target"]=target
     d["input"]=input
 
 def show_task():
-    plt.plot(d["target"][0,:1000].ravel())
-    plt.plot(d["output"][0,:1000].ravel())
+    for dim in range(d["target"].shape[1]): 
+        plt.plot(d["target"][:1000,dim].ravel())
+        plt.plot(d["output"][:1000,dim].ravel())
     plt.show()
 
 def plot_activations(max_duration=1000,max_nodes=300):
@@ -80,8 +81,9 @@ def plot_spectrum(max_freq=1000,max_nodes=300):
     plt.pcolormesh(spectrum[:max_freq,:].T)
     plt.show()
 
-def plot_activations_weighted(max_duration=1000,max_nodes=300,out_unit=0):
-    echo_states = numpy.copy(d["echo_states"])
+def plot_activations_weighted(max_duration=1000,max_nodes=300):
+    echo_states_weighted = numpy.zeros(d["echo_states"].shape)
+    echo_states = d["echo_states"]
     x,y = echo_states.shape
     w_out=d["weights"]
     if x > max_duration:
@@ -89,20 +91,23 @@ def plot_activations_weighted(max_duration=1000,max_nodes=300,out_unit=0):
     if y > max_nodes:
         echo_states = echo_states[:,0:max_nodes]
     for i in range(echo_states.shape[0]):
-        echo_states[i,:] = echo_states[i,:]*w_out[1:,out_unit]
+        for j in range(w_out.shape[1]):
+            echo_states_weighted[i,:] += echo_states[i,:]*w_out[1:,j]
     echo_states = echo_states.T
-    plt.pcolormesh(echo_states,cmap="bone")
+    plt.pcolormesh(echo_states_weighted,cmap="bone")
     plt.show()
 
-def plot_spectrum_weighted(max_freq=1000,max_nodes=300,out_unit=0):
+def plot_spectrum_weighted(max_freq=1000,max_nodes=300):
     echo_states = d["echo_states"]
     x,y = echo_states.shape
     w_out=d["weights"]
     spectrum=numpy.fft.rfft(echo_states[:max_freq,:], axis = 0)
+    spectrum_weighted = numpy.zeros(spectrum.shape)
     spectrum[0,:]=0 # we do not care about constants
     spectrum=numpy.abs(spectrum)
     for i in range(spectrum.shape[0]):
-        spectrum[i,:] = spectrum[i,:]*w_out[1:,out_unit]
+        for j in range(w_out.shape[1]):
+            spectrum_weighted[i,:] = spectrum[i,:]*w_out[1:,j]
     #spectrum = spectrum*w_out[1:,out_unit]
-    plt.pcolormesh(spectrum[:max_freq,:].T)
+    plt.pcolormesh(spectrum_weighted[:max_freq,:].T)
     plt.show()
