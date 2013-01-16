@@ -2,7 +2,6 @@ from reservoir import *
 from esn_readout import *
 from one_two_a_x_task import *
 from numpy import *
-import itertools
 import shelve
 import numpy as np
 import matplotlib
@@ -163,7 +162,7 @@ def mso_task(task_type=1, plots=False):
     #leak_rate = np.append(1*np.ones(N/2), 0.7*np.ones(N/2))
         
     for i in range(T):
-        machine = ESN(1, N, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
+        machine = ESN(1, N, leak_rate=leak_rate, input_scaling=0.5, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = BubbleESN(1, (N/4, N/4, N/4, N/4), bubble_type=3, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = BubbleESN(1, (N/2, N/2), bubble_type=1, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = load_object('m1');
@@ -298,7 +297,8 @@ def mackey_glass_task(plots=False):
     print 'Mackey-Glass t17 - Task'
     data = np.loadtxt('MackeyGlass_t17.txt') 
     data = data[:,None]
-    trainLen = 2000
+    initLen = 100
+    trainLen = 2001
     testLen = 500
     N = 300
 
@@ -306,11 +306,25 @@ def mackey_glass_task(plots=False):
     
     best_nrmse = float('inf')
     
+    #W = load_object('bestW', 'minESN.txt')
+    #Win = load_object('bestWin', 'minESN.txt')
+        
     for i in range(10):
-        machine = ESN(1, N, leak_rate=0.3, input_scaling=0.5, bias_scaling=0.5, spectral_radius=1.25, reset_state=False, start_in_equilibrium=False)
+        
+        machine = ESN(1, N, leak_rate=0.3, conn_input=1, conn_recurrent=1, input_scaling=0.5, bias_scaling=0.5, spectral_radius=1.25, reset_state=False, start_in_equilibrium=False)
+        #w_input = machine.w_input
+        #w_echo = machine.w_echo
+        #w_add = machine.w_add
+        #machine.w_echo = W
+        #machine.w_add = Win[:,0]
+        #tmpWin = Win[:,1]
+        #machine.w_input = tmpWin[:, None]
+        
+        echo_init = machine.run_batch(data[:initLen])
+        #bestXinit = load_object('bestXinit', 'minESN.txt')
         trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8));
         #start = time.time()
-        trainer.train(train_input=None, train_target=data[:trainLen])
+        trainer.train(train_input=None, train_target=data[initLen:trainLen])
         #print 'Training Time: ', time.time() - start, 's'
         
         #machine.reset()
@@ -366,7 +380,7 @@ def mackey_glass_task(plots=False):
 
 if __name__ == "__main__":
     if 1:
-        mso_task(1)
+        mackey_glass_task()  #mso_task(1)
     elif raw_input("mso-task_regression_analysis?[ja/nein] ").startswith('j'): 
         mso_task_regression_analysis()  
     elif raw_input("mso-task?[ja/nein] ").startswith('j'): 

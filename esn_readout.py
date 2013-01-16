@@ -1,8 +1,12 @@
+from esn_persistence import *
 import numpy as np
 import reservoir
 import mdp.utils
+import scipy.linalg
 
 def add_noise(data, var):
+    if var==0:
+        return data
     return data + np.random.normal(0, var, data.shape)
     #return data
 
@@ -38,6 +42,7 @@ class LinearRegressionReadout(object):
         else:
             X_T = X.T
             beta = np.dot( np.dot(train_target.T,X), mdp.utils.inv(np.dot(X_T,X) + self.ridge*np.eye(X.shape[1]) ) )
+            #beta1 = np.dot( np.dot(train_target.T,X), scipy.linalg.inv( np.dot(X_T,X) + self.ridge*np.eye(X.shape[1]) ) )
             self.w_out = beta.T
         Y = np.dot(X, self.w_out)
         return (X[:, 1:],Y) #echos without constant
@@ -75,10 +80,10 @@ class FeedbackReadout(object):
         self.machine = machine
         self.trainer = trainer
         
-    def train(self, train_input, train_target):
+    def train(self, train_input, train_target, noise_var=0):
         """ train_target is taken as feedback. 
         returns (states, prediction) """
-        feedback = add_noise(train_target, 0.01)[:-1]; #all except the last
+        feedback = add_noise(train_target, noise_var)[:-1]; #all except the last
         self.feedback_dim=feedback.shape[1]
         if train_input is not None:
             train_input=np.hstack((train_input[1:],feedback)) #train_input[1:] so that input and feedback match
