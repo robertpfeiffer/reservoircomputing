@@ -16,15 +16,13 @@ def printf(format, *args):
     sys.stdout.write(format % args)  
 
 def run_memory_task(N=15, delay=20):
-    return 0
-def run_NARMA_task():
-    return 0
-"""
-def run_memory_task(N=15, delay=20):
     print "Memory Task"
     #print "create data..."
-    train_input, train_target = Oger.datasets.memtest(n_samples=1, sample_len=10000, n_delays=delay)
-    test_input, test_target = Oger.datasets.memtest(n_samples=1, sample_len=1000, n_delays=delay)
+    #train_input, train_target = Oger.datasets.memtest(n_samples=1, sample_len=10000, n_delays=delay)
+    #test_input, test_target = Oger.datasets.memtest(n_samples=1, sample_len=1000, n_delays=delay)
+    #np.savez('data/memory_task_data', train_input, train_target, test_input, test_target)
+    
+    train_input, train_target, test_input, test_target = load_arrays('data/memory_task_data')
     
     best_capacity = 0
     for i in range(5):
@@ -47,9 +45,11 @@ def run_memory_task(N=15, delay=20):
         
 def run_NARMA_task():
     print 'NARMA task'
-    [train_input, train_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
-    [test_input, test_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
-    
+    #[train_input, train_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
+    #[test_input, test_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
+    #np.savez('data/NARMA_task_data', train_input, train_target, test_input, test_target)
+    train_input, train_target, test_input, test_target = load_arrays('data/NARMA_task_data') 
+     
     best_nrmse = float('Inf')
     for i in range(10):
         #print "train machine..."
@@ -67,7 +67,7 @@ def run_NARMA_task():
         
     print 'Min NRMSE: ', best_nrmse
     return best_nrmse
-"""
+
 def run_one_two_a_x_task():
     length = 10000
     [train_input, train_target] = one_two_ax_task(length)
@@ -386,7 +386,7 @@ def mackey_glass_task(plots=False):
 
 if __name__ == "__main__":
     if 1:
-        mackey_glass_task()  #mso_task(1)
+        run_NARMA_task()  #mso_task(1)
     elif raw_input("mso-task_regression_analysis?[ja/nein] ").startswith('j'): 
         mso_task_regression_analysis()  
     elif raw_input("mso-task?[ja/nein] ").startswith('j'): 
