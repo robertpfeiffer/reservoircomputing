@@ -8,13 +8,18 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import sys
-import Oger
 import time
+import error_metrics
 from esn_persistence import *
 
 def printf(format, *args):
     sys.stdout.write(format % args)  
 
+def run_memory_task(N=15, delay=20):
+    return 0
+def run_NARMA_task():
+    return 0
+"""
 def run_memory_task(N=15, delay=20):
     print "Memory Task"
     #print "create data..."
@@ -30,8 +35,8 @@ def run_memory_task(N=15, delay=20):
         
         #print "predict..."
         echo, prediction = trainer.predict(test_input[0])
-        memory_capacity = -Oger.utils.mem_capacity(prediction, test_target[0])
-        mse = Oger.utils.mse(prediction,test_target[0])
+        memory_capacity = -error_metrics.mem_capacity(prediction, test_target[0])
+        mse = error_metrics.mse(prediction,test_target[0])
         printf("%d Memory Capacity: %f MSE: %f\n" , i, memory_capacity, mse)
         
         if memory_capacity > best_capacity:
@@ -55,14 +60,14 @@ def run_NARMA_task():
         #print "predict..."
         #machine.reset()
         echo, prediction = trainer.predict(test_input[0])
-        nrmse = Oger.utils.nrmse(prediction,test_target[0])
+        nrmse = error_metrics.nrmse(prediction,test_target[0])
         if nrmse < best_nrmse:
             best_nrmse = nrmse
         printf("%d NRMSE: %f\n", i+1, nrmse)
         
     print 'Min NRMSE: ', best_nrmse
     return best_nrmse
-
+"""
 def run_one_two_a_x_task():
     length = 10000
     [train_input, train_target] = one_two_ax_task(length)
@@ -99,8 +104,8 @@ def mso_separation_task():
     trainer.train(train_input[:2000], train_target[:2000])
     print 'Training Time: ', time.time() - start, 's'
     prediction = trainer.predict(train_input[2000:])
-    mse = Oger.utils.mse(prediction,train_target[2000:])
-    nrmse = Oger.utils.nrmse(prediction,train_target[2000:])
+    mse = error_metrics.mse(prediction,train_target[2000:])
+    nrmse = error_metrics.nrmse(prediction,train_target[2000:])
     print 'MSE: ', mse, 'NRMSE:' , nrmse
     
     plt.subplot(3,1,1)
@@ -182,8 +187,8 @@ def mso_task(task_type=1, plots=False):
         
         evaluation_data = data[washout_time+training_time+(testing_time-evaluation_time):washout_time+training_time+testing_time]
         evaluaton_prediction = prediction[-evaluation_time:]
-        #mse = Oger.utils.mse(evaluaton_prediction,evaluation_data)
-        nrmse = Oger.utils.nrmse(evaluaton_prediction,evaluation_data)
+        #mse = error_metrics.mse(evaluaton_prediction,evaluation_data)
+        nrmse = error_metrics.nrmse(evaluaton_prediction,evaluation_data)
         if (nrmse < best_nrmse):
             best_evaluation_prediction = evaluaton_prediction
             best_nrmse = nrmse
@@ -237,7 +242,7 @@ def mso_task(task_type=1, plots=False):
 
 def mso_task_regression_analysis():
     print 'MSO Task Regression Analysis'
-    shelf_file_name = 'mso_shelved.txt'
+    shelf_file_name = 'data/mso_shelved.txt'
     washout_time = 100
     training_time = 1000
     testing_time = 600
@@ -267,13 +272,13 @@ def mso_task_regression_analysis():
     (w_out1, train_prediction1) = lin_regression_train(train_echo1, train_target1, ridge=1e-8)
     prediction1 = lin_regression_predict(test_echo1, w_out1)
     evaluaton_prediction1 = prediction1[-evaluation_time:]
-    nrmse1 = Oger.utils.nrmse(evaluaton_prediction1,evaluation_data1)        
+    nrmse1 = error_metrics.nrmse(evaluaton_prediction1,evaluation_data1)        
     print 'NRMSE1 sin(0.2) + sin(0.0311): ', nrmse1
     
     (w_out2, train_prediction2) = lin_regression_train(train_echo2, train_target2, ridge=1e-8)
     prediction2 = lin_regression_predict(test_echo2, w_out2)
     evaluaton_prediction2 = prediction2[-evaluation_time:]
-    nrmse2 = Oger.utils.nrmse(evaluaton_prediction2,evaluation_data2)        
+    nrmse2 = error_metrics.nrmse(evaluaton_prediction2,evaluation_data2)        
     print 'NRMSE2: sin(2.92) + sin(1.074) ', nrmse2
     
     train_X = np.append(train_echo1, train_echo2, 1)
@@ -282,7 +287,7 @@ def mso_task_regression_analysis():
     (w_out3, train_prediction3) = lin_regression_train(train_X, train_target3, ridge=1e-8)
     prediction3 = lin_regression_predict(test_X, w_out3)
     evaluaton_prediction3 = prediction3[-evaluation_time:]
-    nrmse3 = Oger.utils.nrmse(evaluaton_prediction3,evaluation_data3)        
+    nrmse3 = error_metrics.nrmse(evaluaton_prediction3,evaluation_data3)        
     print 'NRMSE3 sin(0.2) + sin(0.0311) + sin(2.92) + sin(1.074) from regression on combined states of 1 and 2: ', nrmse3
     
     plt.figure(1).clear()
@@ -295,7 +300,7 @@ def mso_task_regression_analysis():
 def mackey_glass_task(plots=False):
     #from http://minds.jacobs-university.de/mantas/code
     print 'Mackey-Glass t17 - Task'
-    data = np.loadtxt('MackeyGlass_t17.txt') 
+    data = np.loadtxt('data/MackeyGlass_t17.txt') 
     data = data[:,None]
     initLen = 100
     trainLen = 2001
@@ -309,7 +314,7 @@ def mackey_glass_task(plots=False):
     #W = load_object('bestW', 'minESN.txt')
     #Win = load_object('bestWin', 'minESN.txt')
         
-    for i in range(10):
+    for i in range(1):
         
         machine = ESN(1, N, leak_rate=0.3, conn_input=1, conn_recurrent=1, input_scaling=0.5, bias_scaling=0.5, spectral_radius=1.25, reset_state=False, start_in_equilibrium=False)
         #w_input = machine.w_input
@@ -332,8 +337,9 @@ def mackey_glass_task(plots=False):
         machine.current_feedback = data[trainLen-1]
         echo, prediction = trainer.generate(testLen)
         testData = data[trainLen:trainLen+testLen]
-        mse = Oger.utils.mse(prediction,testData)
-        nrmse = Oger.utils.nrmse(prediction,testData)
+        mse = error_metrics.mse(prediction,testData)
+        #nrmse = error_metrics.nrmse(prediction,testData)
+        nrmse = error_metrics.nrmse(prediction,testData)
         print i+1,'TEST MSE:', mse, ' NRMSE:' , nrmse
         if nrmse < best_nrmse:
             best_nrmse = nrmse
@@ -362,8 +368,8 @@ def mackey_glass_task(plots=False):
     machine.current_feedback = 0
     echo, prediction = trainer.generate(trainLen)
     testData = data[1:trainLen+1]
-    mse = Oger.utils.mse(prediction,testData)
-    nrmse = Oger.utils.nrmse(prediction,testData)
+    mse = error_metrics.mse(prediction,testData)
+    nrmse = error_metrics.nrmse(prediction,testData)
     print 'Training MSE: ', mse, 'NRMSE: ', nrmse
     
     if plots:

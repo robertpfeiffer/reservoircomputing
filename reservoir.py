@@ -313,7 +313,7 @@ class KitchenSinkBubbleESN(BubbleESN):
                     if random.random() < self.conn_recurrent/BUBBLE_RATIO:
                         return BUBBLE_RATIO * random.gauss(0,1)
                     return 0
-                elif far:
+                else:
                     if random.random() < self.conn_recurrent/BUBBLE_RATIO:
                         return BUBBLE_RATIO * random.gauss(0,1)
                     return 0
@@ -322,7 +322,7 @@ class KitchenSinkBubbleESN(BubbleESN):
                     if random.random() < self.conn_recurrent/BUBBLE_RATIO:
                         return BUBBLE_RATIO * random.gauss(0,1)
                     return 0
-                elif far:
+                else:
                     if random.random() < self.conn_recurrent/BUBBLE_RATIO:
                         return BUBBLE_RATIO * random.gauss(0,1)
                     return 0

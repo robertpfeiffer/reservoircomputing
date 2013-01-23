@@ -1,7 +1,6 @@
 from esn_persistence import *
 import numpy as np
 import reservoir
-import mdp.utils
 import scipy.linalg
 
 def add_noise(data, var):
@@ -21,7 +20,7 @@ def lin_regression_train(inputs, targets, ridge):
         w_out = np.linalg.lstsq(inputs, targets)[0]
     else:
         X_T = X.T
-        beta = np.dot( np.dot(targets.T,X), mdp.utils.inv(np.dot(X_T,X) + ridge*np.eye(X.shape[1]) ) )
+        beta = np.dot( np.dot(targets.T,X), scipy.linalg.inv(np.dot(X_T,X) + ridge*np.eye(X.shape[1]) ) )
         w_out = beta.T
     Y = np.dot(X, w_out)
     return (w_out, Y) # weights and training prediction
@@ -41,8 +40,7 @@ class LinearRegressionReadout(object):
             self.w_out = np.linalg.lstsq(X, train_target)[0]
         else:
             X_T = X.T
-            beta = np.dot( np.dot(train_target.T,X), mdp.utils.inv(np.dot(X_T,X) + self.ridge*np.eye(X.shape[1]) ) )
-            #beta1 = np.dot( np.dot(train_target.T,X), scipy.linalg.inv( np.dot(X_T,X) + self.ridge*np.eye(X.shape[1]) ) )
+            beta = np.dot( np.dot(train_target.T,X), scipy.linalg.inv( np.dot(X_T,X) + self.ridge*np.eye(X.shape[1]) ) )
             self.w_out = beta.T
         Y = np.dot(X, self.w_out)
         return (X[:, 1:],Y) #echos without constant
