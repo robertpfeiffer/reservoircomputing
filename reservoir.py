@@ -32,9 +32,9 @@ def random_vector(size,a,b):
 class ESN(object):
     feedback = False
 
-    def __init__(self,ninput,nnodes,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
-        self.ninput=ninput
-        self.nnodes=nnodes
+    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
+        self.ninput=input_dim
+        self.nnodes=output_dim
         self.leak_rate=leak_rate
         self.gamma=gamma
         self.conn_recurrent=conn_recurrent
@@ -58,7 +58,7 @@ class ESN(object):
             [self.add_bias(i)
              for i in range(self.nnodes)])
         
-        # set spectral radius of w_echo to 0.95
+        # set spectral radius of w_echo to ? (default = 0.95)
         eigenvalues=linalg.eigvals(w_echo)
         network_spectral_radius=max([abs(a) for a in eigenvalues])
         w_echo *= self.spectral_radius/network_spectral_radius
@@ -289,7 +289,59 @@ class NeighbourBubbleESN(FirstBubbleInput):
                 return random.gauss(0,1)
         return 0
 
+class KitchenSinkBubbleESN(BubbleESN):
+    """ESN with a n-bubble-architecture.
+    The neurons in each bubble are densely connected.
+    There are sparse connection from a bubble to later bubble_borders, but none back.
+    """
+        
+    def connection_weight(self,n2,n1):
+        """recurrent synaptic strength for the connection from node n1 to node n2"""
+        n1_bubble = self.bubble_index(n1)
+        n2_bubble = self.bubble_index(n2)
 
+        if n1==n2:
+            if self.diagonal_zero:
+                return 0
+        
+        if (n1_bubble == n2_bubble):
+            if random.random() < self.conn_recurrent:
+                return random.gauss(0,1)
+        if  self.interconnceted:
+            if n2>n1:
+                if n2_bubble==n1_bubble+1:
+                    if random.random() < self.conn_recurrent/BUBBLE_RATIO:
+                        return BUBBLE_RATIO * random.gauss(0,1)
+                    return 0
+                else:
+                    if random.random() < self.conn_recurrent/BUBBLE_RATIO:
+                        return BUBBLE_RATIO * random.gauss(0,1)
+                    return 0
+            elif n2<n1 and self.backward:
+                if n2_bubble==n1_bubble+1:
+                    if random.random() < self.conn_recurrent/BUBBLE_RATIO:
+                        return BUBBLE_RATIO * random.gauss(0,1)
+                    return 0
+                else:
+                    if random.random() < self.conn_recurrent/BUBBLE_RATIO:
+                        return BUBBLE_RATIO * random.gauss(0,1)
+                    return 0
+        return 0
+
+    def input_weight(self,n2,n1):
+        """synaptic strength for the connection from input node n1 to echo node n2"""
+        if self.bubble_index(n2)in self.input_bubbles:
+            if random.random() < self.conn_input:
+                return random.uniform(-1, 1)*self.input_scaling
+        return 0
+
+    def __init__(self,ninput,bubble_sizes,leak_rates=None,input_bubbles=[0],far=True,backward=True,interconnected=True,diagonal_zero=False,*args,**kwargs):
+        self.input_bubbles=input_bubbles
+        self.far=far
+        self.backward=backward
+        self.interconnected=interconnected
+        self.diagonal_zero=diagonal_zero
+        BubbleESN.__init__(self,ninput,bubble_sizes,leak_rates=leak_rates,*args,**kwargs)
 
 def run_all(pairs,machine):
     inp = []
