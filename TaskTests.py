@@ -10,18 +10,18 @@ class TaskTests(unittest.TestCase):
         print
         
     def test_memory_capacity_task(self):
-        mem_capacity = tasks.run_memory_task()
+        mem_capacity = tasks.memory_task()
         self.assertGreater(mem_capacity, 4, 'Memory Capacity too small: %f' % mem_capacity)
         print
         
     def test_mso_task(self):
-        best_nrsme = tasks.mso_task(1)
+        best_nrsme = tasks.run_mso_task(1)
         self.assertGreater(pow(10,-4), best_nrsme, 'NRMSE too big: %f' % best_nrsme)
         print
         
 
     def test_narma_task(self):
-        best_nrsme = tasks.run_NARMA_task()
+        best_nrsme = tasks.NARMA_task()
         self.assertGreater(0.8, best_nrsme, 'NRMSE too big: %f' % best_nrsme)
         #0.8 ist nicht besonders gut
         print

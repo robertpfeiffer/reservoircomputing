@@ -7,15 +7,20 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import itertools
 import sys
 import time
 import error_metrics
+import csv
+import io
+import sys
+import ast
 from esn_persistence import *
 
 def printf(format, *args):
     sys.stdout.write(format % args)  
 
-def run_memory_task(N=15, delay=20):
+def memory_task(N=15, delay=20):
     print "Memory Task"
     #print "create data..."
     #train_input, train_target = Oger.datasets.memtest(n_samples=1, sample_len=10000, n_delays=delay)
@@ -43,7 +48,7 @@ def run_memory_task(N=15, delay=20):
     print 'Highest Capacity: ', best_capacity 
     return best_capacity
         
-def run_NARMA_task():
+def NARMA_task():
     print 'NARMA task'
     #[train_input, train_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
     #[test_input, test_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
@@ -53,7 +58,7 @@ def run_NARMA_task():
     best_nrmse = float('Inf')
     for i in range(10):
         #print "train machine..."
-        machine = ESN(ninput=1, nnodes=100, input_scaling=0.05, start_in_equilibrium=True)
+        machine = ESN(1, 100, input_scaling=0.05, start_in_equilibrium=True)
         trainer = LinearRegressionReadout(machine)
         trainer.train(train_input[0], train_target[0])
         
@@ -68,7 +73,7 @@ def run_NARMA_task():
     print 'Min NRMSE: ', best_nrmse
     return best_nrmse
 
-def run_one_two_a_x_task():
+def one_two_a_x_task():
     length = 10000
     [train_input, train_target] = one_two_ax_task(length)
     [test_input, test_target] = one_two_ax_task(length)
@@ -96,7 +101,7 @@ def mso_separation_task():
     train_target = np.column_stack((osc1, osc2, osc3))
     train_input = osc1*np.cos(osc2+2.345*osc3)
     train_input = train_input[:, None] #1d->2d
-    
+
     machine = ESN(1, 800, leak_rate=0.5)
     print 'Starting training...'
     start = time.time()
@@ -119,8 +124,12 @@ def mso_separation_task():
     plt.title('Predictions')
     plt.show()
     
-def mso_task(task_type=1, plots=False):
-    print 'MSO Task'
+
+def mso_task(task_type=4, T=20, plots=True, LOG=True, **machine_params):    
+    
+    if (LOG):
+        print 'MSO Task'
+    
     washout_time = 100
     training_time = 1000
     testing_time = 600
@@ -155,19 +164,15 @@ def mso_task(task_type=1, plots=False):
     #save_object(data, 'data')
     #data = load_object('data');
     
-    N = 100
-    
-    T = 20
     nrmses = np.empty(T)
     best_nrmse = 100000;
     
-    leak_rate = 0.3
     #leak_rate = random.uniform(0.3, 1, N)
     #leak_rate = np.append(np.append(random.uniform(0.3, 1, N/3), random.uniform(0.3, 1, N/3)), random.uniform(0.3, 1, N/3))
     #leak_rate = np.append(1*np.ones(N/2), 0.7*np.ones(N/2))
         
     for i in range(T):
-        machine = ESN(1, N, leak_rate=leak_rate, input_scaling=0.5, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
+        machine = ESN(**machine_params)
         #machine = BubbleESN(1, (N/4, N/4, N/4, N/4), bubble_type=3, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = BubbleESN(1, (N/2, N/2), bubble_type=1, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = load_object('m1');
@@ -201,7 +206,9 @@ def mso_task(task_type=1, plots=False):
         #plt.pcolormesh(plot_echo,cmap="bone")
         
         #print 'TEST MSE: ', mse, 'NRMSE: ', nrmse
-        print i,'NRMSE:', nrmse
+        if (LOG):
+            print i,'NRMSE:', nrmse
+        
         #if best_nrmse < math.pow(10,-4):
          #   T = i + 1
           #  break
@@ -209,7 +216,9 @@ def mso_task(task_type=1, plots=False):
     mean_nrmse = mean(nrmses[:T])
     std_nrmse = std(nrmses[:T])
     min_nrmse = min(nrmses[:T])
-    print 'Min NRMSE: ', min_nrmse, 'Mean NRMSE: ', mean_nrmse, 'Std: ', std_nrmse
+    #print 'Min NRMSE: ', min_nrmse, 'Mean NRMSE: ', mean_nrmse, 'Std: ', std_nrmse
+    if (LOG):
+        print 'Min NRMSE: ', min_nrmse
     
     #save_object(best_machine, 'm2')
     #save_object(best_trainer, 't2')
@@ -238,7 +247,86 @@ def mso_task(task_type=1, plots=False):
         plt.show()
         
     return best_nrmse
+
+def frange(start, stop, step):
+    """ Uses linspace to avoid rounding problems for float ranges """
+    num = ceil((stop - start)/step + 1)
+    values = np.linspace(start, stop, num)
+    return values
     
+def correct_dictionary_arg(astring):
+    #astring = "{start_in_equilibrium: False, plots: False, bias_scaling: 1, spectral_radius: 0.94999999999999996}"
+    astring = str(astring)
+    if '\'' in astring or '\"' in astring:
+        #print "NO CORRECTION: ", astring
+        return eval(astring)
+    
+    astring = astring.replace('{', '')
+    astring = astring.replace('}', '')
+    key_value_pairs = astring.split(',')
+    corrected_string = '{'
+    for key_value in key_value_pairs:
+        parts = key_value.split(':')
+        key = parts[0].strip()
+        value = parts[1].strip()
+        corrected_string+='\"'+key+'\"'+': '+value+','
+    corrected_string = corrected_string[:-1]
+    corrected_string += '}'
+    #print 'CORRECTED: ', corrected_string
+    dic = eval(corrected_string)
+    return dic
+            
+def run_mso_task(task_type=1):
+    #machine = ESN(1, N, leak_rate=leak_rate, input_scaling=0.5, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
+    #machine_params = {"ninput":1, "nnodes":200, "leak_rate":0.5, "input_scaling":0.5, "bias_scaling":0.5, "reset_state":False, 
+    # "start_in_equilibrium": False}   
+    #mso_task(**machine_params)
+    #best_nrmse = mso_task(task_type, plots=False, ninput=1, nnodes=200, leak_rate=0.5, input_scaling=0.5, bias_scaling=0.5, spectral_radius=0.95, reset_state=False, start_in_equilibrium=False)
+    #return best_nrmse
+
+    machine_params = {"task_type":task_type, "plots": False, "LOG":True, 
+                      "input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
+                      "input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": False}
+    #parameters = {'input_scaling': arange(0.1, 2, 0.1), 'spectral_radius':arange(0.1, 1.5, 0.1)}
+    """
+    parameters = {'input_scaling': frange(0.5, 0.6, 0.1), 'spectral_radius':frange(0.95, 1.15, 0.1)}
+    parameter_keys = parameters.keys()
+    parameter_ranges = []
+    for parameter in parameter_keys:
+        parameter_ranges.append(parameters[parameter])
+
+    paramspace_dimensions = [len(r) for r in parameter_ranges]
+    param_space = list(itertools.product(*parameter_ranges))    
+    #iteration = enumerate(param_space)
+    #for paramspace_index_flat, parameter_values in iteration:
+    
+    for parameter_values in param_space:
+        machine_params.update(dict(zip(parameter_keys, parameter_values)))
+        run_mso_task_for_grid(**machine_params)
+    """
+    return mso_task(**machine_params)
+
+def run_mso_task_for_grid(**machine_params):
+    best_nrmse = mso_task(**machine_params)
+    
+    machine_params["NRMSE"] = best_nrmse
+    str(machine_params)
+    #unwichtig
+    del machine_params["reset_state"]
+    del machine_params["start_in_equilibrium"]
+    del machine_params["plots"]
+    del machine_params["LOG"]
+    
+    output = io.BytesIO()
+    output.getvalue()
+    fieldnames = machine_params.keys()
+    writer = csv.DictWriter(output, fieldnames)
+    writer.writerow(dict((fn,fn) for fn in fieldnames))
+    #writer.writerows(machine_params)
+    writer.writerow(machine_params)
+    
+    result = output.getvalue()
+    print result
 
 def mso_task_regression_analysis():
     print 'MSO Task Regression Analysis'
@@ -314,7 +402,7 @@ def mackey_glass_task(plots=False):
     #W = load_object('bestW', 'minESN.txt')
     #Win = load_object('bestWin', 'minESN.txt')
         
-    for i in range(1):
+    for i in range(10):
         
         machine = ESN(1, N, leak_rate=0.3, conn_input=1, conn_recurrent=1, input_scaling=0.5, bias_scaling=0.5, spectral_radius=1.25, reset_state=False, start_in_equilibrium=False)
         #w_input = machine.w_input
@@ -386,20 +474,29 @@ def mackey_glass_task(plots=False):
 
 if __name__ == "__main__":
     if 1:
-        run_NARMA_task()  #mso_task(1)
+        if (len(sys.argv)==1):
+            #astring = "{start_in_equilibrium: False, plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
+            #dic = correct_dictionary_arg(astring)
+            run_mso_task()
+        else:
+            args = sys.argv[1]
+            #print "ARGS: ", args
+            dic = correct_dictionary_arg(args)
+            #print type(dic),': ', str(dic)
+            run_mso_task_for_grid(**dic)
     elif raw_input("mso-task_regression_analysis?[ja/nein] ").startswith('j'): 
         mso_task_regression_analysis()  
     elif raw_input("mso-task?[ja/nein] ").startswith('j'): 
-        mso_task(2)
+        mso_task()
     elif raw_input("mackey glass?[ja/nein] ").startswith('j'): 
         mackey_glass_task()
     elif  raw_input("multiple superimposed oscillators separation task?[ja/nein] ").startswith('j'): 
         mso_separation_task()
     elif raw_input("memory task?[ja/nein] ").startswith('j'): 
-        run_memory_task()
+        memory_task()
     elif raw_input("1_2_A_X task?[ja/nein] ").startswith('j'): 
-        run_one_two_a_x_task()
+        one_two_a_x_task()
     elif raw_input("NARMA 30[ja/nein] ").startswith('j'): 
-        run_NARMA_task()
+        NARMA_task()
     else:
         print "do nothing"

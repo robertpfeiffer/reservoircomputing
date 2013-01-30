@@ -1,0 +1,32 @@
+from tasks import *
+
+#if __name__ == '__main__':
+#print "Hello numpy:", numpy.random.rand()
+#!ls
+#!qsub -b y -wd "/net/store/projects/mtrc/grid_results" ipython -V
+
+machine_params = {"task_type":1, "plots":False, "LOG":False,
+	"input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
+	"input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": False}
+#parameters = {'input_scaling': arange(0.1, 2, 0.1), 'spectral_radius':arange(0.1, 1.5, 0.1)}
+parameters = {'input_scaling': frange(0.5, 0.8, 0.1), 'spectral_radius':frange(0.7, 1.2, 0.1)}
+parameter_keys = parameters.keys()
+parameter_ranges = []
+for parameter in parameter_keys:
+	parameter_ranges.append(parameters[parameter])
+
+paramspace_dimensions = [len(r) for r in parameter_ranges]
+param_space = list(itertools.product(*parameter_ranges))    
+    
+for parameter_values in param_space:
+	machine_params.update(dict(zip(parameter_keys, parameter_values)))
+	#run_mso_task_for_grid(**machine_params)
+	params_string = str(machine_params)
+	#!echo '"$params_string"'
+	#!python tasks.py '$params_string'
+	#!qsub -b y -wd "/net/store/projects/mtrc/grid_results" python tasks.py "$machine_params"
+	!qsub -b y -cwd python tasks.py '"$params_string"'
+
+exit()
+
+    
