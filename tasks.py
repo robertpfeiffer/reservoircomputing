@@ -257,8 +257,14 @@ def frange(start, stop, step):
 def correct_dictionary_arg(astring):
     #astring = "{start_in_equilibrium: False, plots: False, bias_scaling: 1, spectral_radius: 0.94999999999999996}"
     astring = str(astring)
+    
+    #if there are quotes around the string we have to remove them
+    if (astring[-1] == '\''  or astring[-1] ==  '\"'):
+        astring = astring[1:-1]
+    
+    #if there are (still) quotes inside, this should be a normal str(dic)	
     if '\'' in astring or '\"' in astring:
-        #print "NO CORRECTION: ", astring
+        print "NO STRING CORRECTION"
         return eval(astring)
     
     astring = astring.replace('{', '')
@@ -479,6 +485,7 @@ if __name__ == "__main__":
             #dic = correct_dictionary_arg(astring)
             run_mso_task()
         else:
+        	#"{LOG: False, start_in_equilibrium: False, plots: False, bias_scaling: 1, spectral_radius: 1.2, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.80000000000000004, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             args = sys.argv[1]
             #print "ARGS: ", args
             dic = correct_dictionary_arg(args)
