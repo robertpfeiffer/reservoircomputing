@@ -1,0 +1,57 @@
+import csv
+import os
+import re
+import sys
+import time, threading
+    
+def merge_files(result_file_name):
+    file_names = filter(os.path.isfile, os.listdir( os.curdir ) )
+    name_regex = re.compile(r"python\.o.*")
+    result_files = filter(name_regex.search, file_names)
+    print len(result_files), 'files to merge found'
+    
+    if len(result_files) == 0:
+        return
+    #read values as dictionaries
+    rows = []
+    for file_name in result_files:
+        with open(file_name, 'rb') as f:
+            #reader = csv.reader(f)
+            reader = csv.DictReader(f)
+            #csv_file = csv.DictReader(open(test_file, 'rb'), delimiter=',', quotechar='"')
+            for row in reader:
+                rows.append(row)
+                
+    #write values into a single file
+    fieldnames = rows[0].keys()
+    #print 'Writing result to ', result_file_name
+    results_file = open('results/'+result_file_name,'wb')
+    writer = csv.DictWriter(results_file, fieldnames)
+    writer.writerow(dict((fn,fn) for fn in fieldnames))
+    writer.writerows(rows)
+    results_file.close()
+    
+    #check if the file was written
+    file_names = os.listdir( 'results' )
+    if result_file_name in file_names:
+        for partial_result in result_files:
+            os.remove(partial_result)
+    
+def check_for_results(result_file_name): 
+    while True:
+        #print "Es ist nun %s Uhr" % time.strftime("%H:%M:%S")
+        status = !qstat
+        #status = ''
+        print 'Status obtained at ', time.strftime("%H:%M:%S")
+        if len(status) < 2:
+            merge_files(result_file_name)
+            break;
+        else:
+            time.sleep(30.0)
+
+global timer
+if __name__ == '__main__':
+    
+    result_file_name = "results.csv"
+    timer = threading.Timer(0, check_for_results, [result_file_name]) 
+    timer.start()
