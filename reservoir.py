@@ -91,6 +91,7 @@ class ESN(object):
         return 0
         """
         if random.random() < self.conn_recurrent:
+            #weight = random.uniform(0,1)
             weight = random.gauss(0,1)
             #This stabilizes in the case of feedback. TODO: Investigate
             if random.uniform(0,1) < self.frac_exc:

@@ -2,6 +2,7 @@ from reservoir import *
 from esn_readout import *
 from one_two_a_x_task import *
 from numpy import *
+from py_utils import *
 import shelve
 import numpy as np
 import matplotlib
@@ -16,9 +17,8 @@ import io
 import sys
 import ast
 from esn_persistence import *
-
-def printf(format, *args):
-    sys.stdout.write(format % args)  
+import esn_plotting
+import activations
 
 def memory_task(N=15, delay=20):
     print "Memory Task"
@@ -56,11 +56,20 @@ def NARMA_task():
     train_input, train_target, test_input, test_target = load_arrays('data/NARMA_task_data') 
      
     best_nrmse = float('Inf')
-    for i in range(10):
-        #print "train machine..."
-        machine = ESN(1, 100, input_scaling=0.05, start_in_equilibrium=True)
+    N = 100
+    for i in range(5):
+        activ_fct = activations.ip_tanh(0.0005, 0.0, 0.1, N)
+        activ_fct.learn = False
+        #activ_fct = np.tanh
+        machine = ESN(1, N, input_scaling=0.05, reset_state=True, start_in_equilibrium=True, gamma=activ_fct)
+        normal_echo = machine.run_batch(train_input[0])
+        activ_fct.learn = True
         trainer = LinearRegressionReadout(machine)
-        trainer.train(train_input[0], train_target[0])
+        echo = machine.run_batch(train_input[0])
+        activ_fct.learn = False
+        
+        train_echo, train_prediction = trainer.train(train_input[0], train_target[0])
+        #esn_plotting.plot_output_distribution((normal_echo,train_echo), ('Output Distribution without IP','Output Distribution with IP',) )
         
         #print "predict..."
         #machine.reset()
@@ -124,11 +133,17 @@ def mso_separation_task():
     plt.title('Predictions')
     plt.show()
     
-
-def mso_task(task_type=4, T=20, plots=True, LOG=True, **machine_params):    
+    return nrmse
     
+
+def mso_task(task_type=5, T=10, plots=True, LOG=True, **machine_params):    
+    
+    if (machine_params == None or len(machine_params)==0):
+        machine_params = {"input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
+                      "input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": False}
+                                
     if (LOG):
-        print 'MSO Task'
+        print 'MSO Task Type', task_type
     
     washout_time = 100
     training_time = 1000
@@ -172,21 +187,32 @@ def mso_task(task_type=4, T=20, plots=True, LOG=True, **machine_params):
     #leak_rate = np.append(1*np.ones(N/2), 0.7*np.ones(N/2))
         
     for i in range(T):
-        machine = ESN(**machine_params)
+        #IP
+        activ_fct = activations.ip_tanh(0.0005, 0, 0.2,machine_params["output_dim"])
+        activ_fct.learn = False
+        machine = ESN(gamma=activ_fct, **machine_params)
+        
+        #machine = ESN(gamma=np.tanh, **machine_params)
         #machine = BubbleESN(1, (N/4, N/4, N/4, N/4), bubble_type=3, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = BubbleESN(1, (N/2, N/2), bubble_type=1, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = load_object('m1');
-        machine.reset()
+        #machine.reset()
         machine.run_batch(data[:washout_time])
         
+        #IP
+        
+        activ_fct.learn = True
+        machine.run_batch(train_target)
+        activ_fct.learn = False
+        machine.reset()
+        machine.run_batch(data[:washout_time])
+                
         #print 'Training...'
         #trainer = FeedbackReadout(machine, LinearRegressionReadout(machine));
         trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8))
-        #trainer.train_old(data[washout_time:washout_time+training_time])
         train_echo, train_prediction = trainer.train(train_input=None, train_target=train_target)
 
         machine.current_feedback = train_target[-1]
-        #prediction = trainer.generate_old(testing_time)
         test_echo, prediction = trainer.generate(testing_time, None)
         #testData = data[washout_time+training_time:washout_time+training_time+testing_time]
         
@@ -247,40 +273,6 @@ def mso_task(task_type=4, T=20, plots=True, LOG=True, **machine_params):
         plt.show()
         
     return best_nrmse
-
-def frange(start, stop, step):
-    """ Uses linspace to avoid rounding problems for float ranges """
-    num = ceil((stop - start)/step + 1)
-    values = np.linspace(start, stop, num)
-    return values
-    
-def correct_dictionary_arg(astring):
-    #astring = "{start_in_equilibrium: False, plots: False, bias_scaling: 1, spectral_radius: 0.94999999999999996}"
-    astring = str(astring)
-    
-    #if there are quotes around the string we have to remove them
-    if (astring[-1] == '\''  or astring[-1] ==  '\"'):
-        astring = astring[1:-1]
-    
-    #if there are (still) quotes inside, this should be a normal str(dic)	
-    if '\'' in astring or '\"' in astring:
-        print "NO STRING CORRECTION"
-        return eval(astring)
-    
-    astring = astring.replace('{', '')
-    astring = astring.replace('}', '')
-    key_value_pairs = astring.split(',')
-    corrected_string = '{'
-    for key_value in key_value_pairs:
-        parts = key_value.split(':')
-        key = parts[0].strip()
-        value = parts[1].strip()
-        corrected_string+='\"'+key+'\"'+': '+value+','
-    corrected_string = corrected_string[:-1]
-    corrected_string += '}'
-    #print 'CORRECTED: ', corrected_string
-    dic = eval(corrected_string)
-    return dic
             
 def run_mso_task(task_type=1):
     #machine = ESN(1, N, leak_rate=leak_rate, input_scaling=0.5, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
@@ -483,7 +475,9 @@ if __name__ == "__main__":
         if (len(sys.argv)==1):
             #astring = "{start_in_equilibrium: False, plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             #dic = correct_dictionary_arg(astring)
-            run_mso_task()
+            #run_mso_task()
+            mso_task()
+            #NARMA_task()
         else:
         	#"{LOG: False, start_in_equilibrium: False, plots: False, bias_scaling: 1, spectral_radius: 1.2, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.80000000000000004, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             args = sys.argv[1]

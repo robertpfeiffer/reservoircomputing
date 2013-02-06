@@ -28,9 +28,7 @@ class FlightData():
         self.dataw4=[]
         self.dataTime=[]
         
-        #time, altitude, yaw, pitch, roll, w1, w2, w3, w4, x, y, z
-        #self.data = np.array(())
-        
+        self.dataTimeDiffs = []
             
     def loadData_original(self, filename):
         self.initVariables()
@@ -101,7 +99,6 @@ class FlightData():
         
     def loadData(self, filename):
         self.loadData_original(filename)
-        dataTimeDiffs = []
         
         # Zeit in ms
         """
@@ -122,16 +119,14 @@ class FlightData():
             the_time = datetime.fromtimestamp(float(timeString))
             timediff = the_time - last_time
             milliseconds_diff = ((timediff.days * 24 * 60 * 60 + timediff.seconds) * 1000 + timediff.microseconds / 1000)
-            dataTimeDiffs.append(milliseconds_diff)
+            self.dataTimeDiffs.append(milliseconds_diff)
             last_time = the_time
-                        
-        self.dataTime = dataTimeDiffs
-            
-        nr_rows = len(self.dataTime)
+
+        nr_rows = len(self.dataTimeDiffs)
         self.data = np.array((nr_rows, 12))
         
         #time, altitude, yaw, pitch, roll, w1, w2, w3, w4, x, y, z
-        self.data = np.column_stack((np.asarray(self.dataTime),np.asarray(self.dataAltitude), np.asarray(self.dataYaw),
+        self.data = np.column_stack((np.asarray(self.dataTimeDiffs),np.asarray(self.dataAltitude), np.asarray(self.dataYaw),
                                      np.asarray(self.dataPitch), np.asarray(self.dataRoll), np.asarray(self.dataw1),
                                      np.asarray(self.dataw2), np.asarray(self.dataw3), np.asarray(self.dataw4),
                                      np.asarray(self.dataX), np.asarray(self.dataY), np.asarray(self.dataZ)))
@@ -139,15 +134,17 @@ class FlightData():
         #self.data = np.hstack((self.data, self.dataYaw, 2))
         
         #Normalisierung - macht alles noch schlimmer!
-        """
-        means = self.data.mean(1)
-        stds = self.data.std(1)
-        self.data = self.data - means[:,None]
-        self.data = self.data / stds[:,None]
-        print self.data.shape
+        normalize = False
+        if (normalize):
+            means = self.data.mean(1)
+            stds = self.data.std(1)
+            self.data = self.data - means[:,None]
+            self.data = self.data / stds[:,None]
+            print self.data.shape
+        
         #print self.data.mean(1)
         #print self.data.std(1)
-        """
+        
         
 if __name__ == '__main__':
     flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData')
