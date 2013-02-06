@@ -23,12 +23,44 @@ def softmax(vector):
 def fermi(x,a,b):
     return numpy.reciprocal(1+numpy.exp(-a*x-b))
 
-def ip_fermi(gamma,mean,n):
+def ip_exp_logistic(learnrate,mean,n):
+    """Construct an activation function that adapts
+    to produce an exponential activation distribution.
+
+    Online Reservoir Adaptation by Intrinsic
+    Plasticity for Backpropagation-Decorrelation
+    and Echo State Learning
+    Jochen J. Steil """
+
     def inner(x):
         y = fermi(x, inner.a, inner.b)
         if inner.learn:
-            delta_b = gamma * (1 - (2+1/mean)*y + 1/mean*y*y)
-            delta_a = gamma * 1/inner.a + x*delta_b
+            delta_b = learnrate * (1 - (2+1/mean)*y + 1/mean*y*y)
+            delta_a = learnrate * 1/inner.a + x*delta_b
+            inner.a += delta_a
+            inner.b += delta_b
+        return y
+
+    inner.a=numpy.ones(n)
+    inner.b=numpy.ones(n)*0.1
+    inner.learn=True
+
+    return inner
+
+def ip_gaussian_tanh(learnrate,mean,stddev,n):
+    """Construct an activation function that adapts
+    to produce a gaussian activation distribution.
+
+    On-line learning rule adapted from
+    Adapting reservoirs to get Gaussian distributions
+    David Verstraeten, Benjamin Schrauwen, Dirk Stroobandt
+    ESANN 2007 proceedings"""
+
+    def inner(x):
+        y = numpy.tanh(inner.a*x + inner.b)
+        if inner.learn:
+            delta_b = -learnrate * (- mean/stddev + y/stddev *(2*stddev+1-y**2+mean*y))
+            delta_a = learnrate/inner.a + x*delta_b
             inner.a += delta_a
             inner.b += delta_b
         return y
