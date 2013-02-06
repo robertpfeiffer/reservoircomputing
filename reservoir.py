@@ -2,6 +2,8 @@ import numpy,math,random
 import numpy.linalg as linalg
 import itertools
 import collections
+import scipy.sparse as sparse
+import scipy
 
 class DummyESN(object):
     """This class implements the ESN interface, but it does not actually carry any
@@ -46,28 +48,7 @@ class ESN(object):
         self.spectral_radius = spectral_radius
         self.start_in_equilibrium = start_in_equilibrium
 
-        w_echo = numpy.array(
-            [[self.connection_weight(i,j)
-              for j in range(self.nnodes)]
-            for i in range(self.nnodes)])
-        w_input=numpy.array(
-            [[self.input_weight(i,j)
-              for j in range(self.ninput)]
-            for i in range(self.nnodes)])
-        w_add = numpy.array(
-            [self.add_bias(i)
-             for i in range(self.nnodes)])
-        
-        # set spectral radius of w_echo to ? (default = 0.95)
-        eigenvalues=linalg.eigvals(w_echo)
-        network_spectral_radius=max([abs(a) for a in eigenvalues])
-        w_echo *= self.spectral_radius/network_spectral_radius
-        
-        self.w_echo = w_echo
-        self.w_input = w_input
-        self.w_add = w_add
-        self.w_feedback = None
-        self.current_feedback = None
+        self.build_connections()
 
         state1 = numpy.zeros(self.nnodes)
         zero_input=numpy.zeros(self.ninput)
@@ -82,7 +63,31 @@ class ESN(object):
         self.equilibrium_state = state2
 
         self.reset()
-        
+
+    def build_connections(self):
+        w_echo = numpy.array(
+            [[self.connection_weight(i,j)
+              for j in range(self.nnodes)]
+            for i in range(self.nnodes)])
+        w_input=numpy.array(
+            [[self.input_weight(i,j)
+              for j in range(self.ninput)]
+            for i in range(self.nnodes)])
+        w_add = numpy.array(
+            [self.add_bias(i)
+             for i in range(self.nnodes)])
+
+        # set spectral radius of w_echo to ? (default = 0.95)
+        eigenvalues=linalg.eigvals(w_echo)
+        network_spectral_radius=max([abs(a) for a in eigenvalues])
+        w_echo *= self.spectral_radius/network_spectral_radius
+
+        self.w_echo = w_echo
+        self.w_input = w_input
+        self.w_add = w_add
+        self.w_feedback = None
+        self.current_feedback = None
+
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2 """
         """ #Verteilung der Gewichte: Unform oder Gauss? Was bewirkt frac_exc?
@@ -99,7 +104,7 @@ class ESN(object):
             else:
                 if weight >= 0:
                     weight =-weight
-            
+
             return weight
         return 0
 
@@ -121,10 +126,10 @@ class ESN(object):
         result += self.leak_rate * self.gamma(
                    recur+inp+self.w_add)
         return result.ravel()
-    
+
     def run_batch(self, u, state=None):
         """ Runs the machine, returns the last state, saves previous states in state_echo
-            Parameter u is the input, a 2dnumpy-array (time x input-dim) 
+            Parameter u is the input, a 2dnumpy-array (time x input-dim)
         """
         length = u.shape[0]
         if state is None:
@@ -140,7 +145,7 @@ class ESN(object):
 
     def run_batch_feedback(self, u, state=None):
         """ Runs the machine, returns the last state, saves previous states in state_echo
-            Parameter u is the input, a 2dnumpy-array (time x input-dim) 
+            Parameter u is the input, a 2dnumpy-array (time x input-dim)
         """
         length,inputs = u.shape
         state_echo = numpy.zeros((length, self.nnodes))
@@ -161,12 +166,74 @@ class ESN(object):
         if not self.reset_state:
             self.current_state = state
         return state_echo
-    
+
     def reset(self):
         if self.start_in_equilibrium:
             self.current_state = self.equilibrium_state
         else:
             self.current_state = numpy.zeros(self.nnodes)
+
+
+class SpESN(ESN):
+    feedback = False
+
+    def build_connections(self):
+        w_echo = sparse.lil_matrix((self.nnodes,self.nnodes))
+        for i in range(self.nnodes):
+            for j in range(self.nnodes):
+                x = self.connection_weight(i,j)
+                if x != 0:
+                    w_echo[i, j] = x
+
+        w_input = sparse.lil_matrix((self.nnodes,self.ninput))
+        for i in range(self.nnodes):
+            for j in range(self.ninput):
+                x = self.input_weight(i,j)
+                if x != 0:
+                    w_input[i,j] = x
+
+        w_add = numpy.array(
+            [self.add_bias(i)
+             for i in range(self.nnodes)])
+
+        # set spectral radius of w_echo to ? (default = 0.95)
+
+        eigenvalues,eigenvectors=sparse.linalg.eigs(w_echo)
+        network_spectral_radius=max([abs(a) for a in eigenvalues])
+        w_echo *= self.spectral_radius/network_spectral_radius
+
+        self.w_echo = w_echo
+        self.w_input = w_input
+        self.w_add = w_add
+        self.w_feedback = None
+        self.current_feedback = None
+
+
+    def step(self, x_t_1, u_t, f_t=None):
+        result = (1 - self.leak_rate) * x_t_1
+        recur = self.w_echo.dot(x_t_1)
+        inp   = self.w_input.dot(u_t)
+        result += self.leak_rate * self.gamma(
+                   recur+inp+self.w_add)
+        return result.ravel()
+
+
+class LIF_LSM(ESN):
+    def step(self, x_t_1, u_t, f_t=None):
+        result = self.leak_rate * x_t_1
+        #reset spikes
+        result[result>self.threshold] = 0
+        recur  = numpy.dot(self.w_echo,x_t_1)
+        inp    = numpy.dot(self.w_input,u_t)
+        result +=  recur+inp+self.w_add
+        result[result>self.threshold] = self.spike
+        #print sum(result>self.threshold), "spikes"
+        return result.ravel()
+
+    def __init__(self,i,n,threshold=5,spike=20,*args,**kwargs):
+        self.threshold=threshold
+        self.spike=spike
+        ESN.__init__(self,i,n,*args,**kwargs)
 
 class Grid_3D_ESN(ESN):
     """In this ESN, the neurons are arranged in a 3D-grid.
@@ -207,7 +274,7 @@ class BubbleESN(ESN):
             if (bubblemin <= n and n < bubblemax):
                 return k
             k += 1
-        
+
     def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
@@ -215,7 +282,7 @@ class BubbleESN(ESN):
 
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
-                return random.gauss(0,1)  
+                return random.gauss(0,1)
         if random.random() < self.conn_recurrent/BUBBLE_RATIO:
             return BUBBLE_RATIO * random.gauss(0,1)
 
@@ -241,7 +308,7 @@ class DecoupledBubbleESN(BubbleESN):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
         n2_bubble = self.bubble_index(n2)
-        
+
         # weights if both neurons are in the same bubble
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
@@ -262,11 +329,11 @@ class ForwardBubbleESN(FirstBubbleInput):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
         n2_bubble = self.bubble_index(n2)
-        
+
         # weights if both neurons are in the same bubble
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
-                return random.gauss(0,1)  
+                return random.gauss(0,1)
         # weights if the neurons are one bubble apart
         if (n1_bubble == n2_bubble-1):
             if random.random() < self.conn_recurrent/5:
@@ -278,11 +345,11 @@ class NeighbourBubbleESN(FirstBubbleInput):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
         n2_bubble = self.bubble_index(n2)
-        
+
         # weights if both neurons are in the same bubble
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
-                return random.gauss(0,1)  
+                return random.gauss(0,1)
         # weights if the neurons are one bubble apart
         if (n1_bubble == n2_bubble+1 or n1_bubble == n2_bubble-1):
             if random.random() < self.conn_recurrent/5:
@@ -294,7 +361,7 @@ class KitchenSinkBubbleESN(BubbleESN):
     The neurons in each bubble are densely connected.
     There are sparse connection from a bubble to later bubble_borders, but none back.
     """
-        
+
     def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
@@ -303,7 +370,7 @@ class KitchenSinkBubbleESN(BubbleESN):
         if n1==n2:
             if self.diagonal_zero:
                 return 0
-        
+
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
                 return random.gauss(0,1)
