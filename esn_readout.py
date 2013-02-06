@@ -35,6 +35,8 @@ class LinearRegressionReadout(object):
 
     def train(self, train_input, train_target):
         """ returns (echos, predictions) """
+        if train_input is None:
+            train_input=np.zeros((train_target.shape[0],0))
         X = self._createX(train_input)
         if self.ridge==0:
             self.w_out = np.linalg.lstsq(X, train_target)[0]
@@ -93,7 +95,7 @@ class FeedbackReadout(object):
         self.machine.w_feedback=self.trainer.w_out
         return (X,Y)
 
-    def generate(self, length, initial_feedback=None):
+    def generate(self, length, initial_feedback=None, state=None):
         """ returns (states, prediction) """
         inputs=np.zeros((length,0))
         if initial_feedback is not None:
@@ -103,7 +105,7 @@ class FeedbackReadout(object):
         else:
             #Feedback might not be equal to readouts,
             # so we need to compute them separately
-            return self.trainer.predict(inputs, None)
+            return self.trainer.predict(inputs, state)
     
     def predict(self, *args, **kwarks):
         return self.trainer.predict(*args, **kwarks)
