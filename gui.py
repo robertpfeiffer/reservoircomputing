@@ -58,8 +58,8 @@ class ESN_Generator(Tkinter.Frame):
     def plot_spectrum(self):
         esn_plotting.plot_spectrum_weighted()
 
-    def plot_spectrum(self):
-        esn_plotting.plot_spectrum()
+  #  def plot_spectrum(self):
+  #      esn_plotting.plot_spectrum()
 
     def run_task_ESN(self):
         esn_plotting.run_task(self.readout,self.task["test_in"],self.task["test_out"])

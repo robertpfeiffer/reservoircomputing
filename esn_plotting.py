@@ -141,6 +141,7 @@ def plot_output_distribution(echos, labels):
         hist = hist.astype(float)
         #y: percentage of (neurons*timesteps)
         hist = (hist*100)/(N*len(echo))
+        plt.subplot(nr_plots, 1, i+1)
         plt.plot(bin_edges[1:], hist, '.')
         plt.title(labels[i])
         plt.xlabel('neuron output')
