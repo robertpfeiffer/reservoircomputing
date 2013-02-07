@@ -10,14 +10,14 @@ import error_metrics
 import esn_plotting
 
 def predict_xyz_task(Plot=False):
-    #flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData')
+    flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData')
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_58_39_AllData')
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_13_11_34_AllData')
     
     #flight_data = FlightData('flight_data/HausVomNikolaus/flight_Sun_03_Feb_2013_18_22_19_AllData')
     
     #no norm
-    flight_data = FlightData('flight_data/rectangle/flight_Sun_03_Feb_2013_17_36_54_AllData')
+    #flight_data = FlightData('flight_data/rectangle/flight_Sun_03_Feb_2013_17_36_54_AllData')
     
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_45_56_AllData')
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_58_39_AllData')
@@ -36,12 +36,12 @@ def predict_xyz_task(Plot=False):
     washout_data = data[:washout_length,:]
     train_input = data[washout_length:train_length,:]
     train_target = data[washout_length+k:train_length+k,9:12] #die letzten drei sind x, y, z
-    test_input = data[train_length+k:nr_rows-k,:]
-    test_target = data[train_length+k:nr_rows-k,9:12]
+    test_input = data[train_length:nr_rows-k,:]
+    test_target = data[train_length+k:nr_rows,9:12]
     
     best_nrmse = float('Inf')
     for i in range(T):
-        machine = ESN(input_dim=12, output_dim=200, reset_state=False, start_in_equilibrium=True)
+        machine = ESN(input_dim=12, output_dim=200, leak_rate=0.3, reset_state=False, start_in_equilibrium=True)
         machine.run_batch(washout_data)
         
         trainer = LinearRegressionReadout(machine, ridge=1e-8)
@@ -132,6 +132,6 @@ def control_task(Plot=False):
 
 
 if __name__ == '__main__':
-    control_task(Plot=True)
-    #predict_xyz_task(Plot=True)
+    #control_task(Plot=True)
+    predict_xyz_task(Plot=True)
 
