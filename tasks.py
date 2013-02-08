@@ -136,7 +136,7 @@ def mso_separation_task():
     return nrmse
     
 
-def mso_task(task_type=5, T=10, plots=True, LOG=True, **machine_params):    
+def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):    
     
     if (machine_params == None or len(machine_params)==0):
         machine_params = {"input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
@@ -251,7 +251,7 @@ def mso_task(task_type=5, T=10, plots=True, LOG=True, **machine_params):
     #save_object(best_train_echo, 'train_echo2')
     #save_object(best_test_echo, 'test_echo2')
     
-    if plots==True:
+    if Plots==True:
         plt.figure(1).clear()
         plt.plot( evaluation_data, 'g' )
         plt.plot( best_evaluation_prediction, 'b' )
@@ -279,10 +279,10 @@ def run_mso_task(task_type=1):
     #machine_params = {"ninput":1, "nnodes":200, "leak_rate":0.5, "input_scaling":0.5, "bias_scaling":0.5, "reset_state":False, 
     # "start_in_equilibrium": False}   
     #mso_task(**machine_params)
-    #best_nrmse = mso_task(task_type, plots=False, ninput=1, nnodes=200, leak_rate=0.5, input_scaling=0.5, bias_scaling=0.5, spectral_radius=0.95, reset_state=False, start_in_equilibrium=False)
+    #best_nrmse = mso_task(task_type, Plots=False, ninput=1, nnodes=200, leak_rate=0.5, input_scaling=0.5, bias_scaling=0.5, spectral_radius=0.95, reset_state=False, start_in_equilibrium=False)
     #return best_nrmse
 
-    machine_params = {"task_type":task_type, "plots": False, "LOG":True, 
+    machine_params = {"task_type":task_type, "Plots": False, "LOG":True, 
                       "input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
                       "input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": False}
     #parameters = {'input_scaling': arange(0.1, 2, 0.1), 'spectral_radius':arange(0.1, 1.5, 0.1)}
@@ -312,7 +312,7 @@ def run_mso_task_for_grid(**machine_params):
     #unwichtig
     del machine_params["reset_state"]
     del machine_params["start_in_equilibrium"]
-    del machine_params["plots"]
+    del machine_params["Plots"]
     del machine_params["LOG"]
     
     output = io.BytesIO()
@@ -383,7 +383,7 @@ def mso_task_regression_analysis():
     plt.legend(['Target signal', 'Free-running predicted signal'])
     plt.show()
     
-def mackey_glass_task(plots=False):
+def mackey_glass_task(Plots=False):
     #from http://minds.jacobs-university.de/mantas/code
     print 'Mackey-Glass t17 - Task'
     data = np.loadtxt('data/MackeyGlass_t17.txt') 
@@ -432,7 +432,7 @@ def mackey_glass_task(plots=False):
             
     print 'Min NRMSE: ', best_nrmse 
     
-    if plots:
+    if Plots:
         plt.figure(1).clear()
         #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
         #plt.plot( prediction, 'b' )
@@ -458,7 +458,7 @@ def mackey_glass_task(plots=False):
     nrmse = error_metrics.nrmse(prediction,testData)
     print 'Training MSE: ', mse, 'NRMSE: ', nrmse
     
-    if plots:
+    if Plots:
         plt.figure(3).clear()
         #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
         #plt.plot( prediction, 'b' )
@@ -473,13 +473,13 @@ def mackey_glass_task(plots=False):
 if __name__ == "__main__":
     if 1:
         if (len(sys.argv)==1):
-            #astring = "{start_in_equilibrium: False, plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
+            #astring = "{start_in_equilibrium: False, Plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             #dic = correct_dictionary_arg(astring)
             #run_mso_task()
             mso_task()
             #NARMA_task()
         else:
-        	#"{LOG: False, start_in_equilibrium: False, plots: False, bias_scaling: 1, spectral_radius: 1.2, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.80000000000000004, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
+        	#"{LOG: False, start_in_equilibrium: False, Plots: False, bias_scaling: 1, spectral_radius: 1.2, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.80000000000000004, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             args = sys.argv[1]
             #print "ARGS: ", args
             dic = correct_dictionary_arg(args)

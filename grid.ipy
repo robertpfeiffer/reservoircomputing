@@ -1,4 +1,5 @@
 from tasks import *
+from drone_tasks import *
 
 #if __name__ == '__main__':
 #print "Hello numpy:", numpy.random.rand()
@@ -8,12 +9,14 @@ from tasks import *
 user = !whoami
 user = user[0] 
 
-machine_params = {"task_type":1, "plots":False, "LOG":False,
-	"input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
-	"input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": False}
-parameters = parameters = {'input_scaling': frange(0.5, 1, 0.1), 'bias_scaling':frange(0.5, 1, 0.1), 'spectral_radius':frange(0.5, 1.5, 0.1)}
+machine_params = {"task_type":1, "Plots":False, "LOG":False,
+	"input_dim":15, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
+	"input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": True}
+parameters = parameters = {"output_dim":arange(100, 200, 50), "conn_input":frange(0.3, 0.4, 0.1), 
+						"conn_recurrent":frange(0.1, 0.3, 0.1), "leak_rate":[0.3, 0.5, 0.7, 0.9, 1], 
+						'input_scaling': frange(0.2, 1, 0.2), 'bias_scaling':frange(0.2, 1.8, 0.4), 'spectral_radius':frange(0.7, 1.3, 0.2)}
 if (user == 'witali'):
-    parameters = {'input_scaling': frange(0.5, 1.0, 0.5), 'bias_scaling':frange(0.5, 1, 0.1), 'spectral_radius':frange(0.5, 1.0, 0.5)}
+    parameters = {"output_dim":arange(100, 200, 50), "leak_rate":[0.3, 0.5, 0.7, 0.9, 1], 'spectral_radius':frange(1.0, 1.0, 0.5)}
 parameter_keys = parameters.keys()
 parameter_ranges = []
 for parameter in parameter_keys:
@@ -30,14 +33,16 @@ for parameter_values in param_space:
 	#!python tasks.py '$params_string'
 	#!qsub -b y -wd "/net/store/projects/mtrc/grid_results" python tasks.py "$machine_params"
 	if (user == 'witali'):
-		!python tasks.py '"$params_string"'
+		!python drone_tasks.py '"$params_string"'
+	#	!python tasks.py '"$params_string"'
 	else:
-		!qsub -b y -cwd python tasks.py '"$params_string"'
+		!qsub -b y -cwd python drone_tasks.py '"$params_string"'
+	#	!qsub -b y -cwd python tasks.py '"$params_string"'
 
 if (user == 'witali'):
-    !ipython grid_monitor.ipy
+    !nohup ipython grid_monitor.ipy >nohup.txt &
 else:
-    !ipython -noconfirm_exit grid_monitor.ipy
+    !nohup ipython -noconfirm_exit grid_monitor.ipy >nohup.txt &
     #!qsub -b y -cwd ipython -noconfirm_exit grid_monitor.ipy
     
 exit()

@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+from datetime import datetime
 
 def printf(format_string, *args):
     sys.stdout.write(format_string % args)  
@@ -37,3 +38,18 @@ def correct_dictionary_arg(astring):
     #print 'CORRECTED: ', corrected_string
     dic = eval(corrected_string)
     return dic
+
+def timestamp_to_date(timestamp):
+    if isinstance(timestamp, basestring):
+        timestamp = datetime.fromtimestamp(float(timestamp))
+    elif isinstance(timestamp, float):
+        timestamp = datetime.fromtimestamp(timestamp)
+    return timestamp
+    
+def compute_time_diff_in_ms(time1, time2):
+    time1 = timestamp_to_date(time1)
+    time2 = timestamp_to_date(time2)
+            
+    timediff = time2 - time1
+    milliseconds_diff = ((timediff.days * 24 * 60 * 60 + timediff.seconds) * 1000 + timediff.microseconds / 1000)
+    return milliseconds_diff

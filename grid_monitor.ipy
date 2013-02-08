@@ -37,17 +37,21 @@ def merge_files(result_file_name):
         for partial_result in result_files:
             os.remove(partial_result)
     
-def check_for_results(result_file_name): 
+def check_for_results(result_file_name):
+    user = !whoami
+    user = user[0]  
     while True:
         #print "Es ist nun %s Uhr" % time.strftime("%H:%M:%S")
-        status = !qstat
-        #status = ''
+        if (user == 'witali'):
+            status = ''
+        else:
+            status = !qstat
         print 'Status obtained at ', time.strftime("%H:%M:%S")
         if len(status) < 2:
             merge_files(result_file_name)
             break;
         else:
-            time.sleep(30.0)
+            time.sleep(60.0)
 
 global timer
 if __name__ == '__main__':
