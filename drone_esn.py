@@ -1,4 +1,5 @@
 from esn_persistence import *
+from esn_plotting import *
 from reservoir import *
 from esn_readout import *
 from flight_data import *
@@ -32,7 +33,7 @@ class DroneESN(object):
             self.echos = echo
         else:
             self.echos = np.vstack((self.echos, echo))
-        return self.echos.shape
+        return prediction
         
     def reset(self):
         self.tainer.machine.reset()
@@ -48,12 +49,15 @@ if __name__ == '__main__':
                                      np.asarray(flight_data.dataX), np.asarray(flight_data.dataY), np.asarray(flight_data.dataZ),
                                      np.asarray(flight_data.dataTargetX), np.asarray(flight_data.dataTargetY), np.asarray(flight_data.dataTargetZ),
                                      np.asarray(flight_data.dataw1), np.asarray(flight_data.dataw2), np.asarray(flight_data.dataw3), np.asarray(flight_data.dataw4)))
-    some_step1 = row_data[500,:-4]
-    some_step2 = row_data[500,:-4]
-    
+   
     drone_esn = DroneESN()
-    result1 = drone_esn.compute(some_step1)
-    result2 = drone_esn.compute(some_step1)
+    results = drone_esn.compute(row_data[0,:-4])
+    for i in range(1,1000):
+        result = drone_esn.compute(row_data[i,:-4])
+        results = np.vstack((results, result))
+
+    targets = row_data[:1000,-4:]
+    #plot_predictions_targets(results, targets, ('w1', 'w2', 'w3', 'w4'))
     #arrays = esn_persistence.load_arrays('drone_echo')
+    
     #drone_esn.save_echo()
-    print result2
