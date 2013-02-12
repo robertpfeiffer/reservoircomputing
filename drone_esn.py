@@ -10,7 +10,7 @@ import esn_persistence
 
 class DroneESN(object):
     def __init__(self):
-        self.trainer = load_object('trainer', 'drone_esn');
+        self.trainer = load_object('trainer', 'drone_esn')
         self.last_time = None
         self.echos = None
         
