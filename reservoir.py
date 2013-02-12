@@ -29,6 +29,9 @@ class DummyESN(object):
 def random_vector(size,a,b):
     return (b - a) * numpy.random.random_sample([size]) + a
 
+def sech(x):
+    return 1/numpy.cosh(x)
+
 class ESN(object):
     feedback = False
 
@@ -122,21 +125,38 @@ class ESN(object):
         result += self.leak_rate * self.gamma(
                    recur+inp+self.w_add)
         return result.ravel()
+
+    def jacobian(self, u_t, x_t_1=None):
+        if x_t_1 is None:
+            state = self.current_state
+        else:
+            state = x_t_1
+        recur = numpy.dot(self.w_echo,state)
+        inp   = numpy.dot(self.w_input,u_t)
+        J = numpy.dot(numpy.dot(sech(recur+inp+self.w_add),
+                                sech(recur+inp+self.w_add).T),
+                      numpy.dot(self.w_input,numpy.eye(u_t.size)))
+        return J
     
     def run_batch(self, u, state=None):
         """ Runs the machine, returns the last state, saves previous states in state_echo
             Parameter u is the input, a 2dnumpy-array (time x input-dim) 
         """
         length = u.shape[0]
-        if state is None:
+        if state is not None:
+            pass
+        elif not self.reset_state:
             state = self.current_state
+        elif self.start_in_equilibrium:
+            state = self.equilibrium_state
+        else:
+            state = numpy.zeros(self.nnodes)
         state_echo = numpy.zeros((length, self.nnodes))
         for i in range(length):
             u_t = u[i,:]
             state = self.step(state,u_t)
             state_echo[i,:] = state[:]
-        if not self.reset_state:
-            self.current_state = state
+        self.current_state=state
         return state_echo
 
     def run_batch_feedback(self, u, state=None):
@@ -145,8 +165,14 @@ class ESN(object):
         """
         length,inputs = u.shape
         state_echo = numpy.zeros((length, self.nnodes))
-        if state is None:
+        if state is not None:
+            pass
+        elif not self.reset_state:
             state = self.current_state
+        elif self.start_in_equilibrium:
+            state = self.equilibrium_state
+        else:
+            state = numpy.zeros(self.nnodes)
         if self.w_feedback is not None and self.current_feedback is None:
             self.current_feedback = numpy.zeros(self.ninput-inputs)
         u_t=numpy.zeros(self.ninput)
@@ -159,8 +185,7 @@ class ESN(object):
             if self.w_feedback is not None:
                 state_1  = numpy.append(numpy.ones(1), state)
                 self.current_feedback = numpy.dot(self.w_feedback.T,state_1)
-        if not self.reset_state:
-            self.current_state = state
+        self.current_state = state
         return state_echo
     
     def reset(self):
@@ -168,6 +193,9 @@ class ESN(object):
             self.current_state = self.equilibrium_state
         else:
             self.current_state = numpy.zeros(self.nnodes)
+
+    def fold_in_feedback(self):
+        pass
 
 class Grid_3D_ESN(ESN):
     """In this ESN, the neurons are arranged in a 3D-grid.
