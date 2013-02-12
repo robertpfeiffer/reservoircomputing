@@ -3,6 +3,8 @@ import numpy.linalg as linalg
 import itertools
 import collections
 
+from activations import *
+
 class DummyESN(object):
     """This class implements the ESN interface, but it does not actually carry any
     state. Output = Input. Use it to compare the kernel quality against no kernel at all.
@@ -35,7 +37,7 @@ def sech(x):
 class ESN(object):
     feedback = False
 
-    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
+    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=TanhActivation(),frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
         self.ninput=input_dim
         self.nnodes=output_dim
         self.leak_rate=leak_rate
@@ -122,7 +124,7 @@ class ESN(object):
         result = (1 - self.leak_rate) * x_t_1
         recur = numpy.dot(self.w_echo,x_t_1)
         inp   = numpy.dot(self.w_input,u_t)
-        result += self.leak_rate * self.gamma(
+        result += self.leak_rate * self.gamma.activate(
                    recur+inp+self.w_add)
         return result.ravel()
 
@@ -179,7 +181,7 @@ class ESN(object):
         for i in range(length):
             u_t[:inputs] = u[i,:].ravel()
             if self.w_feedback is not None:
-                u_t[inputs:]= self.current_feedback
+                u_t[inputs:] = self.current_feedback
             state    = self.step(state,u_t)
             state_echo[i,:] = state[:]
             if self.w_feedback is not None:

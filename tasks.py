@@ -18,7 +18,7 @@ import sys
 import ast
 from esn_persistence import *
 import esn_plotting
-import activations
+from activations import *
 
 def memory_task(N=15, delay=20):
     print "Memory Task"
@@ -58,7 +58,7 @@ def NARMA_task():
     best_nrmse = float('Inf')
     N = 100
     for i in range(5):
-        activ_fct = activations.ip_tanh(0.0005, 0.0, 0.1, N)
+        activ_fct = IPTanhActivation(0.0005, 0.0, 0.1, N)
         activ_fct.learn = False
         #activ_fct = np.tanh
         machine = ESN(1, N, input_scaling=0.05, reset_state=True, start_in_equilibrium=True, gamma=activ_fct)
@@ -188,7 +188,7 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
         
     for i in range(T):
         #IP
-        activ_fct = activations.ip_tanh(0.0005, 0, 0.2,machine_params["output_dim"])
+        activ_fct = IPTanhActivation(0.0005, 0, 0.2,machine_params["output_dim"])
         activ_fct.learn = False
         machine = ESN(gamma=activ_fct, **machine_params)
         

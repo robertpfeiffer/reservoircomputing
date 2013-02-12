@@ -21,3 +21,13 @@ def load_arrays(file_name):
     for i in range(len(npzfile.files)):
         arrays.append(npzfile['arr_'+str(i)])
     return tuple(arrays)
+
+#Puffern von files
+loaded_files = {}
+def load_file(filename):
+    if filename in loaded_files:
+        return loaded_files[filename]
+    f = open(filename, 'r')
+    lines = f.readlines()
+    loaded_files[filename] = lines
+    return lines
