@@ -11,33 +11,38 @@ def frange(start, stop, step):
     values = np.linspace(start, stop, num)
     return values
     
-def correct_dictionary_arg(astring):
-    #astring = "{start_in_equilibrium: False, plots: False, bias_scaling: 1, spectral_radius: 0.94999999999999996}"
-    astring = str(astring)
-    
-    #if there are quotes around the string we have to remove them
-    if (astring[-1] == '\''  or astring[-1] ==  '\"'):
-        astring = astring[1:-1]
-    
-    #if there are (still) quotes inside, this should be a normal str(dic)    
-    if '\'' in astring or '\"' in astring:
-        print "NO STRING CORRECTION"
-        return eval(astring)
-    
-    astring = astring.replace('{', '')
-    astring = astring.replace('}', '')
-    key_value_pairs = astring.split(',')
-    corrected_string = '{'
-    for key_value in key_value_pairs:
-        parts = key_value.split(':')
-        key = parts[0].strip()
-        value = parts[1].strip()
-        corrected_string+='\"'+key+'\"'+': '+value+','
-    corrected_string = corrected_string[:-1]
-    corrected_string += '}'
-    #print 'CORRECTED: ', corrected_string
-    dic = eval(corrected_string)
-    return dic
+def correct_dictionary_arg(arg_string):
+    """ returns a list with dictionaries from the arg_string. Separator: '#' """
+    #astring = "{start_in_equilibrium: False, plots: False, bias_scaling: 1, spectral_radius: 0.94999999999999996}#{start_in_equilibrium: False, plots: False, bias_scaling: 1, spectral_radius: 0.94999999999999996}"
+    dic_list = []
+    parts = str(arg_string).split('#')
+    for astring in parts:
+        #if there are quotes around the string we have to remove them
+        if (astring[0] == '\''  or astring[0] ==  '\"'):
+            astring = astring[1:]
+        if (astring[-1] == '\''  or astring[-1] ==  '\"'):
+            astring = astring[:-1]
+        
+        #if there are (still) quotes inside, this should be a normal str(dic)    
+        if '\'' in astring or '\"' in astring:
+            #print "NO STRING CORRECTION"
+            return eval(astring)
+        
+        astring = astring.replace('{', '')
+        astring = astring.replace('}', '')
+        key_value_pairs = astring.split(',')
+        corrected_string = '{'
+        for key_value in key_value_pairs:
+            parts = key_value.split(':')
+            key = parts[0].strip()
+            value = parts[1].strip()
+            corrected_string+='\"'+key+'\"'+': '+value+','
+        corrected_string = corrected_string[:-1]
+        corrected_string += '}'
+        #print 'CORRECTED: ', corrected_string
+        dic = eval(corrected_string)
+        dic_list.append(dic)
+    return dic_list
 
 def timestamp_to_date(timestamp):
     if isinstance(timestamp, basestring):

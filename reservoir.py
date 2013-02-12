@@ -155,7 +155,7 @@ class ESN(object):
         for i in range(length):
             u_t[:inputs] = u[i,:].ravel()
             if self.w_feedback is not None:
-                u_t[inputs:]= self.current_feedback
+                u_t[inputs:] = self.current_feedback
             state    = self.step(state,u_t)
             state_echo[i,:] = state[:]
             if self.w_feedback is not None:
