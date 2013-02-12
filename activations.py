@@ -57,9 +57,15 @@ def ip_tanh(learning_rate, mean, std, n):
 
     return inner
 
+def sech(x):
+    return 1/np.cosh(x)
+
 class TanhActivation:
     def activate(self, x):
         return np.tanh(x)
+
+    def derivative(self,x):
+        return np.outer(sech(x),sech(x))
     
 class IPTanhActivation:
     def __init__(self, learning_rate, mean, std, n):

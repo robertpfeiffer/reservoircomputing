@@ -135,8 +135,7 @@ class ESN(object):
             state = x_t_1
         recur = numpy.dot(self.w_echo,state)
         inp   = numpy.dot(self.w_input,u_t)
-        J = numpy.dot(numpy.dot(sech(recur+inp+self.w_add),
-                                sech(recur+inp+self.w_add).T),
+        J = numpy.dot(gamma.derivative(recur+inp+self.w_add),
                       numpy.dot(self.w_input,numpy.eye(u_t.size)))
         return J
     
