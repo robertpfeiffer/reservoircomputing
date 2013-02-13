@@ -3,19 +3,22 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import copy
 
 d={}
 
 def run_perturbation(esn,data1=None):
+    T = 400
     if data1 is None:
-        data1=np.zeros((500,esn.ninput))
+        data1=np.zeros((T,esn.ninput))
     else:
-        data1=data1[:500,:]
+        data1=data1[:T,:]
     data2=np.copy(data1)
-    data2[50:100,:]=1
-    data1[50:100,:]=0
+    data2[50,:]=data1[50,:]+np.random.randn()
+    #data1[50:100,:]=0
+    esn2 = copy.deepcopy(esn)
     s1=esn.run_batch_feedback(data1)
-    s2=esn.run_batch_feedback(data2)
+    s2=esn2.run_batch_feedback(data2)
     d["difference"] = abs(s2-s1)
     d["sum_difference"] = np.sum(abs(s2-s1),axis=1)
 

@@ -19,6 +19,8 @@ import ast
 from esn_persistence import *
 import esn_plotting
 from activations import *
+import drone_tasks
+import copy
 
 def memory_task(N=15, delay=20):
     print "Memory Task"
@@ -77,10 +79,11 @@ def NARMA_task():
         nrmse = error_metrics.nrmse(prediction,test_target[0])
         if nrmse < best_nrmse:
             best_nrmse = nrmse
+            best_esn = machine
         printf("%d NRMSE: %f\n", i+1, nrmse)
         
     print 'Min NRMSE: ', best_nrmse
-    return best_nrmse
+    return best_nrmse, best_esn
 
 def one_two_a_x_task():
     length = 10000
@@ -139,16 +142,42 @@ def mso_separation_task():
 def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):    
     
     if (machine_params == None or len(machine_params)==0):
-        machine_params = {"input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
-                      "input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": False}
-                                
+        machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
+                      "input_scaling":0.4, "bias_scaling":0.2, "spectral_radius":1.3, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": True}
+        """                        
+        machine_params = {"output_dim":100, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
+                      "input_scaling":0.1, "bias_scaling":0.2, "spectral_radius":1.1, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": True}
+        """
     if (LOG):
         print 'MSO Task Type', task_type
     
+    ridge=1e-8
+    if 'ridge' in machine_params:
+        ridge = machine_params['ridge']
+        del machine_params['ridge']
+    
+    use_ip = False
+    if 'ip_learning_rate' in machine_params:    
+        ip_learning_rate = machine_params['ip_learning_rate']
+        ip_std = machine_params['ip_std']
+        del machine_params['ip_learning_rate']
+        del machine_params['ip_std']
+        if ip_learning_rate > 0:
+            use_ip = True
+            
+    fb_noise_var = 0
+    if 'fb_noise_var' in machine_params:
+        fb_noise_var = machine_params['fb_noise_var']
+        del machine_params['fb_noise_var']
+                
     washout_time = 100
-    training_time = 1000
+    training_time = 300
     testing_time = 600
-    evaluation_time = 500 #only last X steps evaluated
+    evaluation_time = 300 #only last X steps evaluated
     
     input_range = np.arange(0, 10000, 1) #np.array([range(2000)])
     if task_type==1:
@@ -188,29 +217,29 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
         
     for i in range(T):
         #IP
-        activ_fct = IPTanhActivation(0.0005, 0, 0.2,machine_params["output_dim"])
-        activ_fct.learn = False
-        machine = ESN(gamma=activ_fct, **machine_params)
-        
+        if use_ip:
+            activ_fct = IPTanhActivation(ip_learning_rate, 0, ip_std,machine_params["output_dim"], init_learn=False)
+            machine = ESN(input_dim=1, gamma=activ_fct, **machine_params)
+            machine.run_batch(data[:washout_time])
+            normal_echo = machine.run_batch(train_target)
+            activ_fct.learn = True
+            machine.run_batch(train_target)
+            activ_fct.learn = False
+            machine.reset()
+        else:
+            machine = ESN(input_dim=1, **machine_params)
         #machine = ESN(gamma=np.tanh, **machine_params)
         #machine = BubbleESN(1, (N/4, N/4, N/4, N/4), bubble_type=3, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = BubbleESN(1, (N/2, N/2), bubble_type=1, leak_rate=leak_rate, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
         #machine = load_object('m1');
         #machine.reset()
-        machine.run_batch(data[:washout_time])
-        
-        #IP
-        
-        activ_fct.learn = True
-        machine.run_batch(train_target)
-        activ_fct.learn = False
-        machine.reset()
+
         machine.run_batch(data[:washout_time])
                 
         #print 'Training...'
         #trainer = FeedbackReadout(machine, LinearRegressionReadout(machine));
-        trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge=1e-8))
-        train_echo, train_prediction = trainer.train(train_input=None, train_target=train_target)
+        trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge))
+        train_echo, train_prediction = trainer.train(train_input=None, train_target=train_target, noise_var=fb_noise_var)
 
         machine.current_feedback = train_target[-1]
         test_echo, prediction = trainer.generate(testing_time, None)
@@ -228,6 +257,10 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
             best_train_echo = train_echo
             best_test_echo = test_echo
         nrmses[i] = nrmse
+        
+        #if Plots:
+        #    esn_plotting.plot_output_distribution((normal_echo,train_echo), ('Output Distribution without IP','Output Distribution with IP',) )
+        
         
         #plt.pcolormesh(plot_echo,cmap="bone")
         
@@ -272,7 +305,7 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
         plt.hist(best_trainer.w_out)
         plt.show()
         
-    return best_nrmse
+    return best_nrmse, best_machine
             
 def run_mso_task(task_type=1):
     #machine = ESN(1, N, leak_rate=leak_rate, input_scaling=0.5, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
@@ -283,7 +316,7 @@ def run_mso_task(task_type=1):
     #return best_nrmse
 
     machine_params = {"task_type":task_type, "Plots": False, "LOG":True, 
-                      "input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
+                      "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
                       "input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": False}
     #parameters = {'input_scaling': arange(0.1, 2, 0.1), 'spectral_radius':arange(0.1, 1.5, 0.1)}
     """
@@ -304,7 +337,26 @@ def run_mso_task(task_type=1):
     """
     return mso_task(**machine_params)
 
-def run_mso_task_for_grid(**machine_params):
+def run_mso_task_for_grid(params_list):
+    if (params_list == None or len(params_list)==0):
+        params_list = [{"output_dim":100, "leak_rate":0.7, "conn_input":0.4, 
+                                         "conn_recurrent":0.2, "input_scaling":1, "bias_scaling":1, 
+                                         "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": True}]
+    output = io.BytesIO()
+    fieldnames = params_list[0].keys()
+    drone_tasks.remove_unnecessary_params(fieldnames)
+    fieldnames.append("NRMSE")
+    writer = csv.DictWriter(output, fieldnames)
+    writer.writerow(dict((fn,fn) for fn in fieldnames))
+    for machine_params in params_list:
+        best_nrmse, best_esn = mso_task(**machine_params)
+        drone_tasks.remove_unnecessary_params(machine_params)
+        machine_params["NRMSE"] = best_nrmse
+        writer.writerow(machine_params)
+    
+    result = output.getvalue()
+    print result
+    """
     best_nrmse = mso_task(**machine_params)
     
     machine_params["NRMSE"] = best_nrmse
@@ -325,6 +377,7 @@ def run_mso_task_for_grid(**machine_params):
     
     result = output.getvalue()
     print result
+    """
 
 def mso_task_regression_analysis():
     print 'MSO Task Regression Analysis'
@@ -429,6 +482,7 @@ def mackey_glass_task(Plots=False):
         print i+1,'TEST MSE:', mse, ' NRMSE:' , nrmse
         if nrmse < best_nrmse:
             best_nrmse = nrmse
+            best_esn = machine
             
     print 'Min NRMSE: ', best_nrmse 
     
@@ -447,7 +501,7 @@ def mackey_glass_task(Plots=False):
         plt.title('Output weights $\mathbf{W}^{out}$')
         plt.show()
         
-    return best_nrmse
+    return best_nrmse, best_esn
     
     """ Peformance on Training Data. Hier schlechtere Ergebnisse - wahrscheinlich wegen washout time
     machine.reset()
@@ -476,15 +530,39 @@ if __name__ == "__main__":
             #astring = "{start_in_equilibrium: False, Plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             #dic = correct_dictionary_arg(astring)
             #run_mso_task()
-            mso_task()
+            #mso_task()
             #NARMA_task()
+            
+            machine_params_ip = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
+                      "input_scaling":0.4, "bias_scaling":0.2, "spectral_radius":1.3, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0.001, 'ip_std':0.2,
+                      "reset_state":False, "start_in_equilibrium": True}
+            
+            machine_params_standard = {"output_dim":100, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
+                      "input_scaling":0.1, "bias_scaling":0.2, "spectral_radius":1.1, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": True}
+            nrmse, esn = mso_task(Plots=False, **machine_params_standard)
+            nrmse_ip, esn_ip = mso_task(Plots=False, **machine_params_ip)
+            
+            input_range = np.arange(0, 10000, 1)
+            data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
+            data = data[:,None]
+            
+            #perturbed_state = esn2.current_state + np.random.randn()
+            #perturbed_state = perturbed_state/max(perturbed_state)
+            #esn2.current_state = perturbed_state
+            esn_plotting.run_perturbation(esn, data)
+            esn_plotting.plot_diff2()
+            
+            esn_plotting.run_perturbation(esn_ip)
+            esn_plotting.plot_diff2()
+                  
         else:
-        	#"{LOG: False, start_in_equilibrium: False, Plots: False, bias_scaling: 1, spectral_radius: 1.2, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.80000000000000004, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
+            #"{LOG: False, start_in_equilibrium: False, Plots: False, bias_scaling: 1, spectral_radius: 1.2, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.80000000000000004, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             args = sys.argv[1]
-            #print "ARGS: ", args
-            dic = correct_dictionary_arg(args)
-            #print type(dic),': ', str(dic)
-            run_mso_task_for_grid(**dic)
+            dic_list = correct_dictionary_arg(args)
+            run_mso_task_for_grid(dic_list)
     elif raw_input("mso-task_regression_analysis?[ja/nein] ").startswith('j'): 
         mso_task_regression_analysis()  
     elif raw_input("mso-task?[ja/nein] ").startswith('j'): 

@@ -37,12 +37,18 @@ def sech(x):
 class ESN(object):
     feedback = False
 
-    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=TanhActivation(),frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
+    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2, recurrent_weight_dist=1, 
+                 gamma=TanhActivation(),frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, 
+                 reset_state=True, start_in_equilibrium=True):
+        """
+        recurrent_weight_dist: 0 uniform, 1 gaussian
+        """
         self.ninput=input_dim
         self.nnodes=output_dim
         self.leak_rate=leak_rate
         self.gamma=gamma
         self.conn_recurrent=conn_recurrent
+        self.recurrent_weight_dist = recurrent_weight_dist
         self.conn_input=conn_input
         self.frac_exc=frac_exc
         self.reset_state = reset_state
@@ -63,7 +69,7 @@ class ESN(object):
             [self.add_bias(i)
              for i in range(self.nnodes)])
         
-        # set spectral radius of w_echo to ? (default = 0.95)
+        # set spectral radius of w_echo
         eigenvalues=linalg.eigvals(w_echo)
         network_spectral_radius=max([abs(a) for a in eigenvalues])
         w_echo *= self.spectral_radius/network_spectral_radius
@@ -90,24 +96,24 @@ class ESN(object):
         
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2 """
-        """ #Verteilung der Gewichte: Unform oder Gauss? Was bewirkt frac_exc?
-        if random.random() < self.conn_recurrent:
-            return numpy.random.rand()*2-1
-        return 0
-        """
-        if random.random() < self.conn_recurrent:
-            #weight = random.uniform(0,1)
-            weight = random.gauss(0,1)
-            #This stabilizes in the case of feedback. TODO: Investigate
-            if random.uniform(0,1) < self.frac_exc:
-                if weight <= 0:
-                    weight=-weight
-            else:
-                if weight >= 0:
-                    weight =-weight
-            
-            return weight
-        return 0
+        if self.recurrent_weight_dist == 0:
+            if random.random() < self.conn_recurrent:
+                return numpy.random.rand()*2-1
+            return 0
+        else:
+            if random.random() < self.conn_recurrent:
+                #weight = random.uniform(0,1)
+                weight = random.gauss(0,1)
+                #This stabilizes in the case of feedback. TODO: Investigate
+                if random.uniform(0,1) < self.frac_exc:
+                    if weight <= 0:
+                        weight=-weight
+                else:
+                    if weight >= 0:
+                        weight =-weight
+                
+                return weight
+            return 0
 
     def input_weight(self,n1,n2):
         """synaptic strength for the connection from input node n1 to echo node n2"""
@@ -135,7 +141,7 @@ class ESN(object):
             state = x_t_1
         recur = numpy.dot(self.w_echo,state)
         inp   = numpy.dot(self.w_input,u_t)
-        J = numpy.dot(gamma.derivative(recur+inp+self.w_add),
+        J = numpy.dot(self.gamma.derivative(recur+inp+self.w_add),
                       numpy.dot(self.w_input,numpy.eye(u_t.size)))
         return J
     

@@ -152,7 +152,7 @@ class FlightData():
             dataTimeDiffs.append(milliseconds_diff)
         """
                 
-        k = 10
+        k = 30
         #Vscale = 1000
         Tscale = 100.0
         Yaw_scale = 100.0

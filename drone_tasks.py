@@ -39,14 +39,28 @@ def predict_xyz_task(Plots=False, **machine_params):
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_37_34_AllData')
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_37_34_AllData')
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData')
-    flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Fri_08_Feb_2013_16_06_09_AllData')
+    #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Fri_08_Feb_2013_16_06_09_AllData')
+    
+    
+    flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData')
+    flight_data2 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_23_03_AllData')
+    flight_data3 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_37_34_AllData')
+    flight_data4 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_54_52_AllData')
+    flight_data5 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData')
+    flight_data6 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_18_08_AllData')
+    #flight_data7 = FlightData('flight_data/flight_random_points_with_target/flight_Fri_08_Feb_2013_16_06_09_AllData')
+    data = np.vstack((flight_data.data, flight_data2.data, flight_data3.data, flight_data4.data, 
+                      flight_data5.data, flight_data6.data ))#, flight_data7.data))
     
     #Fehler beim Laden
     #flight_data = FlightData('flight_data/systematicwwwwchange/flight_Sun_03_Feb_2013_18_35_58_AllData')
 
     #flight_data = FlightData('flight_data/random_targetPoints_changingYaw/flight_Sun_03_Feb_2013_16_55_59_AllData')
     
-    data = flight_data.data
+    #Drone Data
+    #flight_data = FlightData('flight_data/esn_flight/flight_Tue_12_Feb_2013_11_53_03_3s_AllData')
+    #data = flight_data.data
+    
     all_dims = data.shape[1]-3
     nr_rows = data.shape[0]
     
@@ -55,7 +69,7 @@ def predict_xyz_task(Plots=False, **machine_params):
     train_length = nr_rows - test_length
     
     T = 5
-    k = 10
+    k = 30
     washout_data = data[:washout_length,flight_data.w_non_target_columns]
     train_input = data[washout_length:train_length,flight_data.w_non_target_columns]
     train_target = data[washout_length+k:train_length+k,flight_data.xyz_columns] #x, y, z
@@ -71,7 +85,7 @@ def predict_xyz_task(Plots=False, **machine_params):
     
     if (machine_params == None or len(machine_params)==0):
         machine_params = {'input_dim': all_dims, 'output_dim':150, 'input_scaling':0.2, 'conn_input':0.3, 
-                          'leak_rate':0.7, 'reset_state':False, 'start_in_equilibrium':True,
+                          'leak_rate':0.3, 'reset_state':False, 'start_in_equilibrium':True,
                           'ridge':1e-8 }
     use_ip = True
         
@@ -83,7 +97,7 @@ def predict_xyz_task(Plots=False, **machine_params):
     best_nrmse = float('Inf')
     for i in range(T):
         if use_ip:
-            activ_fct = IPTanhActivation(0.00001, 0, 0.02,machine_params["output_dim"])
+            activ_fct = IPTanhActivation(0.00001, 0, 0.01,machine_params["output_dim"])
             activ_fct.learn = False
             machine = ESN(gamma=activ_fct, **machine_params)
             machine.run_batch(washout_data)

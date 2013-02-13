@@ -68,13 +68,13 @@ class TanhActivation:
         return np.outer(sech(x),sech(x))
     
 class IPTanhActivation:
-    def __init__(self, learning_rate, mean, std, n):
+    def __init__(self, learning_rate, mean, std, n, init_learn=True):
         self.learning_rate = learning_rate
         self.mean = mean
         self.var = std*std
         self.a=np.ones(n)
         self.b=np.zeros(n)
-        self.learn=True
+        self.learn=init_learn
         
     def activate(self, x):
         y = np.tanh(self.a*x + self.b)
