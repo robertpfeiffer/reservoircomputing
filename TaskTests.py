@@ -5,7 +5,7 @@ from math import *
 class TaskTests(unittest.TestCase):
 
     def test_mackey_glass(self):
-        best_nrsme = tasks.mackey_glass_task()
+        best_nrsme, best_esn = tasks.mackey_glass_task()
         self.assertGreater(0.1, best_nrsme, 'NRMSE too big: %f' % best_nrsme)
         print
         
@@ -15,13 +15,13 @@ class TaskTests(unittest.TestCase):
         print
         
     def test_mso_task(self):
-        best_nrsme = tasks.run_mso_task(1)
+        best_nrsme, best_esn = tasks.run_mso_task(1)
         self.assertGreater(pow(10,-4), best_nrsme, 'NRMSE too big: %f' % best_nrsme)
         print
         
 
     def test_narma_task(self):
-        best_nrsme = tasks.NARMA_task()
+        best_nrsme, best_esn = tasks.NARMA_task()
         self.assertGreater(0.8, best_nrsme, 'NRMSE too big: %f' % best_nrsme)
         #0.8 ist nicht besonders gut
         print

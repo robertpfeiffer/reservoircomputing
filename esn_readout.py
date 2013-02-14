@@ -95,7 +95,7 @@ class FeedbackReadout(object):
         self.machine.w_feedback=self.trainer.w_out
         return (X,Y)
 
-    def generate(self, length, initial_feedback=None, state=None, inputs=None):
+    def generate(self, length=1000, initial_feedback=None, state=None, inputs=None):
         """ returns (states, prediction) """
         if inputs==None:
             inputs=np.zeros((length,0))

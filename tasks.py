@@ -49,6 +49,132 @@ def memory_task(N=15, delay=20):
     
     print 'Highest Capacity: ', best_capacity 
     return best_capacity
+
+def prediction_task(data, training_time, testing_time=None, washout_time=0, evaluation_time=None, target_columns=[0], 
+                    fb=False, T=10, LOG=True, **machine_params):
+    #TODO: fb_columns fuer den Fall, dass das fb!=target ist
+        #if fb == True:
+    #    fb_columns = target_columns
+    
+    """ washout_time is part of training_time, evaluation_time is the final part of testing_time """
+    if (machine_params == None or len(machine_params)==0):                       
+        machine_params = {"output_dim":100, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
+                      "input_scaling":0.1, "bias_scaling":0.2, "spectral_radius":1.1, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": True}
+    
+    if len(data.shape)==1:
+        data = data[:, None]
+    
+    
+    nr_dims = data.shape[1]
+    if testing_time == None:
+        testing_time = data.shape[0]-training_time-washout_time
+    
+    if evaluation_time == None:
+        evaluation_time = testing_time
+            
+    all_columns = range(nr_dims)
+    test_input_columns = array(set(all_columns) - set(target_columns))
+    if fb:
+        train_input_columns = all_columns
+        input_dim = nr_dims
+    else:
+        train_input_columns = test_input_columns
+        input_dim = nr_dims - len(target_columns)
+     
+    
+    washout_input = data[:washout_time,train_input_columns]
+    train_input = data[washout_time:training_time,train_input_columns]
+    train_target = data[washout_time:training_time,target_columns] #x, y, z
+    test_input = data[training_time:testing_time,test_input_columns]
+    test_target = data[training_time:testing_time,target_columns] 
+    evaluation_data = data[training_time+(testing_time-evaluation_time):training_time+testing_time]
+    
+        
+    ridge = 0
+    if 'ridge' in machine_params:
+        ridge = machine_params['ridge']
+        del machine_params['ridge']
+    
+    use_ip = False
+    if 'ip_learning_rate' in machine_params:    
+        ip_learning_rate = machine_params['ip_learning_rate']
+        ip_std = machine_params['ip_std']
+        del machine_params['ip_learning_rate']
+        del machine_params['ip_std']
+        if ip_learning_rate > 0:
+            use_ip = True
+            
+    fb_noise_var = 0
+    if 'fb_noise_var' in machine_params:
+        fb_noise_var = machine_params['fb_noise_var']
+        del machine_params['fb_noise_var'] 
+     
+    nrmses = np.empty(T)
+    best_nrmse = 100000;
+    
+    #leak_rate = random.uniform(0.3, 1, N)
+    #leak_rate = np.append(np.append(random.uniform(0.3, 1, N/3), random.uniform(0.3, 1, N/3)), random.uniform(0.3, 1, N/3))
+    #leak_rate = np.append(1*np.ones(N/2), 0.7*np.ones(N/2))
+        
+    for i in range(T):
+        #IP
+        if use_ip:
+            activ_fct = IPTanhActivation(ip_learning_rate, 0, ip_std,machine_params["output_dim"], init_learn=False)
+            machine = ESN(input_dim=input_dim, gamma=activ_fct, **machine_params)
+            if washout_time > 0:
+                machine.run_batch(data[:washout_time])
+            #normal_echo = machine.run_batch(train_target)
+            activ_fct.learn = True
+            machine.run_batch(train_target)
+            activ_fct.learn = False
+            machine.reset()
+        else:
+            machine = ESN(input_dim=input_dim, **machine_params)
+
+        if washout_time > 0:
+            machine.run_batch(data[:washout_time])
+                
+        if fb:
+            trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge))
+            train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target, noise_var=fb_noise_var)
+            machine.current_feedback = train_target[-1]
+            test_echo, prediction = trainer.generate(testing_time, None)
+        else: 
+            trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge));
+            train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target)
+            test_echo, prediction = trainer.predict(test_input)
+
+        evaluaton_prediction = prediction[-evaluation_time:]
+        nrmse = error_metrics.nrmse(evaluaton_prediction,evaluation_data)
+        if (nrmse < best_nrmse):
+            best_evaluation_prediction = evaluaton_prediction
+            best_nrmse = nrmse
+            best_machine = machine
+            best_trainer = trainer
+            best_train_echo = train_echo
+            best_test_echo = test_echo
+        nrmses[i] = nrmse
+        
+        #if Plots:
+        #    esn_plotting.plot_output_distribution((normal_echo,train_echo), ('Output Distribution without IP','Output Distribution with IP',) )
+        
+        if (LOG):
+            print i,'NRMSE:', nrmse
+        
+        #if best_nrmse < math.pow(10,-4):
+         #   T = i + 1
+          #  break
+    
+    mean_nrmse = mean(nrmses[:T])
+    std_nrmse = std(nrmses[:T])
+    min_nrmse = min(nrmses[:T])
+    #print 'Min NRMSE: ', min_nrmse, 'Mean NRMSE: ', mean_nrmse, 'Std: ', std_nrmse
+    if (LOG):
+        print 'Min NRMSE: ', min_nrmse   
+        
+    return best_nrmse, best_machine
         
 def NARMA_task():
     print 'NARMA task'
@@ -152,9 +278,42 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
                       'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
         """
+    
     if (LOG):
         print 'MSO Task Type', task_type
+
+    input_range = np.arange(0, 10000, 1) #np.array([range(2000)])
+    if task_type==1:
+        data = np.sin(0.2*input_range)
+    elif task_type==2:
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) 
+    elif task_type==3:
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range)
+    elif task_type==4: 
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range)
+    elif task_type==5: 
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
+    else:
+        print 'Unknown MSO Task Type: ', task_type
+        raise ValueError 
     
+    #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range)                    
+    #data = np.sin(2.92*input_range) + np.sin(1.074*input_range) 
+    #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range) + np.sin(2.92*input_range) + np.sin(1.074*input_range) 
+    #data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + np.sin(0.74*input_range) 
+    #data = sin(0.2*input_range) + sin(0.311*input_range) + sin(0.42*input_range) #+ sin(0.51*input_range) + sin(0.74*input_range)
+    #data = sin(0.2*input_range)  * sin(0.311*input_range) + sin(0.42*input_range) 
+    ##data = np.sin(0.0311*input_range) + np.sin(0.74*input_range)
+    
+    
+    washout_time = 100
+    training_time = 300
+    testing_time = 600
+    evaluation_time = 300 #only last X steps evaluated
+    """
+    best_nrmse, best_machine = prediction_task(data, training_time=400, testing_time=600, 
+                    washout_time=100, evaluation_time=300, target_columns=[0], fb=True, T=10, LOG=LOG)
+    """
     ridge=1e-8
     if 'ridge' in machine_params:
         ridge = machine_params['ridge']
@@ -179,28 +338,6 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
     testing_time = 600
     evaluation_time = 300 #only last X steps evaluated
     
-    input_range = np.arange(0, 10000, 1) #np.array([range(2000)])
-    if task_type==1:
-        data = np.sin(0.2*input_range)
-    elif task_type==2:
-        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) 
-    elif task_type==3:
-        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range)
-    elif task_type==4: 
-        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range)
-    elif task_type==5: 
-        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
-    else:
-        print 'Unknown MSO Task Type: ', task_type
-        raise ValueError 
-    
-    #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range)                    
-    #data = np.sin(2.92*input_range) + np.sin(1.074*input_range) 
-    #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range) + np.sin(2.92*input_range) + np.sin(1.074*input_range) 
-    #data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + np.sin(0.74*input_range) 
-    #data = sin(0.2*input_range) + sin(0.311*input_range) + sin(0.42*input_range) #+ sin(0.51*input_range) + sin(0.74*input_range)
-    #data = sin(0.2*input_range)  * sin(0.311*input_range) + sin(0.42*input_range) 
-    ##data = np.sin(0.0311*input_range) + np.sin(0.74*input_range)
     data = data[:, None]
     
     train_target = data[washout_time:washout_time+training_time]
@@ -530,9 +667,10 @@ if __name__ == "__main__":
             #astring = "{start_in_equilibrium: False, Plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             #dic = correct_dictionary_arg(astring)
             #run_mso_task()
-            #mso_task()
+            mso_task()
             #NARMA_task()
             
+            """
             machine_params_ip = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
                       "input_scaling":0.4, "bias_scaling":0.2, "spectral_radius":1.3, 'recurrent_weight_dist':0, 
                       'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0.001, 'ip_std':0.2,
@@ -557,7 +695,7 @@ if __name__ == "__main__":
             
             esn_plotting.run_perturbation(esn_ip)
             esn_plotting.plot_diff2()
-                  
+            """      
         else:
             #"{LOG: False, start_in_equilibrium: False, Plots: False, bias_scaling: 1, spectral_radius: 1.2, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.80000000000000004, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             args = sys.argv[1]
