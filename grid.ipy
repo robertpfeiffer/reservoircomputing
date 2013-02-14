@@ -1,4 +1,5 @@
 from tasks import *
+from drone_tasks import *
 
 #if __name__ == '__main__':
 #print "Hello numpy:", numpy.random.rand()
@@ -8,37 +9,55 @@ from tasks import *
 user = !whoami
 user = user[0] 
 
-machine_params = {"task_type":1, "plots":False, "LOG":False,
-	"input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
-	"input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": False}
-parameters = parameters = {'input_scaling': frange(0.5, 1, 0.1), 'bias_scaling':frange(0.5, 1, 0.1), 'spectral_radius':frange(0.5, 1.5, 0.1)}
+COMBIS_PER_JOB = 100
+#input_dim:14 bei drone tasks
+machine_params = {"Plots":False, "LOG":False,
+	"input_dim":1, "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, "ridge":1e-8,
+	"input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": True}
+parameters = {"output_dim":range(100, 151, 50), "conn_input":[0.3, 0.4], 
+						"conn_recurrent":[0.1, 0.2, 0.3], 'recurrent_weight_dist':[0, 1], "leak_rate":[0.3, 0.5, 0.7, 0.9], 
+						'input_scaling': frange(0.1, 1, 0.3), 'bias_scaling':frange(0.2, 1, 0.4), 
+						'spectral_radius':frange(0.7, 1.3, 0.2), 'fb_noise_var':[0, 0.01],
+						'ip_learning_rate':[0, 0.00005, 0.0001], 'ip_std':[0.001, 0.01]}
+#parameters = {'fb_noise_var':[0, 0.01], 'ip_learning_rate':[0, 0.00005, 0.00001, 0.0001], 'ip_std':[0.01, 0.02]}
 if (user == 'witali'):
-    parameters = {'input_scaling': frange(0.5, 1.0, 0.5), 'bias_scaling':frange(0.5, 1, 0.1), 'spectral_radius':frange(0.5, 1.0, 0.5)}
+	parameters = {'ip_learning_rate':[0, 0.00005, 0.00001, 0.0001], 'ip_std':[0.01, 0.02]}
+	#parameters = {"output_dim":arange(100, 200, 50), "leak_rate":[0.3, 0.5, 0.7, 0.9, 1], 'spectral_radius':frange(1.0, 1.0, 0.5)}
 parameter_keys = parameters.keys()
 parameter_ranges = []
 for parameter in parameter_keys:
 	parameter_ranges.append(parameters[parameter])
 
 paramspace_dimensions = [len(r) for r in parameter_ranges]
-param_space = list(itertools.product(*parameter_ranges))    
-   
-for parameter_values in param_space:
+param_space = list(itertools.product(*parameter_ranges))
+nr_combinations = len(param_space) 
+print nr_combinations, ' combinations will be evaluated'  
+params_list = list() 
+for i in range(nr_combinations):
+	parameter_values = param_space[i]
 	machine_params.update(dict(zip(parameter_keys, parameter_values)))
-	#run_mso_task_for_grid(**machine_params)
 	params_string = str(machine_params)
-	#!echo '"$params_string"'
-	#!python tasks.py '$params_string'
-	#!qsub -b y -wd "/net/store/projects/mtrc/grid_results" python tasks.py "$machine_params"
-	if (user == 'witali'):
-		!python tasks.py '"$params_string"'
-	else:
-		!qsub -b y -cwd python tasks.py '"$params_string"'
+	params_list.append(params_string)
+	if len(params_list) == COMBIS_PER_JOB or i==(nr_combinations-1):
+		params_list_string = '#'.join(params_list)
+		#!echo '"$params_list_string"\n'
+		if (user == 'witali'):
+			!python tasks.py '"$params_list_string"'
+			#!python drone_tasks.py '"$params_list_string"'
+		else:
+			!qsub -b y -cwd python tasks.py '"$params_list_string"'
+			#!qsub -b y -cwd python drone_tasks.py '"$params_list_string"'
+		params_list = list()
+		#!echo '"$params_string"'
+		#!python tasks.py '$params_string'
+		#!qsub -b y -wd "/net/store/projects/mtrc/grid_results" python tasks.py "$machine_params"
 
 if (user == 'witali'):
-    !ipython grid_monitor.ipy
+	print 'end'  
+	#!nohup ipython grid_monitor.ipy >nohup.txt &
 else:
-    !ipython -noconfirm_exit grid_monitor.ipy
-    #!qsub -b y -cwd ipython -noconfirm_exit grid_monitor.ipy
+	!nohup ipython -noconfirm_exit grid_monitor.ipy >nohup.txt &
+	#!qsub -b y -cwd ipython -noconfirm_exit grid_monitor.ipy
     
 exit()
 

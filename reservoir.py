@@ -4,6 +4,7 @@ import itertools
 import collections
 import scipy.sparse as sparse
 import scipy
+import activations
 
 class DummyESN(object):
     """This class implements the ESN interface, but it does not actually carry any
@@ -34,7 +35,12 @@ def random_vector(size,a,b):
 class ESN(object):
     feedback = False
 
-    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,gamma=numpy.tanh,frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, reset_state=True, start_in_equilibrium=True):
+    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2, recurrent_weight_dist=1, 
+                 gamma=activations.TanhActivation(),frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, 
+                 reset_state=True, start_in_equilibrium=True):
+        """
+        recurrent_weight_dist: 0 uniform, 1 gaussian
+        """
         self.ninput=input_dim
         self.nnodes=output_dim
         self.leak_rate=leak_rate
@@ -87,27 +93,27 @@ class ESN(object):
         self.w_add = w_add
         self.w_feedback = None
         self.current_feedback = None
-
+        
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2 """
-        """ #Verteilung der Gewichte: Unform oder Gauss? Was bewirkt frac_exc?
-        if random.random() < self.conn_recurrent:
-            return numpy.random.rand()*2-1
-        return 0
-        """
-        if random.random() < self.conn_recurrent:
-            #weight = random.uniform(0,1)
-            weight = random.gauss(0,1)
-            #This stabilizes in the case of feedback. TODO: Investigate
-            if random.uniform(0,1) < self.frac_exc:
-                if weight <= 0:
-                    weight=-weight
-            else:
-                if weight >= 0:
-                    weight =-weight
-
-            return weight
-        return 0
+        if self.recurrent_weight_dist == 0:
+            if random.random() < self.conn_recurrent:
+                return numpy.random.rand()*2-1
+            return 0
+        else:
+            if random.random() < self.conn_recurrent:
+                #weight = random.uniform(0,1)
+                weight = random.gauss(0,1)
+                #This stabilizes in the case of feedback. TODO: Investigate
+                if random.uniform(0,1) < self.frac_exc:
+                    if weight <= 0:
+                        weight=-weight
+                else:
+                    if weight >= 0:
+                        weight =-weight
+                
+                return weight
+            return 0
 
     def input_weight(self,n1,n2):
         """synaptic strength for the connection from input node n1 to echo node n2"""
@@ -128,52 +134,75 @@ class ESN(object):
                    recur+inp+self.w_add)
         return result.ravel()
 
+    def jacobian(self, u_t, x_t_1=None):
+        if x_t_1 is None:
+            state = self.current_state
+        else:
+            state = x_t_1
+        recur = numpy.dot(self.w_echo,state)
+        inp   = numpy.dot(self.w_input,u_t)
+        J = numpy.dot(self.gamma.derivative(recur+inp+self.w_add),
+                      numpy.dot(self.w_input,numpy.eye(u_t.size)))
+        return J
+    
     def run_batch(self, u, state=None):
         """ Runs the machine, returns the last state, saves previous states in state_echo
             Parameter u is the input, a 2dnumpy-array (time x input-dim)
         """
         length = u.shape[0]
-        if state is None:
+        if state is not None:
+            pass
+        elif not self.reset_state:
             state = self.current_state
+        elif self.start_in_equilibrium:
+            state = self.equilibrium_state
+        else:
+            state = numpy.zeros(self.nnodes)
         state_echo = numpy.zeros((length, self.nnodes))
         for i in range(length):
             u_t = u[i,:]
             state = self.step(state,u_t)
             state_echo[i,:] = state[:]
-        if not self.reset_state:
-            self.current_state = state
+        self.current_state=state
         return state_echo
 
     def run_batch_feedback(self, u, state=None):
         """ Runs the machine, returns the last state, saves previous states in state_echo
-            Parameter u is the input, a 2dnumpy-array (time x input-dim)
+            Parameter u is the input, a 2dnumpy-array (time x input-dim) 
         """
         length,inputs = u.shape
         state_echo = numpy.zeros((length, self.nnodes))
-        if state is None:
+        if state is not None:
+            pass
+        elif not self.reset_state:
             state = self.current_state
+        elif self.start_in_equilibrium:
+            state = self.equilibrium_state
+        else:
+            state = numpy.zeros(self.nnodes)
         if self.w_feedback is not None and self.current_feedback is None:
             self.current_feedback = numpy.zeros(self.ninput-inputs)
         u_t=numpy.zeros(self.ninput)
         for i in range(length):
             u_t[:inputs] = u[i,:].ravel()
             if self.w_feedback is not None:
-                u_t[inputs:]= self.current_feedback
+                u_t[inputs:] = self.current_feedback
             state    = self.step(state,u_t)
             state_echo[i,:] = state[:]
             if self.w_feedback is not None:
                 state_1  = numpy.append(numpy.ones(1), state)
                 self.current_feedback = numpy.dot(self.w_feedback.T,state_1)
-        if not self.reset_state:
-            self.current_state = state
+        self.current_state = state
         return state_echo
-
+    
     def reset(self):
         if self.start_in_equilibrium:
             self.current_state = self.equilibrium_state
         else:
             self.current_state = numpy.zeros(self.nnodes)
 
+    def fold_in_feedback(self):
+        pass
 
 class SpESN(ESN):
     feedback = False
@@ -275,7 +304,7 @@ class BubbleESN(ESN):
             if (bubblemin <= n and n < bubblemax):
                 return k
             k += 1
-
+        
     def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
@@ -283,7 +312,7 @@ class BubbleESN(ESN):
 
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
-                return random.gauss(0,1)
+                return random.gauss(0,1)  
         if random.random() < self.conn_recurrent/BUBBLE_RATIO:
             return BUBBLE_RATIO * random.gauss(0,1)
 
@@ -309,7 +338,7 @@ class DecoupledBubbleESN(BubbleESN):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
         n2_bubble = self.bubble_index(n2)
-
+        
         # weights if both neurons are in the same bubble
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
@@ -330,11 +359,11 @@ class ForwardBubbleESN(FirstBubbleInput):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
         n2_bubble = self.bubble_index(n2)
-
+        
         # weights if both neurons are in the same bubble
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
-                return random.gauss(0,1)
+                return random.gauss(0,1)  
         # weights if the neurons are one bubble apart
         if (n1_bubble == n2_bubble-1):
             if random.random() < self.conn_recurrent/5:
@@ -346,11 +375,11 @@ class NeighbourBubbleESN(FirstBubbleInput):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
         n2_bubble = self.bubble_index(n2)
-
+        
         # weights if both neurons are in the same bubble
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
-                return random.gauss(0,1)
+                return random.gauss(0,1)  
         # weights if the neurons are one bubble apart
         if (n1_bubble == n2_bubble+1 or n1_bubble == n2_bubble-1):
             if random.random() < self.conn_recurrent/5:
@@ -362,7 +391,7 @@ class KitchenSinkBubbleESN(BubbleESN):
     The neurons in each bubble are densely connected.
     There are sparse connection from a bubble to later bubble_borders, but none back.
     """
-
+        
     def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
@@ -371,7 +400,7 @@ class KitchenSinkBubbleESN(BubbleESN):
         if n1==n2:
             if self.diagonal_zero:
                 return 0
-
+        
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
                 return random.gauss(0,1)

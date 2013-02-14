@@ -88,3 +88,31 @@ def ip_tanh(learning_rate, mean, std, n):
     inner.learn=True
 
     return inner
+
+def sech(x):
+    return 1/np.cosh(x)
+
+class TanhActivation:
+    def activate(self, x):
+        return np.tanh(x)
+
+    def derivative(self,x):
+        return np.outer(sech(x),sech(x))
+    
+class IPTanhActivation:
+    def __init__(self, learning_rate, mean, std, n, init_learn=True):
+        self.learning_rate = learning_rate
+        self.mean = mean
+        self.var = std*std
+        self.a=np.ones(n)
+        self.b=np.zeros(n)
+        self.learn=init_learn
+        
+    def activate(self, x):
+        y = np.tanh(self.a*x + self.b)
+        if self.learn:
+            delta_b = -self.learning_rate*(-self.mean/self.var + y/self.var*(2*self.var + 1 - y*y + self.mean*y))
+            delta_a = self.learning_rate/self.a + delta_b*x
+            self.a += delta_a
+            self.b += delta_b
+        return y

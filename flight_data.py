@@ -1,7 +1,9 @@
 import sys
 import time
 from datetime import datetime
+from py_utils import *
 import numpy as np
+import esn_persistence
 
 class FlightData():
     def __init__(self, filename):
@@ -27,25 +29,43 @@ class FlightData():
         self.dataw3=[]
         self.dataw4=[]
         self.dataTime=[]
+        self.dataTargetX = []
+        self.dataTargetY = []
+        self.dataTargetZ = []
         
+        self.containsTarget = False
         self.dataTimeDiffs = []
-            
+        
+        self.xyz_columns = np.arange(4,7)
+        self.target_xyz_columns = np.arange(7, 10)
+        #self.xyz_columns = np.arange(8,11)
+        #self.target_xyz_columns = np.arange(11, 14)
+        
+        #und die letzten 4 sind die w's
+        self.w_columns = np.arange(10, 14) 
+        self.w_non_target_columns = [0, 1, 2, 3, 4, 5, 6, 10, 11, 12, 13]
+        #time, yaw, pitch, roll, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
+                
     def loadData_original(self, filename):
         self.initVariables()
         try:
-            f = open(filename, 'r')
-            for line in f:
-                if line[0]=='[' and not 'None' in line:
+            lines = esn_persistence.load_file(filename)
+            i = 0
+            for line in lines:
+                #i += 1
+                #print i
+                #Battery, VX, VY, VZ, Yaw, Pitch, Roll, Altitude, X, Y, Z, command, target, time
+                if line[0]=='[' and not 'None' in line and not 'end' in line:
                     pos=line.find(', ')
                     self.dataBat.append(line[1:pos])
                     pos2=line.find(', ',pos+1)
-                    self.dataVX.append(line[pos+2:pos2])
+                    self.dataVX.append(float(line[pos+2:pos2]))
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataVY.append(line[pos+2:pos2])
+                    self.dataVY.append(float(line[pos+2:pos2]))
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataVZ.append(line[pos+2:pos2])
+                    self.dataVZ.append(float(line[pos+2:pos2]))
                     pos=pos2
                     pos2=line.find(', ',pos+1)
                     self.dataYaw.append(float(line[pos+2:pos2]))
@@ -71,6 +91,12 @@ class FlightData():
                     pos2=line.find("'",pos+1)
                     command=str(line[pos+1:pos2])
                     self.dataCommand.append(command)
+                    target = None
+                    if 'target' in command:
+                        parts = command.split(';')
+                        command = parts[0]
+                        target = parts[1]
+                   
                     if command.find('winkel')<>-1: 
                         p1=command.find('=')+1
                         p2=command.find(',',p1+1)
@@ -89,13 +115,25 @@ class FlightData():
                         self.dataw3.append(0.0)
                         self.dataw4.append(0.0)
                     
+                    if target is not None:
+                        self.containsTarget = True
+                        p1 = target.find('[')+1
+                        p2=target.find(',',p1)
+                        self.dataTargetX.append(float(target[p1:p2] ) )
+                        p1=p2+1
+                        p2=target.find(',',p1+1)
+                        self.dataTargetY.append(float( target[p1:p2] ) )
+                        p1=p2+1
+                        p2=target.find(',',p1+1)
+                        self.dataTargetZ.append(float( target[p1:p2] ) )
+                        
                     pos=pos2
                     pos2=line.find(']',pos+1)
                     self.dataTime.append(line[pos+3:pos2])
 
         except:
-            print 'Error while loading data'
-        print 'Finished loading data. '
+            print 'Error while loading data: ',sys.exc_info()[0], sys.exc_info()[1]
+        #print 'Finished loading data. '
         
     def loadData(self, filename):
         self.loadData_original(filename)
@@ -113,41 +151,84 @@ class FlightData():
                 milliseconds_diff = ((timediff.days * 24 * 60 * 60 + timediff.seconds) * 1000 + timediff.microseconds / 1000)
             dataTimeDiffs.append(milliseconds_diff)
         """
+                
+        k = 30
+        #Vscale = 1000
+        Tscale = 100.0
+        Yaw_scale = 100.0
+        
         #Zeitdifferenz in ms
         last_time = the_time = datetime.fromtimestamp(float(self.dataTime[0])-0.1)
         for timeString in self.dataTime:
-            the_time = datetime.fromtimestamp(float(timeString))
-            timediff = the_time - last_time
-            milliseconds_diff = ((timediff.days * 24 * 60 * 60 + timediff.seconds) * 1000 + timediff.microseconds / 1000)
-            self.dataTimeDiffs.append(milliseconds_diff)
-            last_time = the_time
+            milliseconds_diff = float(compute_time_diff_in_ms(last_time, timeString))
+            #the_time = datetime.fromtimestamp(float(timeString))
+            #timediff = the_time - last_time
+            #milliseconds_diff = ((timediff.days * 24 * 60 * 60 + timediff.seconds) * 1000 + timediff.microseconds / 1000)
+            self.dataTimeDiffs.append(milliseconds_diff/Tscale)
+            last_time = datetime.fromtimestamp(float(timeString))
 
         nr_rows = len(self.dataTimeDiffs)
-        self.data = np.array((nr_rows, 12))
         
-        #time, altitude, yaw, pitch, roll, w1, w2, w3, w4, x, y, z
-        self.data = np.column_stack((np.asarray(self.dataTimeDiffs),np.asarray(self.dataAltitude), np.asarray(self.dataYaw),
-                                     np.asarray(self.dataPitch), np.asarray(self.dataRoll), np.asarray(self.dataw1),
-                                     np.asarray(self.dataw2), np.asarray(self.dataw3), np.asarray(self.dataw4),
-                                     np.asarray(self.dataX), np.asarray(self.dataY), np.asarray(self.dataZ)))
+        #self.dataTimeDiffs = np.ones(nr_rows)
+        
+        #self.data = np.array((nr_rows, 15))
+        
+        #Target ist die Position in k Schritten
+        self.dataTargetX = np.asarray(self.dataX)[k:]
+        self.dataTargetY = np.asarray(self.dataY)[k:]
+        self.dataTargetZ = np.asarray(self.dataZ)[k:]
+        #self.dataTargetX = np.asarray(self.dataX)[k:] - np.asarray(self.dataX)[:-k]
+        #self.dataTargetY = np.asarray(self.dataY)[k:] - np.asarray(self.dataY)[:-k]
+        #self.dataTargetZ = np.asarray(self.dataZ)[k:] - np.asarray(self.dataZ)[:-k]
+        
+        #time, vx, vy, vz, yaw, pitch, roll, altitude, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
+        #time, yaw, pitch, roll, altitude, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
+        #time, yaw, pitch, roll, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
+        self.data = np.column_stack((np.asarray(self.dataTimeDiffs)[:-k], 
+                                        # (np.asarray(self.dataVX)/Vscale)[:-k], (np.asarray(self.dataVY)/Vscale)[:-k], (np.asarray(self.dataVZ)/Vscale)[:-k],
+                                         (np.asarray(self.dataYaw)[:-k])/Yaw_scale,
+                                     np.asarray(self.dataPitch)[:-k], np.asarray(self.dataRoll)[:-k], 
+                                     #np.asarray(self.dataAltitude)[:-k],
+                                     np.asarray(self.dataX)[:-k], np.asarray(self.dataY)[:-k], np.asarray(self.dataZ)[:-k],
+                                     np.asarray(self.dataTargetX), np.asarray(self.dataTargetY), np.asarray(self.dataTargetZ),
+                                     np.asarray(self.dataw1)[:-k], np.asarray(self.dataw2)[:-k], np.asarray(self.dataw3)[:-k], np.asarray(self.dataw4)[:-k]))
+                
+        """
+        if self.containsTarget:
+            #Relative target
+            self.dataTargetX = np.asarray(self.dataTargetX) - np.asarray(self.dataX)
+            self.dataTargetY = np.asarray(self.dataTargetY) - np.asarray(self.dataY)
+            self.dataTargetZ = np.asarray(self.dataTargetZ) - np.asarray(self.dataZ)
+            
+            #time, vx, vy, vz, yaw, pitch, roll, altitude, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
+            self.data = np.column_stack((np.asarray(self.dataTimeDiffs), 
+                                         np.asarray(self.dataVX)/Vscale, np.asarray(self.dataVY)/Vscale, np.asarray(self.dataVZ)/Vscale,
+                                         (np.asarray(self.dataYaw))/Yaw_scale,
+                                     np.asarray(self.dataPitch), np.asarray(self.dataRoll), np.asarray(self.dataAltitude),
+                                     np.asarray(self.dataX), np.asarray(self.dataY), np.asarray(self.dataZ),
+                                     np.asarray(self.dataTargetX), np.asarray(self.dataTargetY), np.asarray(self.dataTargetZ),
+                                     np.asarray(self.dataw1), np.asarray(self.dataw2), np.asarray(self.dataw3), np.asarray(self.dataw4)))
+            #self.w_columns = np.arange(11, 15) 
+            self.w_columns = np.arange(14, 18) 
+        else:
+            #time, vx, vy, vz, yaw, pitch, roll, altitude, x, y, z, w1, w2, w3, w4
+            self.data = np.column_stack((np.asarray(self.dataTimeDiffs),
+                    np.asarray(self.dataVX)/Vscale, np.asarray(self.dataVY)/Vscale, np.asarray(self.dataVZ)/Vscale, 
+                    (np.asarray(self.dataYaw))/Yaw_scale, np.asarray(self.dataPitch), np.asarray(self.dataRoll), np.asarray(self.dataAltitude),
+                    np.asarray(self.dataX), np.asarray(self.dataY), np.asarray(self.dataZ),
+                    np.asarray(self.dataw1), np.asarray(self.dataw2), np.asarray(self.dataw3), np.asarray(self.dataw4)))
+            self.w_columns = np.arange(8, 12)
+        """
         #self.data = np.hstack((self.data, self.dataAltitude, 1))
         #self.data = np.hstack((self.data, self.dataYaw, 2))
         
-        #Normalisierung - macht alles noch schlimmer!
-        normalize = False
-        if (normalize):
-            means = self.data.mean(1)
-            stds = self.data.std(1)
-            self.data = self.data - means[:,None]
-            self.data = self.data / stds[:,None]
-            print self.data.shape
-        
-        #print self.data.mean(1)
-        #print self.data.std(1)
-        
+        #Ignore launch~ first 5 seconds and the last seconds in the end
+        cutoff = 50
+        self.data = self.data[cutoff:-cutoff,:]
+        #print self.data.shape
         
 if __name__ == '__main__':
-    flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData')
+    flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData')
     
     #print len(data.dataZ), len(data.dataCommand), len(data.dataw1), len(data.dataPitch)
     #print len(flight_data.dataTime)

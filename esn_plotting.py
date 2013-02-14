@@ -3,19 +3,21 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import copy
 
 d={}
 
 def run_perturbation(esn,data1=None):
+    T = 400
     if data1 is None:
-        data1=np.zeros((500,esn.ninput))
+        data1=np.zeros((T,esn.ninput))
     else:
-        data1=data1[:500,:]
+        data1=data1[:T,:]
     data2=np.copy(data1)
-    data2[90:100,:]=1
-    data1[90:100,:]=0
+    data2[100,:]+=0.1
+    esn2 = copy.deepcopy(esn)
     s1=esn.run_batch_feedback(data1)
-    s2=esn.run_batch_feedback(data2)
+    s2=esn2.run_batch_feedback(data2)
     d["input"] = data1
     d["echo_states"] = s1
     d["difference"] = abs(s2-s1)
@@ -29,13 +31,14 @@ def set_weights(weights):
     d["weights"]=weights
 
 def run_task(readout,input,target):
-    d["output"]=readout.predict(input)
+    d["output"]=readout.predict(input)[1]
     d["target"]=target
     d["input"]=input
 
 def show_task():
-    plt.plot(d["target"][0,:1000].ravel())
-    plt.plot(d["output"][0,:1000].ravel())
+    for dim in range(d["target"].shape[1]): 
+        plt.plot(d["target"][dim,:1000].ravel())
+        plt.plot(d["output"][dim,:1000].ravel())
     plt.show()
 
 def plot_activations(max_duration=1000,max_nodes=300):
@@ -108,20 +111,7 @@ def plot_spectrum_weighted(max_freq=1000,max_nodes=300,out_unit=0):
     #spectrum = spectrum*w_out[1:,out_unit]
     plt.pcolormesh(spectrum_weighted[:max_freq,:].T)
     plt.show()
-
-def plot_activation_distribution():
-    echo_states = d["echo_states"]
-    x,y = echo_states.shape
     
-
-def calc_loops(m):
-    x,y = m.shape
-    m1=numpy.eye(x)
-    diag=numpy.diag_indices_from(m)
-    for i in range(x):
-        m1=numpy.dot(m1,m)
-        yield len(numpy.nonzero(m1[diag])[0])
-
 def plot_predictions_targets(predictions, targets, labels):
     nr_plots = predictions.shape[1]
     for i in range(nr_plots):
