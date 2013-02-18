@@ -42,8 +42,8 @@ def ip_exp_logistic(learnrate,mean,n):
             inner.b += delta_b
         return y
 
-    inner.a=numpy.ones(n)
-    inner.b=numpy.ones(n)*0.1
+    inner.a=np.ones(n)
+    inner.b=np.ones(n)*0.1
     inner.learn=True
 
     return inner
@@ -58,7 +58,7 @@ def ip_gaussian_tanh(learnrate,mean,stddev,n):
     ESANN 2007 proceedings"""
 
     def inner(x):
-        y = numpy.tanh(inner.a*x + inner.b)
+        y = np.tanh(inner.a*x + inner.b)
         if inner.learn:
             delta_b = -learnrate * (- mean/stddev + y/stddev *(2*stddev+1-y**2+mean*y))
             delta_a = learnrate/inner.a + x*delta_b
@@ -116,3 +116,7 @@ class IPTanhActivation:
             self.a += delta_a
             self.b += delta_b
         return y
+    
+    # todo
+    #    self.w = self.w_orig * self.a
+    #    self.w_bias += db

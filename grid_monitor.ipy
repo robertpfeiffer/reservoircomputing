@@ -24,6 +24,9 @@ def merge_files(result_file_name):
                 
     #write values into a single file
     fieldnames = rows[0].keys()
+    if 'NRMSE' in fieldnames:
+        fieldnames.remove('NRMSE')
+        fieldnames.append('NRMSE')
     #print 'Writing result to ', result_file_name
     results_file = open('results/'+result_file_name,'wb')
     writer = csv.DictWriter(results_file, fieldnames)
@@ -51,7 +54,7 @@ def check_for_results(result_file_name):
             merge_files(result_file_name)
             break;
         else:
-            time.sleep(60.0)
+            time.sleep(300.0)
 
 global timer
 if __name__ == '__main__':

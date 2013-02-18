@@ -97,7 +97,7 @@ class FeedbackReadout(object):
 
     def generate(self, length=1000, initial_feedback=None, state=None, inputs=None):
         """ returns (states, prediction) """
-        if inputs==None:
+        if inputs==None or np.size(inputs)==0: #size returns 0 also on empty arrays/lists
             inputs=np.zeros((length,0))
         if initial_feedback is not None:
             echo1=self.machine.run_batch(initial_feedback)
