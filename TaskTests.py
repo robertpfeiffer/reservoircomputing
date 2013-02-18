@@ -1,6 +1,8 @@
 import unittest
 import tasks
 from math import *
+import drone_esn
+from drone_esn import DroneESN
 
 class TaskTests(unittest.TestCase):
 
@@ -25,6 +27,10 @@ class TaskTests(unittest.TestCase):
         self.assertGreater(0.8, best_nrsme, 'NRMSE too big: %f' % best_nrsme)
         #0.8 ist nicht besonders gut
         print
+        
+    def test_drone_esn(self):
+        results = drone_esn.example_drone_esn(Plots=False)
+        self.assertIsNotNone(results, "drone_esn.example_drone_esn failed")
         
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.test_mso_task']
