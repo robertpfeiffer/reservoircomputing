@@ -120,14 +120,14 @@ def esn_task(data, training_time, testing_time=None, washout_time=0, evaluation_
     train_input = data[washout_time:training_time,input_columns]
     train_target = data[washout_time:training_time,target_columns] #x, y, z
     test_input = data[training_time:training_time+testing_time,input_columns]
-    test_target = data[training_time:training_time+testing_time,target_columns] 
+    #test_target = data[training_time:training_time+testing_time,target_columns] 
     evaluation_target = data[training_time+(testing_time-evaluation_time):training_time+testing_time,target_columns]
     
      
     nrmses = np.empty(T)
     best_nrmse = float('Inf')
-    random.seed(42)
-       
+    np.random.seed(42)
+    
     for i in range(T):
         #IP
         if use_ip:
@@ -186,13 +186,14 @@ def esn_task(data, training_time, testing_time=None, washout_time=0, evaluation_
         
     return best_nrmse, mean_nrmse, std_nrmse, best_machine, trainer, evaluation_target, best_evaluation_prediction 
         
-def NARMA_task(T=10, Plots=True, LOG=True, **machine_params):
+def NARMA_task(T=3, Plots=True, LOG=True, **machine_params):
     if LOG:
         print 'NARMA task'
     
     if (machine_params == None or len(machine_params)==0):
-        machine_params = {"output_dim":100, "input_scaling":0.05, "reset_state":True, "start_in_equilibrium": True
-                      ,'ip_learning_rate':0.0005, 'ip_std':0.1
+        machine_params = {"output_dim":300, "input_scaling":0.01, "bias_scaling":0.1,
+                          "reset_state":True, "start_in_equilibrium": True
+                      #,'ip_learning_rate':0.0005, 'ip_std':0.1
                       }
         
     #[inputs, targets] = Oger.datasets.narma30(n_samples=10, sample_len=1100)
@@ -214,37 +215,7 @@ def NARMA_task(T=10, Plots=True, LOG=True, **machine_params):
     nrmse, mean_nrmse, std_nrmse, machine, trainer, evaluation_target, evaluation_prediction = esn_task(data, 
                     training_time=training_time, testing_time=testing_time, 
                     target_columns=[1], T=T, LOG=LOG, **machine_params)
-    """ 
-    best_nrmse = float('Inf')
-    N = 100
-    
-    
-    for i in range(5):
-        activ_fct = IPTanhActivation(0.0005, 0.0, 0.1, N)
-        activ_fct.learn = False
-        #activ_fct = np.tanh
-        machine = ESN(1, N, input_scaling=0.05, reset_state=True, start_in_equilibrium=True, gamma=activ_fct)
-        normal_echo = machine.run_batch(train_input[0])
-        activ_fct.learn = True
-        echo = machine.run_batch(train_input[0])
-        activ_fct.learn = False
-        
-        trainer = LinearRegressionReadout(machine)
-        train_echo, train_prediction = trainer.train(train_input[0], train_target[0])
-        #esn_plotting.plot_output_distribution((normal_echo,train_echo), ('Output Distribution without IP','Output Distribution with IP',) )
-        
-        #print "predict..."
-        #machine.reset()
-        echo, prediction = trainer.predict(test_input[0])
-        nrmse = error_metrics.nrmse(prediction,test_target[0])
-        if nrmse < best_nrmse:
-            best_nrmse = nrmse
-            best_esn = machine
-        printf("%d NRMSE: %f\n", i+1, nrmse)
-        
-    print 'Min NRMSE: ', best_nrmse
-    
-    """
+   
     return nrmse, machine
 
 def one_two_a_x_task():
@@ -259,7 +230,9 @@ def one_two_a_x_task():
     
     print "predict..."
     #machine.reset_state()
-    prediction = trainer.predict(test_input)
+    echo, prediction = trainer.predict(test_input)
+    
+    
     prediction[prediction<0.5] = 0
     prediction[prediction>0.5] = 1
     error_percentage = (1-abs(test_target - prediction).mean())*100;
@@ -301,20 +274,21 @@ def mso_separation_task():
     return nrmse
     
 
-def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):    
+def mso_task(task_type=5, T=10, Plots=False, LOG=True, **machine_params):    
     
     if (machine_params == None or len(machine_params)==0):
-        machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
+        
+        machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
                       "input_scaling":0.4, "bias_scaling":0.2, "spectral_radius":1.3, 'recurrent_weight_dist':0, 
                       'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
-        """                        
-        machine_params = {"output_dim":100, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
-                      "input_scaling":0.1, "bias_scaling":0.2, "spectral_radius":1.1, 'recurrent_weight_dist':0, 
-                      'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0, 'ip_std':0.01,
+        """
+        machine_params = {"output_dim":20, "leak_rate":1, "conn_input":0.5, "conn_recurrent":0.1, 
+                      "input_scaling":0.001, "bias_scaling":0.001, "spectral_radius":0.9, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 'fb_noise_var':0, 
+                      #'ip_learning_rate':0, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
         """
-    
     if (LOG):
         print 'MSO Task Type', task_type
 
@@ -329,6 +303,8 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
         data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range)
     elif task_type==5: 
         data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
+    elif task_type==6: 
+        data = np.sin(0.2*input_range) * np.sin(0.311*input_range) + np.sin(0.42*input_range) * sin(0.51*input_range) + sin(0.74*input_range)**2
     else:
         print 'Unknown MSO Task Type: ', task_type
         raise ValueError 
@@ -341,15 +317,9 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
     #data = sin(0.2*input_range)  * sin(0.311*input_range) + sin(0.42*input_range) 
     ##data = np.sin(0.0311*input_range) + np.sin(0.74*input_range)
     
-    
-    washout_time = 100
-    training_time = 300
-    testing_time = 600
-    evaluation_time = 300 #only last X steps evaluated
-    
     nrmse, mean_nrmse, std_nrmse, machine, trainer, evaluation_target, evaluation_prediction = esn_task(data, 
                     training_time=400, testing_time=600, washout_time=100, evaluation_time=300, 
-                    target_columns=[0], fb=True, T=10, LOG=LOG, **machine_params)
+                    target_columns=[0], fb=True, T=T, LOG=LOG, **machine_params)
     
     #save_object(best_machine, 'm2')
     #save_object(best_trainer, 't2')
@@ -379,6 +349,12 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
         
     return nrmse, machine
     """
+        
+    washout_time = 100
+    training_time = 300
+    testing_time = 600
+    evaluation_time = 300 #only last X steps evaluated
+    
     ridge=1e-8
     if 'ridge' in machine_params:
         ridge = machine_params['ridge']
@@ -705,8 +681,9 @@ if __name__ == "__main__":
             #astring = "{start_in_equilibrium: False, Plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             #dic = correct_dictionary_arg(astring)
             #run_mso_task()
+            one_two_a_x_task()
             #mso_task()
-            NARMA_task()
+            #NARMA_task()
             #mackey_glass_task()
             
             """

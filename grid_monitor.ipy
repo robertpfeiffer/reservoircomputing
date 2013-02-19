@@ -49,7 +49,9 @@ def check_for_results(result_file_name):
             status = ''
         else:
             status = !qstat
-        print 'Status obtained at ', time.strftime("%H:%M:%S")
+        nr_lines = status.count('\n')
+        print nr_lines, 'Jobs remain at ', time.strftime("%H:%M:%S")
+        sys.stdout.flush()
         if len(status) < 2:
             merge_files(result_file_name)
             break;
