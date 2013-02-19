@@ -3,6 +3,10 @@ import tasks
 from math import *
 import drone_esn
 from drone_esn import DroneESN
+from esn_persistence import *
+from reservoir import *
+from esn_readout import *
+import os
 
 class TaskTests(unittest.TestCase):
 
@@ -31,6 +35,16 @@ class TaskTests(unittest.TestCase):
     def test_drone_esn(self):
         results = drone_esn.example_drone_esn(Plots=False)
         self.assertIsNotNone(results, "drone_esn.example_drone_esn failed")
+        
+    def test_esn_persistence(self):
+        machine = ESN(input_dim=1, output_dim = 100)
+        trainer = FeedbackReadout(machine, LinearRegressionReadout(machine))
+        save_object(trainer, 'trainer', 'tmp_trainer')              
+                      
+        trainer2 = load_object('trainer', 'tmp_trainer')
+        self.assertEquals(trainer2.machine.ninput, 1)
+        
+        os.remove('tmp_trainer.db')
         
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.test_mso_task']
