@@ -41,6 +41,7 @@ class ESN(object):
         """
         recurrent_weight_dist: 0 uniform, 1 gaussian
         """
+        self.recurrent_weight_dist = recurrent_weight_dist
         self.ninput=input_dim
         self.nnodes=output_dim
         self.leak_rate=leak_rate
@@ -70,7 +71,16 @@ class ESN(object):
 
         self.reset()
 
+    def get_spectral_radius(self, w=None):
+        if w==None:
+            w = self.w_echo
+        eigenvalues=linalg.eigvals(w)
+        network_spectral_radius=max([abs(a) for a in eigenvalues])
+        return network_spectral_radius
+    
     def build_connections(self):
+        #w_ij: i->j (i:row, j:col). in usual w-notation that would be w_ji - conn. from i to j
+        #row i: incoming weights for neuron i
         w_echo = numpy.array(
             [[self.connection_weight(i,j)
               for j in range(self.nnodes)]
@@ -83,9 +93,7 @@ class ESN(object):
             [self.add_bias(i)
              for i in range(self.nnodes)])
 
-        # set spectral radius of w_echo to ? (default = 0.95)
-        eigenvalues=linalg.eigvals(w_echo)
-        network_spectral_radius=max([abs(a) for a in eigenvalues])
+        network_spectral_radius = self.get_spectral_radius(w_echo)
         w_echo *= self.spectral_radius/network_spectral_radius
 
         self.w_echo = w_echo
@@ -130,8 +138,14 @@ class ESN(object):
         result = (1 - self.leak_rate) * x_t_1
         recur = numpy.dot(self.w_echo,x_t_1)
         inp   = numpy.dot(self.w_input,u_t)
-        result += self.leak_rate * self.gamma(
+        
+        if hasattr(self.gamma, '__call__'):
+            result += self.leak_rate * self.gamma(
                    recur+inp+self.w_add)
+        else:
+            result += self.leak_rate * self.gamma.activate(
+                   recur+inp+self.w_add)  
+            
         return result.ravel()
 
     def jacobian(self, u_t, x_t_1=None):
@@ -226,9 +240,7 @@ class SpESN(ESN):
             [self.add_bias(i)
              for i in range(self.nnodes)])
 
-        # set spectral radius of w_echo to ? (default = 0.95)
-
-        eigenvalues,eigenvectors=sparse.linalg.eigs(w_echo)
+        eigenvalues,eigenvectors=sparse.linalg.eigs(w_echo) #@UndefinedVariable
         network_spectral_radius=max([abs(a) for a in eigenvalues])
         w_echo *= self.spectral_radius/network_spectral_radius
 
@@ -237,14 +249,17 @@ class SpESN(ESN):
         self.w_add = w_add
         self.w_feedback = None
         self.current_feedback = None
-
-
+        
     def step(self, x_t_1, u_t, f_t=None):
         result = (1 - self.leak_rate) * x_t_1
         recur = self.w_echo.dot(x_t_1)
         inp   = self.w_input.dot(u_t)
-        result += self.leak_rate * self.gamma(
+        if hasattr(self.gamma, '__call__'):
+            result += self.leak_rate * self.gamma(
                    recur+inp+self.w_add)
+        else:
+            result += self.leak_rate * self.gamma.activate(
+                   recur+inp+self.w_add)    
         return result.ravel()
 
 

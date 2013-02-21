@@ -47,8 +47,9 @@ class DroneESN(object):
         
     def save_echo(self):
         save_arrays('drone_echo', self.echos)
+
+def example_drone_esn(save_echo=False, Plots=True):
         
-if __name__ == '__main__':
     flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData')
     """
     row_data = np.column_stack((np.asarray(flight_data.dataTimeDiffs), np.asarray(flight_data.dataYaw),
@@ -67,7 +68,14 @@ if __name__ == '__main__':
         results = np.vstack((results, result))
 
     targets = row_data[:1000,-4:]
-    plot_predictions_targets(results, targets, ('w1', 'w2', 'w3', 'w4'))
+    if Plots:
+        plot_predictions_targets(results, targets, ('w1', 'w2', 'w3', 'w4'))
     #arrays = esn_persistence.load_arrays('drone_echo')
     
-    #drone_esn.save_echo()
+    if save_echo:
+        drone_esn.save_echo()
+        
+    return results
+    
+if __name__ == '__main__':
+    example_drone_esn()

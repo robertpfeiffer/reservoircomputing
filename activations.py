@@ -58,7 +58,7 @@ def ip_gaussian_tanh(learnrate,mean,stddev,n):
     ESANN 2007 proceedings"""
 
     def inner(x):
-        y = numpy.tanh(inner.a*x + inner.b)
+        y = np.tanh(inner.a*x + inner.b)
         if inner.learn:
             delta_b = -learnrate * (- mean/stddev + y/stddev *(2*stddev+1-y**2+mean*y))
             delta_a = learnrate/inner.a + x*delta_b

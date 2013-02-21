@@ -6,9 +6,48 @@ import numpy as np
 import esn_persistence
 
 class FlightData():
-    def __init__(self, filename):
+    def __init__(self, filename, load_altitude=False, load_dV=False, load_xyz=True, LOG=False):
+        self.LOG = LOG
+        if filename is not None:
+            self.load_file(filename, load_altitude, load_dV, load_xyz)
+        
+    def load_file(self, filename, load_altitude=False, load_dV=False, load_xyz=True):
         self.initVariables()
+        self.load_altitude=load_altitude
+        self.load_dV = load_dV
+        self.load_xyz = load_xyz
         self.loadData(filename)
+        
+        #18 Dim:
+        #time, vx, vy, vz, yaw, pitch, roll, altitude, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
+        all_dims = 18
+        self.xyz_columns = np.arange(8,11)
+        self.target_xyz_columns = np.arange(11, 14)
+        self.w_columns = np.arange(14, 18)
+        
+        if not load_dV:
+            self.xyz_columns -= 3
+            self.target_xyz_columns -= 3
+            self.w_columns -= 3
+            all_dims-=3
+            
+        if not load_altitude:
+            self.xyz_columns -= 1
+            self.target_xyz_columns -= 1
+            self.w_columns -= 1
+            all_dims -= 1
+            
+        if not load_xyz:
+            self.xyz_columns = []
+            self.target_xyz_columns = []
+            self.w_columns -= 6
+            all_dims -= 6
+        else:
+            #for prediction
+            self.w_non_target_columns = np.hstack((np.arange(0, all_dims-7), self.w_columns))
+            
+        #self.xyz_columns = np.arange(8,11)
+        #self.target_xyz_columns = np.arange(11, 14)
         
     def initVariables(self):
         
@@ -35,62 +74,52 @@ class FlightData():
         
         self.containsTarget = False
         self.dataTimeDiffs = []
-        
-        self.xyz_columns = np.arange(4,7)
-        self.target_xyz_columns = np.arange(7, 10)
-        #self.xyz_columns = np.arange(8,11)
-        #self.target_xyz_columns = np.arange(11, 14)
-        
-        #und die letzten 4 sind die w's
-        self.w_columns = np.arange(10, 14) 
-        self.w_non_target_columns = [0, 1, 2, 3, 4, 5, 6, 10, 11, 12, 13]
-        #time, yaw, pitch, roll, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
                 
     def loadData_original(self, filename):
         self.initVariables()
-        try:
-            lines = esn_persistence.load_file(filename)
-            i = 0
-            for line in lines:
-                #i += 1
+        lines = esn_persistence.load_file(filename)
+        i = 0
+        for line in lines:
+            try:
+                i += 1
                 #print i
                 #Battery, VX, VY, VZ, Yaw, Pitch, Roll, Altitude, X, Y, Z, command, target, time
                 if line[0]=='[' and not 'None' in line and not 'end' in line:
                     pos=line.find(', ')
-                    self.dataBat.append(line[1:pos])
+                    dataBatValue = line[1:pos]
                     pos2=line.find(', ',pos+1)
-                    self.dataVX.append(float(line[pos+2:pos2]))
+                    vxValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataVY.append(float(line[pos+2:pos2]))
+                    vyValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataVZ.append(float(line[pos+2:pos2]))
+                    vzValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataYaw.append(float(line[pos+2:pos2]))
+                    yawValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataPitch.append(float(line[pos+2:pos2]))
+                    pitchValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataRoll.append(float(line[pos+2:pos2]))
+                    rollValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataAltitude.append(float(line[pos+2:pos2]))
+                    altitudeValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataX.append(float(line[pos+2:pos2]))
+                    xValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataY.append(float(line[pos+2:pos2]))
+                    yValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    self.dataZ.append(float(line[pos+2:pos2]))
+                    zValue = float(line[pos+2:pos2])
                     pos=line.find("'",pos)
                     pos2=line.find("'",pos+1)
                     command=str(line[pos+1:pos2])
-                    self.dataCommand.append(command)
+                    commandValue = command[:]
                     target = None
                     if 'target' in command:
                         parts = command.split(';')
@@ -130,10 +159,24 @@ class FlightData():
                     pos=pos2
                     pos2=line.find(']',pos+1)
                     self.dataTime.append(line[pos+3:pos2])
-
-        except:
-            print 'Error while loading data: ',sys.exc_info()[0], sys.exc_info()[1]
-        #print 'Finished loading data. '
+                    
+                    self.dataBat.append(dataBatValue)
+                    self.dataVX.append(vxValue)
+                    self.dataVY.append(vyValue)
+                    self.dataVZ.append(vzValue)
+                    self.dataYaw.append(yawValue)
+                    self.dataPitch.append(pitchValue)
+                    self.dataRoll.append(rollValue)
+                    self.dataAltitude.append(altitudeValue)
+                    self.dataX.append(xValue)
+                    self.dataY.append(yValue)
+                    self.dataZ.append(zValue)
+                    self.dataCommand.append(commandValue)
+                
+            except:
+                print 'Error while loading data: ',sys.exc_info()[0], sys.exc_info()[1]
+        if self.LOG:
+            print 'Finished loading data. '
         
     def loadData(self, filename):
         self.loadData_original(filename)
@@ -153,7 +196,7 @@ class FlightData():
         """
                 
         k = 30
-        #Vscale = 1000
+        Vscale = 1000
         Tscale = 100.0
         Yaw_scale = 100.0
         
@@ -184,15 +227,28 @@ class FlightData():
         #time, vx, vy, vz, yaw, pitch, roll, altitude, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
         #time, yaw, pitch, roll, altitude, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
         #time, yaw, pitch, roll, x, y, z, targetX, targetY, targetZ, w1, w2, w3, w4
+        """
         self.data = np.column_stack((np.asarray(self.dataTimeDiffs)[:-k], 
                                         # (np.asarray(self.dataVX)/Vscale)[:-k], (np.asarray(self.dataVY)/Vscale)[:-k], (np.asarray(self.dataVZ)/Vscale)[:-k],
                                          (np.asarray(self.dataYaw)[:-k])/Yaw_scale,
                                      np.asarray(self.dataPitch)[:-k], np.asarray(self.dataRoll)[:-k], 
-                                     #np.asarray(self.dataAltitude)[:-k],
+                                     np.asarray(self.dataAltitude)[:-k],
                                      np.asarray(self.dataX)[:-k], np.asarray(self.dataY)[:-k], np.asarray(self.dataZ)[:-k],
                                      np.asarray(self.dataTargetX), np.asarray(self.dataTargetY), np.asarray(self.dataTargetZ),
                                      np.asarray(self.dataw1)[:-k], np.asarray(self.dataw2)[:-k], np.asarray(self.dataw3)[:-k], np.asarray(self.dataw4)[:-k]))
-                
+        """
+        self.data = np.asarray(self.dataTimeDiffs)[:-k]
+        if self.load_dV:
+            self.data = np.column_stack((self.data, (np.asarray(self.dataVX)/Vscale)[:-k], (np.asarray(self.dataVY)/Vscale)[:-k], (np.asarray(self.dataVZ)/Vscale)[:-k],))
+        self.data = np.column_stack((self.data, (np.asarray(self.dataYaw)[:-k])/Yaw_scale,
+                                     np.asarray(self.dataPitch)[:-k], np.asarray(self.dataRoll)[:-k]))
+        if self.load_altitude:
+            self.data = np.column_stack((self.data, np.asarray(self.dataAltitude)[:-k]))
+        if self.load_xyz:
+            self.data = np.column_stack((self.data, np.asarray(self.dataX)[:-k], np.asarray(self.dataY)[:-k], np.asarray(self.dataZ)[:-k],
+                                     np.asarray(self.dataTargetX), np.asarray(self.dataTargetY), np.asarray(self.dataTargetZ)))
+        self.data = np.column_stack((self.data, np.asarray(self.dataw1)[:-k], np.asarray(self.dataw2)[:-k], 
+                                     np.asarray(self.dataw3)[:-k], np.asarray(self.dataw4)[:-k]))      
         """
         if self.containsTarget:
             #Relative target

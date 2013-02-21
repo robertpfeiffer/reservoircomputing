@@ -15,13 +15,14 @@ import time
 import error_metrics
 import esn_plotting
 from activations import *
+import tasks
 
 import matplotlib
 import matplotlib.pyplot as plt
 
 
 def predict_xyz_task(Plots=False, **machine_params):
-    #flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData')
+
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_58_39_AllData')
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_13_11_34_AllData')
     
@@ -42,6 +43,7 @@ def predict_xyz_task(Plots=False, **machine_params):
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Fri_08_Feb_2013_16_06_09_AllData')
     
     
+    # Ergolgreich!
     flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData')
     flight_data2 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_23_03_AllData')
     flight_data3 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_37_34_AllData')
@@ -59,6 +61,8 @@ def predict_xyz_task(Plots=False, **machine_params):
     
     #Drone Data
     #flight_data = FlightData('flight_data/esn_flight/flight_Tue_12_Feb_2013_11_53_03_3s_AllData')
+    
+    #flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData')
     #data = flight_data.data
     
     all_dims = data.shape[1]-3
@@ -130,9 +134,120 @@ def predict_xyz_task(Plots=False, **machine_params):
         
     return best_nrmse  
 
+def control_task_wo_position(Plots=True, LOG=True, Save=False, **machine_params):
+    
+    #flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData',load_altitude=True, load_xyz=False)
+    flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_45_56_AllData',load_altitude=True, load_xyz=False)
+    
+    #Klappt nicht
+    #flight_data = FlightData('flight_data/rectangle/flight_Sun_03_Feb_2013_17_36_54_AllData',load_altitude=True, load_xyz=False)
+    data = flight_data.data
+    
+            
+    all_dims = data.shape[1]
+    nr_rows = data.shape[0]
+    
+    if (machine_params == None or len(machine_params)==0):
+        machine_params = {'output_dim':150, 'input_scaling':0.1, 'bias_scaling':0.2, 
+                          'conn_input':0.4, 'leak_rate':0.3, 'conn_recurrent':0.2, 'reset_state':False, 'start_in_equilibrium':True,
+                          'ridge':1e-8, 'ip_learning_rate':0.00005, 'ip_std':0.001 }
+        
+    test_length = 1000
+    train_length = nr_rows - test_length
+    
+    
+    nrmse, mean_nrmse, std_nrmse, machine, trainer, evaluation_target, evaluation_prediction = tasks.esn_task(data=data, 
+            training_time=train_length, target_columns=flight_data.w_columns, fb=True, T=10, LOG=LOG, **machine_params)
+    
+    """
+    #Normalisierung - macht alles noch schlimmer!
+    #normalizer = DataNormalizer()
+    #data = normalizer.init_with_data(data)
+    train_data = data[:train_length,:]
+    test_data = data[train_length:nr_rows,:]
+    #train_data = normalizer.init_with_data(data[:train_length,:])
+    #test_data = normalizer.normalize(data[train_length:nr_rows,:])
+    
+    T = 20
+    target_columns = flight_data.w_columns
+    #input_columns = np.arange(0,all_dims-4) #mit Position
+    input_columns = np.arange(0,all_dims-4) #ohne Position
+
+    #washout_data = data[:washout_length,:]
+    #train_input = data[washout_length:train_length,input_columns]
+    #train_target = data[washout_length:train_length,target_columns] #die letzten drei sind x, y, z
+    #test_input = data[train_length:nr_rows,input_columns]
+    #test_target = data[train_length:nr_rows,target_columns]
+    train_input = train_data[:,input_columns]
+    train_target = train_data[:,target_columns]
+    test_input = test_data[:,input_columns]
+    test_target = test_data[:,target_columns]
+    
+    ridge=1e-8
+    if 'ridge' in machine_params:
+        ridge = machine_params['ridge']
+        del machine_params['ridge']
+
+    use_ip = False
+    if 'ip_learning_rate' in machine_params:    
+        ip_learning_rate = machine_params['ip_learning_rate']
+        ip_std = machine_params['ip_std']
+        del machine_params['ip_learning_rate']
+        del machine_params['ip_std']
+        if ip_learning_rate > 0:
+            use_ip = True
+        
+    best_nrmse = float('Inf')
+    for i in range(T):
+        if use_ip:
+            activ_fct = IPTanhActivation(ip_learning_rate, 0, ip_std,machine_params["output_dim"])
+            activ_fct.learn = False
+            machine = ESN(gamma=activ_fct, **machine_params)
+            activ_fct.learn = True
+            machine.run_batch(train_data)
+            activ_fct.learn = False
+            machine.reset()
+        else:
+            machine = ESN(**machine_params)
+        
+        trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge))
+        train_echo, train_prediction = trainer.train(train_input, train_target)
+
+        machine.current_feedback = train_target[-1]
+        test_echo, prediction = trainer.generate(test_length, None, test_input)
+        #testData = data[washout_time+training_time:washout_time+training_time+testing_time]
+        
+        #evaluation_data = data[train_length:nr_rows]
+        #evaluaton_prediction = prediction[-evaluation_time:]
+        nrmse = error_metrics.nrmse(test_target, prediction)
+        
+        
+        nrmse = error_metrics.nrmse(prediction,test_target)
+        
+        if nrmse < best_nrmse:
+            best_trainer = trainer
+            best_nrmse = nrmse
+            best_prediction = prediction
+        if LOG:
+            printf("%d NRMSE: %f\n", i+1, nrmse)
+    
+    
+    if LOG:    
+        print 'Min NRMSE: ', best_nrmse
+    """
+    if Plots:
+        esn_plotting.plot_predictions_targets(evaluation_prediction, evaluation_target, ('w1', 'w2', 'w3', 'w4'))
+    
+    if Save:
+        save_object(trainer, 'trainer', 'drone_esn')
+        if LOG:
+            print 'esn saved'
+    #print 'Time: ', time.time() - start, 's' 
+        
+    return nrmse  
+
 def control_task(Plots=True, LOG=True, **machine_params):
     #start = time.time()
-    #flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData')
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_58_39_AllData')
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_13_11_34_AllData')
     
@@ -147,6 +262,7 @@ def control_task(Plots=True, LOG=True, **machine_params):
     
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData')
     
+    #Erfolgreich!
     flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData')
     flight_data2 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_23_03_AllData')
     flight_data3 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_37_34_AllData')
@@ -162,6 +278,7 @@ def control_task(Plots=True, LOG=True, **machine_params):
     #flight_data = FlightData('flight_data/random_targetPoints_changingYaw/flight_Sun_03_Feb_2013_16_55_59_AllData')
     #flight_data = FlightData('flight_data/random_targetPoints_changingYaw/flight_Sun_03_Feb_2013_17_22_37_AllData')
     
+    #flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData')
     #data = flight_data.data
     
             
@@ -281,7 +398,9 @@ def control_task_for_grid(params_list):
     writer = csv.DictWriter(output, fieldnames)
     writer.writerow(dict((fn,fn) for fn in fieldnames))
     for machine_params in params_list:
+        
         best_nrmse = control_task(**machine_params)
+        
         remove_unnecessary_params(machine_params)
         machine_params["NRMSE"] = best_nrmse
         writer.writerow(machine_params)
@@ -293,7 +412,7 @@ if __name__ == '__main__':
     #control_task_for_grid()
     #predict_xyz_task(Plots=True)
     if (len(sys.argv)==1):
-        control_task(Plots=True)
+        control_task_wo_position(Plots=True)
         #predict_xyz_task(Plots=True)
     else:
         args = sys.argv[1]
