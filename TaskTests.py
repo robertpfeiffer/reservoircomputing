@@ -39,12 +39,12 @@ class TaskTests(unittest.TestCase):
     def test_esn_persistence(self):
         machine = ESN(input_dim=1, output_dim = 100)
         trainer = FeedbackReadout(machine, LinearRegressionReadout(machine))
-        save_object(trainer, 'trainer', 'tmp_trainer')              
+        save_object(trainer, 'tmp_trainer')              
                       
-        trainer2 = load_object('trainer', 'tmp_trainer')
+        trainer2 = load_object('tmp_trainer')
         self.assertEquals(trainer2.machine.ninput, 1)
         
-        os.remove('tmp_trainer.db')
+       # os.remove('tmp_trainer.db')
         
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.test_mso_task']

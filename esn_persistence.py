@@ -1,11 +1,19 @@
 import shelve
 import numpy as np
+import pickle
 
-def save_object(obj, name, file_name):
+def save_object_with_shelve(obj, name, file_name):
     shelf = shelve.open(file_name)
     shelf[name] = obj
+
+def save_object(obj, file_name):
+    pickle.dump( obj, open(file_name, "wb" ) )
     
-def load_object(name, file_name):
+def load_object(file_name):
+    obj = pickle.load( open( file_name, "rb" ) )
+    return obj
+
+def load_object_with_shelve(name, file_name):
     shelf = shelve.open(file_name)
     obj = shelf[name]
     return obj
