@@ -116,7 +116,3 @@ class IPTanhActivation:
             self.a += delta_a
             self.b += delta_b
         return y
-    
-    # todo
-    #    self.w = self.w_orig * self.a
-    #    self.w_bias += db

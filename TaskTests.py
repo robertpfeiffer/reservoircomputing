@@ -21,7 +21,7 @@ class TaskTests(unittest.TestCase):
         print
         
     def test_mso_task(self):
-        best_nrsme, best_esn = tasks.run_mso_task(1)
+        best_nrsme, best_esn = tasks.mso_task(task_type=1)
         self.assertGreater(pow(10,-4), best_nrsme, 'NRMSE too big: %f' % best_nrsme)
         print
         

@@ -21,7 +21,157 @@ import esn_plotting
 from activations import *
 import drone_tasks
 import copy
+import random
 #import Oger
+
+
+class ESNTask(object):
+    
+    def rescale_after_ip(self, machine, activ_fct):
+        """ returns the new spectral radius """
+        machine.w_echo = (machine.w_echo.T*activ_fct.a).T
+        machine.w_input = (machine.w_input.T *activ_fct.a).T
+        machine.w_add = machine.w_add*activ_fct.a + activ_fct.b
+        machine.gamma = TanhActivation()
+        return machine.get_spectral_radius()
+    
+    def run(self, data, training_time, testing_time=None, washout_time=0, evaluation_time=None, target_columns=[0], 
+                        fb=False, T=10, LOG=True, **machine_params):
+        #TODO: fb_columns fuer den Fall, dass das fb!=target ist
+            #if fb == True:
+        #    fb_columns = target_columns
+        
+        """ washout_time is part of training_time, evaluation_time is the final part of testing_time
+        if (machine_params == None or len(machine_params)==0):                       
+            machine_params = {"output_dim":100, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
+                          "input_scaling":0.1, "bias_scaling":0.2, "spectral_radius":1.1, 'recurrent_weight_dist':0, 
+                          'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0, 'ip_std':0.01,
+                          "reset_state":False, "start_in_equilibrium": True}
+        """
+        ridge = 0
+        if 'ridge' in machine_params:
+            ridge = machine_params['ridge']
+            del machine_params['ridge']
+        
+        use_ip = False
+        if 'ip_learning_rate' in machine_params:    
+            ip_learning_rate = machine_params['ip_learning_rate']
+            ip_std = machine_params['ip_std']
+            del machine_params['ip_learning_rate']
+            del machine_params['ip_std']
+            if ip_learning_rate > 0:
+                use_ip = True
+                
+        fb_noise_var = 0
+        if 'fb_noise_var' in machine_params:
+            fb_noise_var = machine_params['fb_noise_var']
+            del machine_params['fb_noise_var'] 
+            
+            
+        if len(data.shape)==1:
+            data = data[:, None]
+        
+        
+        nr_dims = data.shape[1]
+        if testing_time == None:
+            testing_time = data.shape[0]-training_time-washout_time
+        
+        if evaluation_time == None:
+            evaluation_time = testing_time
+        
+        #Generell gibt es input_columns, target_columns und fb_columns. Im Momement gilt target_columns=fb_columns
+        #Fuer washout und IP besteht der input aus input_columns + fb_columns        
+        all_columns = range(nr_dims)
+        input_columns = list(set(all_columns) - set(target_columns))
+        if fb:
+            input_dim = nr_dims #-len(target_columns) + len(fb_columns)
+            pre_train_input_columns = all_columns
+            fb_columns = target_columns
+            #washout_input = data[:washout_time,all_columns]
+            if use_ip:
+                ip_pre_train_input = data[:training_time,all_columns]
+        else:
+            input_dim = nr_dims - len(target_columns)
+            pre_train_input_columns = input_columns
+            #washout_input = data[:washout_time,input_columns]
+            if use_ip:
+                ip_pre_train_input = data[washout_time:training_time,input_columns]
+        
+        washout_input = data[:washout_time,pre_train_input_columns]
+        if use_ip:
+            ip_pre_train_input = data[:training_time,pre_train_input_columns]
+            
+        train_input = data[washout_time:training_time,input_columns]
+        train_target = data[washout_time:training_time,target_columns] #x, y, z
+        test_input = data[training_time:training_time+testing_time,input_columns]
+        #test_target = data[training_time:training_time+testing_time,target_columns] 
+        evaluation_target = data[training_time+(testing_time-evaluation_time):training_time+testing_time,target_columns]
+        
+         
+        nrmses = np.empty(T)
+        self.best_nrmse = float('Inf')
+        np.random.seed(42)
+        random.seed(42)
+        
+        for i in range(T):
+            #IP
+            if use_ip:
+                activ_fct = IPTanhActivation(ip_learning_rate, 0, ip_std, machine_params["output_dim"], init_learn=False)
+                machine = ESN(input_dim=input_dim, gamma=activ_fct, **machine_params)
+                if washout_time > 0:
+                    machine.run_batch(washout_input)
+                #normal_echo = machine.run_batch(train_target)
+                activ_fct.learn = True
+                machine.run_batch(ip_pre_train_input)
+                activ_fct.learn = False
+                new_spectral_radius = self.rescale_after_ip(machine, activ_fct)
+                machine.reset()
+            else:
+                machine = ESN(input_dim=input_dim, **machine_params)
+    
+            if washout_time > 0:
+                machine.run_batch(washout_input)
+                    
+            if fb:
+                trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge))
+                train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target, noise_var=fb_noise_var)
+                machine.current_feedback = train_target[-1]
+                test_echo, prediction = trainer.generate(testing_time, inputs=test_input)
+            else: 
+                trainer = LinearRegressionReadout(machine, ridge);
+                train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target)
+                test_echo, prediction = trainer.predict(test_input)
+    
+            evaluaton_prediction = prediction[-evaluation_time:]
+            nrmse = error_metrics.nrmse(evaluaton_prediction,evaluation_target)
+            if (nrmse < self.best_nrmse):
+                self.best_evaluation_prediction = evaluaton_prediction
+                self.best_nrmse = nrmse
+                self.best_machine = machine
+                self.best_trainer = trainer
+                self.best_train_echo = train_echo
+                self.best_test_echo = test_echo
+            nrmses[i] = nrmse
+            
+            #if Plots:
+            #    esn_plotting.plot_output_distribution((normal_echo,train_echo), ('Output Distribution without IP','Output Distribution with IP',) )
+            
+            if (LOG):
+                print i,'NRMSE:', nrmse #, 'New Spectral Radius:', new_spectral_radius  
+            
+            #if best_nrmse < math.pow(10,-4):
+             #   T = i + 1
+              #  break
+        
+        self.mean_nrmse = mean(nrmses[:T])
+        self.std_nrmse = std(nrmses[:T])
+        #self.best_nrmse = min(nrmses[:T])
+        #print 'Min NRMSE: ', min_nrmse, 'Mean NRMSE: ', mean_nrmse, 'Std: ', std_nrmse
+        if (LOG):
+            print 'Min NRMSE: ', self.best_nrmse 
+        
+            
+        return self.best_nrmse, self.best_machine
 
 def memory_task(N=15, delay=20):
     print "Memory Task"
@@ -51,140 +201,7 @@ def memory_task(N=15, delay=20):
     print 'Highest Capacity: ', best_capacity 
     return best_capacity
 
-def esn_task(data, training_time, testing_time=None, washout_time=0, evaluation_time=None, target_columns=[0], 
-                    fb=False, T=10, LOG=True, **machine_params):
-    #TODO: fb_columns fuer den Fall, dass das fb!=target ist
-        #if fb == True:
-    #    fb_columns = target_columns
-    
-    """ washout_time is part of training_time, evaluation_time is the final part of testing_time
-    if (machine_params == None or len(machine_params)==0):                       
-        machine_params = {"output_dim":100, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
-                      "input_scaling":0.1, "bias_scaling":0.2, "spectral_radius":1.1, 'recurrent_weight_dist':0, 
-                      'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0, 'ip_std':0.01,
-                      "reset_state":False, "start_in_equilibrium": True}
-    """
-    ridge = 0
-    if 'ridge' in machine_params:
-        ridge = machine_params['ridge']
-        del machine_params['ridge']
-    
-    use_ip = False
-    if 'ip_learning_rate' in machine_params:    
-        ip_learning_rate = machine_params['ip_learning_rate']
-        ip_std = machine_params['ip_std']
-        del machine_params['ip_learning_rate']
-        del machine_params['ip_std']
-        if ip_learning_rate > 0:
-            use_ip = True
-            
-    fb_noise_var = 0
-    if 'fb_noise_var' in machine_params:
-        fb_noise_var = machine_params['fb_noise_var']
-        del machine_params['fb_noise_var'] 
-        
-        
-    if len(data.shape)==1:
-        data = data[:, None]
-    
-    
-    nr_dims = data.shape[1]
-    if testing_time == None:
-        testing_time = data.shape[0]-training_time-washout_time
-    
-    if evaluation_time == None:
-        evaluation_time = testing_time
-    
-    #Generell gibt es input_columns, target_columns und fb_columns. Im Momement gilt target_columns=fb_columns
-    #Fuer washout und IP besteht der input aus input_columns + fb_columns        
-    all_columns = range(nr_dims)
-    input_columns = list(set(all_columns) - set(target_columns))
-    if fb:
-        input_dim = nr_dims #-len(target_columns) + len(fb_columns)
-        pre_train_input_columns = all_columns
-        fb_columns = target_columns
-        #washout_input = data[:washout_time,all_columns]
-        if use_ip:
-            ip_pre_train_input = data[:training_time,all_columns]
-    else:
-        input_dim = nr_dims - len(target_columns)
-        pre_train_input_columns = input_columns
-        #washout_input = data[:washout_time,input_columns]
-        if use_ip:
-            ip_pre_train_input = data[washout_time:training_time,input_columns]
-    
-    washout_input = data[:washout_time,pre_train_input_columns]
-    if use_ip:
-        ip_pre_train_input = data[:training_time,pre_train_input_columns]
-        
-    train_input = data[washout_time:training_time,input_columns]
-    train_target = data[washout_time:training_time,target_columns] #x, y, z
-    test_input = data[training_time:training_time+testing_time,input_columns]
-    #test_target = data[training_time:training_time+testing_time,target_columns] 
-    evaluation_target = data[training_time+(testing_time-evaluation_time):training_time+testing_time,target_columns]
-    
-     
-    nrmses = np.empty(T)
-    best_nrmse = float('Inf')
-    np.random.seed(42)
-    
-    for i in range(T):
-        #IP
-        if use_ip:
-            activ_fct = IPTanhActivation(ip_learning_rate, 0, ip_std, machine_params["output_dim"], init_learn=False)
-            machine = ESN(input_dim=input_dim, gamma=activ_fct, **machine_params)
-            if washout_time > 0:
-                machine.run_batch(washout_input)
-            #normal_echo = machine.run_batch(train_target)
-            activ_fct.learn = True
-            machine.run_batch(ip_pre_train_input)
-            activ_fct.learn = False
-            machine.reset()
-        else:
-            machine = ESN(input_dim=input_dim, **machine_params)
 
-        if washout_time > 0:
-            machine.run_batch(washout_input)
-                
-        if fb:
-            trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge))
-            train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target, noise_var=fb_noise_var)
-            machine.current_feedback = train_target[-1]
-            test_echo, prediction = trainer.generate(testing_time, inputs=test_input)
-        else: 
-            trainer = LinearRegressionReadout(machine, ridge);
-            train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target)
-            test_echo, prediction = trainer.predict(test_input)
-
-        evaluaton_prediction = prediction[-evaluation_time:]
-        nrmse = error_metrics.nrmse(evaluaton_prediction,evaluation_target)
-        if (nrmse < best_nrmse):
-            best_evaluation_prediction = evaluaton_prediction
-            best_nrmse = nrmse
-            best_machine = machine
-            best_trainer = trainer
-            best_train_echo = train_echo
-            best_test_echo = test_echo
-        nrmses[i] = nrmse
-        
-        #if Plots:
-        #    esn_plotting.plot_output_distribution((normal_echo,train_echo), ('Output Distribution without IP','Output Distribution with IP',) )
-        
-        if (LOG):
-            print i,'NRMSE:', nrmse
-        
-        #if best_nrmse < math.pow(10,-4):
-         #   T = i + 1
-          #  break
-    
-    mean_nrmse = mean(nrmses[:T])
-    std_nrmse = std(nrmses[:T])
-    min_nrmse = min(nrmses[:T])
-    #print 'Min NRMSE: ', min_nrmse, 'Mean NRMSE: ', mean_nrmse, 'Std: ', std_nrmse
-    if (LOG):
-        print 'Min NRMSE: ', min_nrmse   
-        
-    return best_nrmse, mean_nrmse, std_nrmse, best_machine, trainer, evaluation_target, best_evaluation_prediction 
         
 def NARMA_task(T=3, Plots=True, LOG=True, **machine_params):
     if LOG:
@@ -211,9 +228,8 @@ def NARMA_task(T=3, Plots=True, LOG=True, **machine_params):
     testing_time = len(test_input[0])
     data = np.vstack((np.hstack((train_input[0], train_target[0])), np.hstack((test_input[0], test_target[0]))))
     
-
-    nrmse, mean_nrmse, std_nrmse, machine, trainer, evaluation_target, evaluation_prediction = esn_task(data, 
-                    training_time=training_time, testing_time=testing_time, 
+    task = ESNTask()
+    nrmse, machine = task.run(data, training_time=training_time, testing_time=testing_time, 
                     target_columns=[1], T=T, LOG=LOG, **machine_params)
    
     return nrmse, machine
@@ -317,7 +333,8 @@ def mso_task(task_type=5, T=10, Plots=False, LOG=True, **machine_params):
     #data = sin(0.2*input_range)  * sin(0.311*input_range) + sin(0.42*input_range) 
     ##data = np.sin(0.0311*input_range) + np.sin(0.74*input_range)
     
-    nrmse, mean_nrmse, std_nrmse, machine, trainer, evaluation_target, evaluation_prediction = esn_task(data, 
+    task = ESNTask()
+    nrmse, machine = task.run(data, 
                     training_time=400, testing_time=600, washout_time=100, evaluation_time=300, 
                     target_columns=[0], fb=True, T=T, LOG=LOG, **machine_params)
     
@@ -328,8 +345,8 @@ def mso_task(task_type=5, T=10, Plots=False, LOG=True, **machine_params):
     
     if Plots==True:
         plt.figure(1).clear()
-        plt.plot( evaluation_target, 'g' )
-        plt.plot( evaluation_prediction, 'b' )
+        plt.plot( task.best_evaluation_target, 'g' )
+        plt.plot( task.best_evaluation_prediction, 'b' )
         plt.title('Test Performance')
         plt.legend(['Target signal', 'Free-running predicted signal'])
         plt.show()
@@ -343,8 +360,8 @@ def mso_task(task_type=5, T=10, Plots=False, LOG=True, **machine_params):
         plt.show()
         
         #plt.matshow(best_trainer.w_out,cmap="bone")
-        hist=np.histogram(trainer.w_out,bins=np.linspace(0,6,num=61))
-        plt.hist(trainer.w_out)
+        hist=np.histogram(task.best_trainer.w_out,bins=np.linspace(0,6,num=61))
+        plt.hist(task.best_trainer.w_out)
         plt.show()
         
     return nrmse, machine
@@ -485,35 +502,6 @@ def mso_task(task_type=5, T=10, Plots=False, LOG=True, **machine_params):
         
     return best_nrmse, best_machine
     """        
-def run_mso_task(task_type=1):
-    #machine = ESN(1, N, leak_rate=leak_rate, input_scaling=0.5, bias_scaling=0.5, reset_state=False, start_in_equilibrium=False)
-    #machine_params = {"ninput":1, "nnodes":200, "leak_rate":0.5, "input_scaling":0.5, "bias_scaling":0.5, "reset_state":False, 
-    # "start_in_equilibrium": False}   
-    #mso_task(**machine_params)
-    #best_nrmse = mso_task(task_type, Plots=False, ninput=1, nnodes=200, leak_rate=0.5, input_scaling=0.5, bias_scaling=0.5, spectral_radius=0.95, reset_state=False, start_in_equilibrium=False)
-    #return best_nrmse
-
-    machine_params = {"task_type":task_type, "Plots": False, "LOG":True, 
-                      "output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, 
-                      "input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": False}
-    #parameters = {'input_scaling': arange(0.1, 2, 0.1), 'spectral_radius':arange(0.1, 1.5, 0.1)}
-    """
-    parameters = {'input_scaling': frange(0.5, 0.6, 0.1), 'spectral_radius':frange(0.95, 1.15, 0.1)}
-    parameter_keys = parameters.keys()
-    parameter_ranges = []
-    for parameter in parameter_keys:
-        parameter_ranges.append(parameters[parameter])
-
-    paramspace_dimensions = [len(r) for r in parameter_ranges]
-    param_space = list(itertools.product(*parameter_ranges))    
-    #iteration = enumerate(param_space)
-    #for paramspace_index_flat, parameter_values in iteration:
-    
-    for parameter_values in param_space:
-        machine_params.update(dict(zip(parameter_keys, parameter_values)))
-        run_mso_task_for_grid(**machine_params)
-    """
-    return mso_task(**machine_params)
 
 def run_task_for_grid(params_list):
     if (params_list == None or len(params_list)==0):
@@ -630,9 +618,10 @@ def mackey_glass_task(LOG=True, Plots=False, **machine_params):
                       #,'ip_learning_rate':0.0005, 'ip_std':0.1
                       }
 
+
     data = np.loadtxt('data/MackeyGlass_t17.txt') 
-    nrmse, mean_nrmse, std_nrmse, machine, trainer, evaluation_target, evaluation_prediction = esn_task(data, 
-                    training_time=2001, testing_time=500, washout_time=100, 
+    task = ESNTask()
+    nrmse, machine = task.run(data, training_time=2001, testing_time=500, washout_time=100, 
                     target_columns=[0], fb=True, T=10, LOG=LOG, **machine_params)
     
     
@@ -640,15 +629,15 @@ def mackey_glass_task(LOG=True, Plots=False, **machine_params):
         plt.figure(1).clear()
         #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
         #plt.plot( prediction, 'b' )
-        plt.plot( evaluation_target, 'g' )
-        plt.plot( evaluation_prediction, 'b' )
+        plt.plot( task.best_evaluation_target, 'g' )
+        plt.plot( task.best_evaluation_prediction, 'b' )
         plt.title('Test Performance')
         plt.legend(['Target signal', 'Free-running predicted signal'])
         #plt.show()
         
         plt.figure(2).clear()
         N = machine_params["output_dim"]
-        plt.bar( range(1+N), trainer.w_out)
+        plt.bar( range(1+N), task.best_trainer.w_out)
         plt.title('Output weights $\mathbf{W}^{out}$')
         plt.show()
         
@@ -680,9 +669,8 @@ if __name__ == "__main__":
         if (len(sys.argv)==1):
             #astring = "{start_in_equilibrium: False, Plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             #dic = correct_dictionary_arg(astring)
-            #run_mso_task()
-            one_two_a_x_task()
-            #mso_task()
+            #one_two_a_x_task()
+            mso_task()
             #NARMA_task()
             #mackey_glass_task()
             

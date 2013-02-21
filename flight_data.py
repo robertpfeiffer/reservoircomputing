@@ -6,7 +6,8 @@ import numpy as np
 import esn_persistence
 
 class FlightData():
-    def __init__(self, filename, load_altitude=False, load_dV=False, load_xyz=True):
+    def __init__(self, filename, load_altitude=False, load_dV=False, load_xyz=True, LOG=False):
+        self.LOG = LOG
         if filename is not None:
             self.load_file(filename, load_altitude, load_dV, load_xyz)
         
@@ -174,7 +175,8 @@ class FlightData():
                 
             except:
                 print 'Error while loading data: ',sys.exc_info()[0], sys.exc_info()[1]
-        print 'Finished loading data. '
+        if self.LOG:
+            print 'Finished loading data. '
         
     def loadData(self, filename):
         self.loadData_original(filename)
