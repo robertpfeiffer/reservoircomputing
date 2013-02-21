@@ -20,6 +20,7 @@ def run_perturbation(esn,data1=None):
     s2=esn2.run_batch_feedback(data2)
     d["input"] = data1
     d["echo_states"] = s1
+    d["net"]=esn
     d["difference"] = abs(s2-s1)
     d["sum_difference"] = np.sum(abs(s2-s1),axis=1)
 
@@ -65,6 +66,13 @@ def plot_diff(max_duration=1000,max_nodes=300):
 
 def plot_diff2():
     plt.plot(d["sum_difference"])
+    esn=d["net"]
+    if hasattr(esn,"comment"):
+        comment=esn.comment
+    else:
+        comment=""
+    plt.title(str(esn.nnodes)+" neurons "+comment)
+    plt.annotate('perturbation', xy=(100, 10), xytext=(150,15), arrowprops=dict(facecolor='black', shrink=0.05))
     plt.show()
 
 def plot_input_spectrum(max_freq=1000,max_nodes=300):

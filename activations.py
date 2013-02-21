@@ -36,14 +36,14 @@ def ip_exp_logistic(learnrate,mean,n):
     def inner(x):
         y = fermi(x, inner.a, inner.b)
         if inner.learn:
-            delta_b = learnrate * (1 - (2+1/mean)*y + 1/mean*y*y)
-            delta_a = learnrate * 1/inner.a + x*delta_b
+            delta_b = gamma * (1 - (2+1/mean)*y + 1/mean*y*y)
+            delta_a = gamma * 1/inner.a + x*delta_b
             inner.a += delta_a
             inner.b += delta_b
         return y
 
-    inner.a=numpy.ones(n)
-    inner.b=numpy.ones(n)*0.1
+    inner.a=np.ones(n)
+    inner.b=np.ones(n)*0.1
     inner.learn=True
 
     return inner
@@ -92,14 +92,14 @@ def ip_tanh(learning_rate, mean, std, n):
 def sech(x):
     return 1/np.cosh(x)
 
-class TanhActivation:
+class TanhActivation(object):
     def activate(self, x):
         return np.tanh(x)
 
     def derivative(self,x):
         return np.outer(sech(x),sech(x))
     
-class IPTanhActivation:
+class IPTanhActivation(object):
     def __init__(self, learning_rate, mean, std, n, init_learn=True):
         self.learning_rate = learning_rate
         self.mean = mean
@@ -116,3 +116,6 @@ class IPTanhActivation:
             self.a += delta_a
             self.b += delta_b
         return y
+
+    def derivative(self,x):
+        return self.a*np.outer(sech(self.a*x + self.b),sech(self.a*x + self.b))
