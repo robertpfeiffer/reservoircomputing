@@ -74,6 +74,7 @@ class FlightData():
         
         self.containsTarget = False
         self.dataTimeDiffs = []
+        self.column_names = list()
                 
     def loadData_original(self, filename):
         self.initVariables()
@@ -238,17 +239,23 @@ class FlightData():
                                      np.asarray(self.dataw1)[:-k], np.asarray(self.dataw2)[:-k], np.asarray(self.dataw3)[:-k], np.asarray(self.dataw4)[:-k]))
         """
         self.data = np.asarray(self.dataTimeDiffs)[:-k]
+        self.column_names.append('Time')
         if self.load_dV:
             self.data = np.column_stack((self.data, (np.asarray(self.dataVX)/Vscale)[:-k], (np.asarray(self.dataVY)/Vscale)[:-k], (np.asarray(self.dataVZ)/Vscale)[:-k],))
+            self.column_names.append(['VX', 'VY', 'VZ'])
         self.data = np.column_stack((self.data, (np.asarray(self.dataYaw)[:-k])/Yaw_scale,
                                      np.asarray(self.dataPitch)[:-k], np.asarray(self.dataRoll)[:-k]))
+        self.column_names.extend(['Yaw', 'Pitch', 'Roll'])
         if self.load_altitude:
             self.data = np.column_stack((self.data, np.asarray(self.dataAltitude)[:-k]))
+            self.column_names.append('Altitude')
         if self.load_xyz:
             self.data = np.column_stack((self.data, np.asarray(self.dataX)[:-k], np.asarray(self.dataY)[:-k], np.asarray(self.dataZ)[:-k],
                                      np.asarray(self.dataTargetX), np.asarray(self.dataTargetY), np.asarray(self.dataTargetZ)))
+            self.column_names.extend(['X', 'Y', 'Z', 'TargetX', 'TargetY', 'TargetZ'])
         self.data = np.column_stack((self.data, np.asarray(self.dataw1)[:-k], np.asarray(self.dataw2)[:-k], 
-                                     np.asarray(self.dataw3)[:-k], np.asarray(self.dataw4)[:-k]))      
+                                     np.asarray(self.dataw3)[:-k], np.asarray(self.dataw4)[:-k]))
+        self.column_names.extend(['w1', 'w2', 'w3', 'w4'])  
         """
         if self.containsTarget:
             #Relative target
@@ -281,10 +288,14 @@ class FlightData():
         #Ignore launch~ first 5 seconds and the last seconds in the end
         cutoff = 50
         self.data = self.data[cutoff:-cutoff,:]
-        #print self.data.shape
+        
+        if self.LOG:
+            print self.data.shape
+            print self.column_names
         
 if __name__ == '__main__':
-    flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData')
+    #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData', LOG=True)
+    flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_45_56_AllData',load_altitude=True, load_xyz=False, LOG=True)
     
     #print len(data.dataZ), len(data.dataCommand), len(data.dataw1), len(data.dataPitch)
     #print len(flight_data.dataTime)
