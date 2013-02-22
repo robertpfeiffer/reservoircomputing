@@ -105,7 +105,7 @@ class ESNTask(object):
         train_target = data[washout_time:training_time,target_columns] #x, y, z
         test_input = data[training_time:training_time+testing_time,input_columns]
         #test_target = data[training_time:training_time+testing_time,target_columns] 
-        evaluation_target = data[training_time+(testing_time-evaluation_time):training_time+testing_time,target_columns]
+        self.evaluation_target = data[training_time+(testing_time-evaluation_time):training_time+testing_time,target_columns]
         
          
         nrmses = np.empty(T)
@@ -143,7 +143,7 @@ class ESNTask(object):
                 test_echo, prediction = trainer.predict(test_input)
     
             evaluaton_prediction = prediction[-evaluation_time:]
-            nrmse = error_metrics.nrmse(evaluaton_prediction,evaluation_target)
+            nrmse = error_metrics.nrmse(evaluaton_prediction,self.evaluation_target)
             if (nrmse < self.best_nrmse):
                 self.best_evaluation_prediction = evaluaton_prediction
                 self.best_nrmse = nrmse
@@ -290,21 +290,21 @@ def mso_separation_task():
     return nrmse
     
 
-def mso_task(task_type=5, T=10, Plots=False, LOG=True, **machine_params):    
+def mso_task(task_type=1, T=10, Plots=False, LOG=True, **machine_params):    
     
     if (machine_params == None or len(machine_params)==0):
-        
+        """
         machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
                       "input_scaling":0.4, "bias_scaling":0.2, "spectral_radius":1.3, 'recurrent_weight_dist':0, 
                       'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
         """
-        machine_params = {"output_dim":20, "leak_rate":1, "conn_input":0.5, "conn_recurrent":0.1, 
-                      "input_scaling":0.001, "bias_scaling":0.001, "spectral_radius":0.9, 'recurrent_weight_dist':0, 
+        machine_params = {"output_dim":100, "leak_rate":0.7, "conn_input":0.4, "conn_recurrent":0.1, 
+                      "input_scaling":1, "bias_scaling":1, "spectral_radius":0.9, 'recurrent_weight_dist':1, 
                       'ridge':1e-8, 'fb_noise_var':0, 
-                      #'ip_learning_rate':0, 'ip_std':0.01,
+                      #'ip_learning_rate':0.00005, 'ip_std':0.1,
                       "reset_state":False, "start_in_equilibrium": True}
-        """
+        
     if (LOG):
         print 'MSO Task Type', task_type
 
@@ -335,17 +335,12 @@ def mso_task(task_type=5, T=10, Plots=False, LOG=True, **machine_params):
     
     task = ESNTask()
     nrmse, machine = task.run(data, 
-                    training_time=400, testing_time=600, washout_time=100, evaluation_time=300, 
+                    training_time=400, testing_time=600, washout_time=10, evaluation_time=300, 
                     target_columns=[0], fb=True, T=T, LOG=LOG, **machine_params)
-    
-    #save_object(best_machine, 'm2')
-    #save_object(best_trainer, 't2')
-    #save_object(best_train_echo, 'train_echo2')
-    #save_object(best_test_echo, 'test_echo2')
     
     if Plots==True:
         plt.figure(1).clear()
-        plt.plot( task.best_evaluation_target, 'g' )
+        plt.plot( task.evaluation_target, 'g' )
         plt.plot( task.best_evaluation_prediction, 'b' )
         plt.title('Test Performance')
         plt.legend(['Target signal', 'Free-running predicted signal'])
@@ -629,7 +624,7 @@ def mackey_glass_task(LOG=True, Plots=False, **machine_params):
         plt.figure(1).clear()
         #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
         #plt.plot( prediction, 'b' )
-        plt.plot( task.best_evaluation_target, 'g' )
+        plt.plot( task.evaluation_target, 'g' )
         plt.plot( task.best_evaluation_prediction, 'b' )
         plt.title('Test Performance')
         plt.legend(['Target signal', 'Free-running predicted signal'])

@@ -15,7 +15,7 @@ import time
 import error_metrics
 import esn_plotting
 from activations import *
-import tasks
+from tasks import *
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -155,98 +155,22 @@ def control_task_wo_position(Plots=True, LOG=True, Save=False, **machine_params)
     test_length = 1000
     train_length = nr_rows - test_length
     
+    task = ESNTask()
+    nrmse, machine = task.run(data=data, 
+            training_time=train_length, target_columns=flight_data.w_columns, fb=True, T=20, LOG=LOG, **machine_params)
     
-    nrmse, mean_nrmse, std_nrmse, machine, trainer, evaluation_target, evaluation_prediction = tasks.esn_task(data=data, 
-            training_time=train_length, target_columns=flight_data.w_columns, fb=True, T=10, LOG=LOG, **machine_params)
-    
-    """
-    #Normalisierung - macht alles noch schlimmer!
-    #normalizer = DataNormalizer()
-    #data = normalizer.init_with_data(data)
-    train_data = data[:train_length,:]
-    test_data = data[train_length:nr_rows,:]
-    #train_data = normalizer.init_with_data(data[:train_length,:])
-    #test_data = normalizer.normalize(data[train_length:nr_rows,:])
-    
-    T = 20
-    target_columns = flight_data.w_columns
-    #input_columns = np.arange(0,all_dims-4) #mit Position
-    input_columns = np.arange(0,all_dims-4) #ohne Position
-
-    #washout_data = data[:washout_length,:]
-    #train_input = data[washout_length:train_length,input_columns]
-    #train_target = data[washout_length:train_length,target_columns] #die letzten drei sind x, y, z
-    #test_input = data[train_length:nr_rows,input_columns]
-    #test_target = data[train_length:nr_rows,target_columns]
-    train_input = train_data[:,input_columns]
-    train_target = train_data[:,target_columns]
-    test_input = test_data[:,input_columns]
-    test_target = test_data[:,target_columns]
-    
-    ridge=1e-8
-    if 'ridge' in machine_params:
-        ridge = machine_params['ridge']
-        del machine_params['ridge']
-
-    use_ip = False
-    if 'ip_learning_rate' in machine_params:    
-        ip_learning_rate = machine_params['ip_learning_rate']
-        ip_std = machine_params['ip_std']
-        del machine_params['ip_learning_rate']
-        del machine_params['ip_std']
-        if ip_learning_rate > 0:
-            use_ip = True
-        
-    best_nrmse = float('Inf')
-    for i in range(T):
-        if use_ip:
-            activ_fct = IPTanhActivation(ip_learning_rate, 0, ip_std,machine_params["output_dim"])
-            activ_fct.learn = False
-            machine = ESN(gamma=activ_fct, **machine_params)
-            activ_fct.learn = True
-            machine.run_batch(train_data)
-            activ_fct.learn = False
-            machine.reset()
-        else:
-            machine = ESN(**machine_params)
-        
-        trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge))
-        train_echo, train_prediction = trainer.train(train_input, train_target)
-
-        machine.current_feedback = train_target[-1]
-        test_echo, prediction = trainer.generate(test_length, None, test_input)
-        #testData = data[washout_time+training_time:washout_time+training_time+testing_time]
-        
-        #evaluation_data = data[train_length:nr_rows]
-        #evaluaton_prediction = prediction[-evaluation_time:]
-        nrmse = error_metrics.nrmse(test_target, prediction)
-        
-        
-        nrmse = error_metrics.nrmse(prediction,test_target)
-        
-        if nrmse < best_nrmse:
-            best_trainer = trainer
-            best_nrmse = nrmse
-            best_prediction = prediction
-        if LOG:
-            printf("%d NRMSE: %f\n", i+1, nrmse)
-    
-    
-    if LOG:    
-        print 'Min NRMSE: ', best_nrmse
-    """
     if Plots:
-        esn_plotting.plot_predictions_targets(evaluation_prediction, evaluation_target, ('w1', 'w2', 'w3', 'w4'))
+        esn_plotting.plot_predictions_targets(task.best_evaluation_prediction, task.evaluation_target, ('w1', 'w2', 'w3', 'w4'))
     
     if Save:
-        save_object(trainer, 'trainer', 'drone_esn')
+        save_object(task.best_trainer, 'saved_drone_esn')
         if LOG:
             print 'esn saved'
     #print 'Time: ', time.time() - start, 's' 
         
     return nrmse  
 
-def control_task(Plots=True, LOG=True, **machine_params):
+def control_task(Plots=True, LOG=True, Save=False, **machine_params):
     #start = time.time()
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_58_39_AllData')
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_13_11_34_AllData')
@@ -369,7 +293,8 @@ def control_task(Plots=True, LOG=True, **machine_params):
     if Plots:
         esn_plotting.plot_predictions_targets(best_prediction, test_target, ('w1', 'w2', 'w3', 'w4'))
     
-    save_object(best_trainer, 'trainer', 'drone_esn')
+    if Save:
+        save_object(best_trainer, 'trainer', 'drone_esn')
     if LOG:
         print 'esn saved'
     #print 'Time: ', time.time() - start, 's' 
@@ -412,7 +337,7 @@ if __name__ == '__main__':
     #control_task_for_grid()
     #predict_xyz_task(Plots=True)
     if (len(sys.argv)==1):
-        control_task_wo_position(Plots=True)
+        control_task_wo_position(Plots=True, Save=True)
         #predict_xyz_task(Plots=True)
     else:
         args = sys.argv[1]

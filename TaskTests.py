@@ -44,7 +44,7 @@ class TaskTests(unittest.TestCase):
         trainer2 = load_object('tmp_trainer')
         self.assertEquals(trainer2.machine.ninput, 1)
         
-       # os.remove('tmp_trainer.db')
+        os.remove('tmp_trainer')
         
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.test_mso_task']
