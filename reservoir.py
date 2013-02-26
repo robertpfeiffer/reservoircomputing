@@ -35,9 +35,10 @@ def random_vector(size,a,b):
 class ESN(object):
     feedback = False
 
-    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2, recurrent_weight_dist=1, 
-                 gamma=activations.TanhActivation(),frac_exc=0.5, input_scaling=1, bias_scaling=1, spectral_radius=0.95, 
-                 reset_state=True, start_in_equilibrium=True):
+    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,
+                 recurrent_weight_dist=1,gamma=activations.TanhActivation(),frac_exc=0.5,
+                 input_scaling=1, bias_scaling=1, spectral_radius=0.95,reset_state=True,
+                 start_in_equilibrium=True):
         """
         recurrent_weight_dist: 0 uniform, 1 gaussian
         """
@@ -54,6 +55,7 @@ class ESN(object):
         self.bias_scaling = bias_scaling
         self.spectral_radius = spectral_radius
         self.start_in_equilibrium = start_in_equilibrium
+        self.bias_unit=False
 
         self.build_connections()
 
@@ -77,7 +79,7 @@ class ESN(object):
         eigenvalues=linalg.eigvals(w)
         network_spectral_radius=max([abs(a) for a in eigenvalues])
         return network_spectral_radius
-    
+
     def build_connections(self):
         #w_ij: i->j (i:row, j:col). in usual w-notation that would be w_ji - conn. from i to j
         #row i: incoming weights for neuron i
@@ -101,7 +103,7 @@ class ESN(object):
         self.w_add = w_add
         self.w_feedback = None
         self.current_feedback = None
-        
+
     def connection_weight(self,n1,n2):
         """recurrent synaptic strength for the connection from node n1 to node n2 """
         if self.recurrent_weight_dist == 0:
@@ -119,7 +121,6 @@ class ESN(object):
                 else:
                     if weight >= 0:
                         weight =-weight
-                
                 return weight
             return 0
 
@@ -136,16 +137,18 @@ class ESN(object):
 
     def step(self, x_t_1, u_t, f_t=None):
         result = (1 - self.leak_rate) * x_t_1
+        if self.bias_unit:
+            x_t_1=numpy.append(numpy.ones(1), x_t_1)
         recur = numpy.dot(self.w_echo,x_t_1)
         inp   = numpy.dot(self.w_input,u_t)
-        
+
         if hasattr(self.gamma, '__call__'):
             result += self.leak_rate * self.gamma(
                    recur+inp+self.w_add)
         else:
             result += self.leak_rate * self.gamma.activate(
-                   recur+inp+self.w_add)  
-            
+                   recur+inp+self.w_add)
+
         return result.ravel()
 
     def jacobian(self, u_t, x_t_1=None):
@@ -248,7 +251,7 @@ class SpESN(ESN):
         self.w_add = w_add
         self.w_feedback = None
         self.current_feedback = None
-        
+
     def step(self, x_t_1, u_t, f_t=None):
         result = (1 - self.leak_rate) * x_t_1
         recur = self.w_echo.dot(x_t_1)
@@ -258,7 +261,7 @@ class SpESN(ESN):
                    recur+inp+self.w_add)
         else:
             result += self.leak_rate * self.gamma.activate(
-                   recur+inp+self.w_add)    
+                   recur+inp+self.w_add)
         return result.ravel()
 
 
@@ -318,7 +321,7 @@ class BubbleESN(ESN):
             if (bubblemin <= n and n < bubblemax):
                 return k
             k += 1
-        
+
     def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
@@ -326,7 +329,7 @@ class BubbleESN(ESN):
 
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
-                return random.gauss(0,1)  
+                return random.gauss(0,1)
         if random.random() < self.conn_recurrent/BUBBLE_RATIO:
             return BUBBLE_RATIO * random.gauss(0,1)
 
@@ -352,7 +355,7 @@ class DecoupledBubbleESN(BubbleESN):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
         n2_bubble = self.bubble_index(n2)
-        
+
         # weights if both neurons are in the same bubble
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
@@ -373,11 +376,11 @@ class ForwardBubbleESN(FirstBubbleInput):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
         n2_bubble = self.bubble_index(n2)
-        
+
         # weights if both neurons are in the same bubble
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
-                return random.gauss(0,1)  
+                return random.gauss(0,1)
         # weights if the neurons are one bubble apart
         if (n1_bubble == n2_bubble-1):
             if random.random() < self.conn_recurrent/5:
@@ -389,11 +392,11 @@ class NeighbourBubbleESN(FirstBubbleInput):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
         n2_bubble = self.bubble_index(n2)
-        
+
         # weights if both neurons are in the same bubble
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
-                return random.gauss(0,1)  
+                return random.gauss(0,1)
         # weights if the neurons are one bubble apart
         if (n1_bubble == n2_bubble+1 or n1_bubble == n2_bubble-1):
             if random.random() < self.conn_recurrent/5:
@@ -405,7 +408,7 @@ class KitchenSinkBubbleESN(BubbleESN):
     The neurons in each bubble are densely connected.
     There are sparse connection from a bubble to later bubble_borders, but none back.
     """
-        
+
     def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
@@ -414,7 +417,7 @@ class KitchenSinkBubbleESN(BubbleESN):
         if n1==n2:
             if self.diagonal_zero:
                 return 0
-        
+
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
                 return random.gauss(0,1)
