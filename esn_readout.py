@@ -92,7 +92,7 @@ class FeedbackReadout(object):
             train_input=feedback
             self.input_dim=0
         X, Y = self.trainer.train(train_input, train_target[1:])
-        self.machine.w_feedback=self.trainer.w_out
+        self.machine.w_feedback=self.trainer.w_out.T
         return (X,Y)
 
     def generate(self, length=1000, initial_feedback=None, state=None, inputs=None):

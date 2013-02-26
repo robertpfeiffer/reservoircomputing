@@ -158,20 +158,23 @@ class ESN(object):
         J = numpy.dot(self.gamma.derivative(recur+inp+self.w_add),
                       numpy.dot(self.w_input,numpy.eye(u_t.size)))
         return J
-    
+
+    def start_state_dwim(self,state):
+        if state is not None:
+            return state
+        elif not self.reset_state:
+            return self.current_state
+        elif self.start_in_equilibrium:
+            return self.equilibrium_state
+        else:
+            return numpy.zeros(self.nnodes)
+
     def run_batch(self, u, state=None):
         """ Runs the machine, returns the last state, saves previous states in state_echo
             Parameter u is the input, a 2dnumpy-array (time x input-dim)
         """
         length = u.shape[0]
-        if state is not None:
-            pass
-        elif not self.reset_state:
-            state = self.current_state
-        elif self.start_in_equilibrium:
-            state = self.equilibrium_state
-        else:
-            state = numpy.zeros(self.nnodes)
+        state = self.start_state_dwim(state)
         state_echo = numpy.zeros((length, self.nnodes))
         for i in range(length):
             u_t = u[i,:]
@@ -182,33 +185,29 @@ class ESN(object):
 
     def run_batch_feedback(self, u, state=None):
         """ Runs the machine, returns the last state, saves previous states in state_echo
-            Parameter u is the input, a 2dnumpy-array (time x input-dim) 
+            Parameter u is the input, a 2dnumpy-array (time x input-dim)
         """
         length,inputs = u.shape
+        state = self.start_state_dwim(state)
         state_echo = numpy.zeros((length, self.nnodes))
-        if state is not None:
-            pass
-        elif not self.reset_state:
-            state = self.current_state
-        elif self.start_in_equilibrium:
-            state = self.equilibrium_state
-        else:
-            state = numpy.zeros(self.nnodes)
-        if self.w_feedback is not None and self.current_feedback is None:
-            self.current_feedback = numpy.zeros(self.ninput-inputs)
+
+        if self.w_feedback is not None:
+            state_1  = numpy.append(numpy.ones(1), state)
+            current_feedback = numpy.dot(self.w_feedback,state_1)
+
         u_t=numpy.zeros(self.ninput)
         for i in range(length):
             u_t[:inputs] = u[i,:].ravel()
             if self.w_feedback is not None:
-                u_t[inputs:] = self.current_feedback
+                u_t[inputs:] = current_feedback
             state    = self.step(state,u_t)
             state_echo[i,:] = state[:]
             if self.w_feedback is not None:
                 state_1  = numpy.append(numpy.ones(1), state)
-                self.current_feedback = numpy.dot(self.w_feedback.T,state_1)
+                current_feedback = numpy.dot(self.w_feedback,state_1)
         self.current_state = state
         return state_echo
-    
+
     def reset(self):
         if self.start_in_equilibrium:
             self.current_state = self.equilibrium_state
