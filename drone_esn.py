@@ -49,7 +49,7 @@ class DroneESN(object):
         save_arrays('drone_echo', self.echos)
 
 def example_drone_esn(save_echo=False, Plots=True):
-        
+    print 'DroneESN-Example'   
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData')
     flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_45_56_AllData',load_altitude=True, load_xyz=False)
     

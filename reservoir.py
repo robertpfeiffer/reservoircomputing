@@ -7,6 +7,32 @@ import scipy
 import activations
 import copy
 
+class LowPassFitler(object):
+    def __init__(self, gammas):
+        self.gammas = gammas
+        
+    def filter(self, x_t_1, fx):
+        result = (1 - self.gammas) * x_t_1 + self.gammas * fx
+        return result 
+
+class BandPassFilter(object):
+    """ first order recursive band-path filter """    
+    def __init__(self, gammas1, gammas2):
+        self.gammas1 = gammas1
+        self.gammas2 = gammas2
+        self.last_lp = 0
+        self.last_lp2 = 0
+        #renormalization
+        self.M = 1 + gammas2/gammas1
+        
+    def filter(self, x_t_1, fx):
+        lp = (1 - self.gammas1) * self.last_lp + self.gammas1 * fx
+        lp2 = (1 - self.gammas2) * self.last_lp2 + self.gammas2 * lp
+        result = (lp - lp2)/self.M
+        self.last_lp = lp
+        self.last_lp2 = lp2
+        return result
+    
 class DummyESN(object):
     """This class implements the ESN interface, but it does not actually carry any
     state. Output = Input. Use it to compare the kernel quality against no kernel at all.
@@ -36,7 +62,7 @@ def random_vector(size,a,b):
 class ESN(object):
     feedback = False
 
-    def __init__(self,input_dim,output_dim,leak_rate=1,conn_input=0.4,conn_recurrent=0.2,
+    def __init__(self,input_dim,output_dim,leak_rate=1,leak_rate2=None,conn_input=0.4,conn_recurrent=0.2,
                  recurrent_weight_dist=1,gamma=activations.TanhActivation(),frac_exc=0.5,
                  input_scaling=1, bias_scaling=1, spectral_radius=0.95,reset_state=True,
                  start_in_equilibrium=True):
@@ -58,6 +84,11 @@ class ESN(object):
         self.start_in_equilibrium = start_in_equilibrium
         self.bias_unit=False
 
+        if leak_rate2 is None:
+            self.filter = LowPassFitler(leak_rate)
+        else:
+            self.filter = BandPassFilter(leak_rate, leak_rate2)
+        
         self.build_connections()
 
         state1 = numpy.zeros(self.nnodes)
@@ -137,19 +168,17 @@ class ESN(object):
         return random.uniform(-1, 1) * self.bias_scaling
 
     def step(self, x_t_1, u_t, f_t=None):
-        result = (1 - self.leak_rate) * x_t_1
         if self.bias_unit:
             x_t_1=numpy.append(numpy.ones(1), x_t_1)
-        recur = numpy.dot(self.w_echo,x_t_1)
-        inp   = numpy.dot(self.w_input,u_t)
+        recur = self.w_echo.dot(x_t_1)
+        inp   = self.w_input.dot(u_t)
 
         if hasattr(self.gamma, '__call__'):
-            result += self.leak_rate * self.gamma(
-                   recur+inp+self.w_add)
+             fx = self.gamma.activate(recur+inp+self.w_add)
         else:
-            result += self.leak_rate * self.gamma.activate(
-                   recur+inp+self.w_add)
+            fx = self.gamma.activate(recur+inp+self.w_add) 
 
+        result = self.filter.filter(x_t_1, fx) 
         return result.ravel()
 
     def jacobian(self, u_t, x_t_1=None):
@@ -312,15 +341,13 @@ class SpESN(ESN):
         self.current_feedback = None
 
     def step(self, x_t_1, u_t, f_t=None):
-        result = (1 - self.leak_rate) * x_t_1
         recur = self.w_echo.dot(x_t_1)
         inp   = self.w_input.dot(u_t)
         if hasattr(self.gamma, '__call__'):
-            result += self.leak_rate * self.gamma(
-                   recur+inp+self.w_add)
+            fx = self.gamma.activate(recur+inp+self.w_add)
         else:
-            result += self.leak_rate * self.gamma.activate(
-                   recur+inp+self.w_add)
+            fx = self.gamma.activate(recur+inp+self.w_add) 
+        result = (1 - self.leak_rate) * x_t_1 + self.leak_rate * fx   
         return result.ravel()
 
 
@@ -374,6 +401,21 @@ class BubbleESN(ESN):
     The neurons in each bubble are densely connected.
     There are sparse connection from a bubble to later bubble_borders, but none back.
     """
+    def __init__(self,ninput,bubble_sizes,leak_rates=None,*args,**kwargs):
+        self.bubble_borders=[]
+        self.leak_rates = None
+        s=0
+        for bubble_size in bubble_sizes:
+            min_=s
+            max_=s+bubble_size
+            s=max_
+            self.bubble_borders.append((min_,max_))
+        ESN.__init__(self,ninput,sum(bubble_sizes),*args,**kwargs)
+        if self.leak_rates is not None:
+            self.leak_rate=numpy.ones(self.nnodes)
+            for (bmin,bmax),lr in zip(self.bubble_borders,leak_rates):
+                self.leak_rate[bmin:bmax]=numpy.ones(bmax-bmin)*lr
+                
     def bubble_index(self,n):
         k = 0
         for bubblemin,bubblemax in self.bubble_borders:
@@ -393,21 +435,6 @@ class BubbleESN(ESN):
             return BUBBLE_RATIO * random.gauss(0,1)
 
         return 0
-
-    def __init__(self,ninput,bubble_sizes,leak_rates=None,*args,**kwargs):
-        self.bubble_borders=[]
-        self.leak_rates = None
-        s=0
-        for bubble_size in bubble_sizes:
-            min_=s
-            max_=s+bubble_size
-            s=max_
-            self.bubble_borders.append((min_,max_))
-        ESN.__init__(self,ninput,sum(bubble_sizes),*args,**kwargs)
-        if self.leak_rates is not None:
-            self.leak_rate=numpy.ones(self.nnodes)
-            for (bmin,bmax),lr in zip(self.bubble_borders,leak_rates):
-                self.leak_rate[bmin:bmax]=numpy.ones(bmax-bmin)*lr
 
 class DecoupledBubbleESN(BubbleESN):
     def connection_weight(self,n2,n1):
@@ -467,7 +494,14 @@ class KitchenSinkBubbleESN(BubbleESN):
     The neurons in each bubble are densely connected.
     There are sparse connection from a bubble to later bubble_borders, but none back.
     """
-
+    def __init__(self,ninput,bubble_sizes,leak_rates=None,input_bubbles=[0],far=True,backward=True,interconnected=True,diagonal_zero=False,*args,**kwargs):
+        self.input_bubbles=input_bubbles
+        self.far=far
+        self.backward=backward
+        self.interconnected=interconnected
+        self.diagonal_zero=diagonal_zero
+        BubbleESN.__init__(self,ninput,bubble_sizes,leak_rates=leak_rates,*args,**kwargs)
+        
     def connection_weight(self,n2,n1):
         """recurrent synaptic strength for the connection from node n1 to node n2"""
         n1_bubble = self.bubble_index(n1)
@@ -480,7 +514,7 @@ class KitchenSinkBubbleESN(BubbleESN):
         if (n1_bubble == n2_bubble):
             if random.random() < self.conn_recurrent:
                 return random.gauss(0,1)
-        if  self.interconnceted:
+        if  self.interconnected:
             if n2>n1:
                 if n2_bubble==n1_bubble+1:
                     if random.random() < self.conn_recurrent/BUBBLE_RATIO:
@@ -507,14 +541,6 @@ class KitchenSinkBubbleESN(BubbleESN):
             if random.random() < self.conn_input:
                 return random.uniform(-1, 1)*self.input_scaling
         return 0
-
-    def __init__(self,ninput,bubble_sizes,leak_rates=None,input_bubbles=[0],far=True,backward=True,interconnected=True,diagonal_zero=False,*args,**kwargs):
-        self.input_bubbles=input_bubbles
-        self.far=far
-        self.backward=backward
-        self.interconnected=interconnected
-        self.diagonal_zero=diagonal_zero
-        BubbleESN.__init__(self,ninput,bubble_sizes,leak_rates=leak_rates,*args,**kwargs)
 
 def run_all(pairs,machine):
     inp = []

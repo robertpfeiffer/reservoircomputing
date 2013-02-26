@@ -152,7 +152,7 @@ def control_task_wo_position(Plots=True, LOG=True, Save=False, **machine_params)
                           'conn_input':0.4, 'leak_rate':0.3, 'conn_recurrent':0.2, 'reset_state':False, 'start_in_equilibrium':True,
                           'ridge':1e-8, 'ip_learning_rate':0.00005, 'ip_std':0.001 }
         
-    test_length = 1000
+    test_length = 500
     train_length = nr_rows - test_length
     
     task = ESNTask()

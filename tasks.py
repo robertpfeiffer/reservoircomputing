@@ -61,7 +61,11 @@ class ESNTask(object):
             del machine_params['ip_std']
             if ip_learning_rate > 0:
                 use_ip = True
-                
+        
+        use_bubbles = False
+        if 'bubble_sizes' in machine_params:
+            use_bubbles = True
+                     
         fb_noise_var = 0
         if 'fb_noise_var' in machine_params:
             fb_noise_var = machine_params['fb_noise_var']
@@ -117,7 +121,10 @@ class ESNTask(object):
             #IP
             if use_ip:
                 activ_fct = IPTanhActivation(ip_learning_rate, 0, ip_std, machine_params["output_dim"], init_learn=False)
-                machine = ESN(input_dim=input_dim, gamma=activ_fct, **machine_params)
+                if use_bubbles:
+                    machine = KitchenSinkBubbleESN(ninput=input_dim, gamma=activ_fct, **machine_params)
+                else:
+                    machine = ESN(input_dim=input_dim, gamma=activ_fct, **machine_params)
                 if washout_time > 0:
                     machine.run_batch(washout_input)
                 #normal_echo = machine.run_batch(train_target)
@@ -127,7 +134,10 @@ class ESNTask(object):
                 new_spectral_radius = self.rescale_after_ip(machine, activ_fct)
                 machine.reset()
             else:
-                machine = ESN(input_dim=input_dim, **machine_params)
+                if use_bubbles:
+                    machine = KitchenSinkBubbleESN(ninput=input_dim, **machine_params)
+                else:
+                    machine = ESN(input_dim=input_dim, **machine_params)
     
             if washout_time > 0:
                 machine.run_batch(washout_input)
@@ -290,8 +300,8 @@ def mso_separation_task():
     return nrmse
     
 
-def mso_task(task_type=1, T=10, Plots=False, LOG=True, **machine_params):    
-    
+def mso_task(task_type=3, T=10, Plots=False, LOG=True, **machine_params):    
+    np.random.seed(42)
     if (machine_params == None or len(machine_params)==0):
         """
         machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
@@ -299,11 +309,26 @@ def mso_task(task_type=1, T=10, Plots=False, LOG=True, **machine_params):
                       'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
         """
-        machine_params = {"output_dim":100, "leak_rate":0.7, "conn_input":0.4, "conn_recurrent":0.1, 
-                      "input_scaling":1, "bias_scaling":1, "spectral_radius":0.9, 'recurrent_weight_dist':1, 
-                      'ridge':1e-8, 'fb_noise_var':0, 
-                      #'ip_learning_rate':0.00005, 'ip_std':0.1,
-                      "reset_state":False, "start_in_equilibrium": True}
+        N = 100
+        leak_rates = 0.3
+        #leak_rates2 = None
+        #leak_rates = np.random.uniform(0.1, 1, N)
+        #eak_rates2 = np.random.uniform(0.1, 0.4, N)
+        #leak_rates2 = np.random.uniform(0.5, 1, N)
+        
+        #leak_rates = np.hstack((np.random.uniform(0.1, 0.3, N/4), np.random.uniform(0.3, 0.5, N/4), 
+        #                      np.random.uniform(0.5, 0.7, N/4), np.random.uniform(0.7, 0.9, N/4)))
+        #leak_rates = np.hstack((np.ones((1,N/4))*0.3, np.ones((1,N/4))*0.5, np.ones((1,N/4))*0.7, np.ones((1,N/4))*0.9))
+        
+        #leak_rates2 = np.zeros((1, N))
+        machine_params = {"output_dim":N, 
+                          "leak_rate":leak_rates, #"leak_rate2":leak_rates2, 
+                          "conn_input":0.4, "conn_recurrent":0.1, "input_scaling":1, "bias_scaling":1, 
+                          "spectral_radius":0.9, 'recurrent_weight_dist':1, 
+                          'ridge':1e-8, 'fb_noise_var':0, 
+                          #'bubble_sizes':[25, 25, 25, 25], 'input_bubbles':[0, 1, 2, 3], 'leak_rate2':leak_rates2,
+                          #'ip_learning_rate':0.00005, 'ip_std':0.1,
+                          "reset_state":False, "start_in_equilibrium": True}
         
     if (LOG):
         print 'MSO Task Type', task_type
