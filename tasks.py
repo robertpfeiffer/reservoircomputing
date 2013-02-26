@@ -135,7 +135,6 @@ class ESNTask(object):
             if fb:
                 trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge))
                 train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target, noise_var=fb_noise_var)
-                machine.current_feedback = train_target[-1]
                 test_echo, prediction = trainer.generate(testing_time, inputs=test_input)
             else: 
                 trainer = LinearRegressionReadout(machine, ridge);
