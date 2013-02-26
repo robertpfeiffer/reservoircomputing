@@ -5,6 +5,7 @@ import collections
 import scipy.sparse as sparse
 import scipy
 import activations
+import copy
 
 class DummyESN(object):
     """This class implements the ESN interface, but it does not actually carry any
@@ -218,7 +219,65 @@ class ESN(object):
             self.current_state = numpy.zeros(self.nnodes)
 
     def fold_in_feedback(self):
-        pass
+        e2=copy.copy(self)
+
+        w_fb=self.w_feedback
+        w_in=self.w_input
+
+        e2.bias_unit=True
+        e2.feedback=None
+        e2.ninput=self.ninput-w_fb.shape[0]
+        e2.w_input=w_in[:,:e2.ninput]
+
+        w_fb_in=w_in[:,e2.ninput:]
+
+        e2.w_echo=numpy.dot(w_fb_in,w_fb)
+        e2.w_echo[:,1:]+=self.w_echo
+        e2.w_feedback=None
+        return e2
+
+def glue_esns(e1,e2,connect=False):
+    e3=copy.copy(e1)
+    e3.nnodes=e1.nnodes+e2.nnodes
+    e3.w_input=numpy.vstack((e1.w_input,e2.w_input))
+    e3.w_echo=numpy.zeros((e3.nnodes,e3.nnodes))
+    e3.w_echo[:e1.nnodes,:e1.nnodes]=e1.w_echo
+    e3.w_echo[e1.nnodes:,e1.nnodes:]=e2.w_echo
+    e3.leak_rate=numpy.ones(e3.nnodes)
+    e3.leak_rate[:e1.nnodes]=e1.leak_rate
+    e3.leak_rate[e1.nnodes:]=e2.leak_rate
+    e3.equilibrium_state=numpy.append(e1.equilibrium_state,e2.equilibrium_state)
+    e3.w_add=numpy.append(e1.w_add,e2.w_add)
+    e3.reset()
+    return e3
+
+def glue_esns_bias(e1,e2,connect=False):
+    e3=copy.copy(e1)
+    e3.nnodes=e1.nnodes+e2.nnodes
+    e3.w_input=numpy.vstack((e1.w_input,e2.w_input))
+    e3.w_echo=numpy.zeros((e3.nnodes,e3.nnodes+1))
+    if e1.bias_unit:
+        e3.w_echo[:e1.nnodes,1:1+e1.nnodes]=e1.w_echo[:,1:]
+        e3.w_echo[:e1.nnodes,0]=e1.w_echo[:,0]
+    else:
+        e3.w_echo[:e1.nnodes,1:1+e1.nnodes]=e1.w_echo
+    if e2.bias_unit:
+        e3.w_echo[e1.nnodes:,1+e1.nnodes:]=e2.w_echo[:,1:]
+        e3.w_echo[e1.nnodes:,0]=e2.w_echo[:,0]
+    else:
+        e3.w_echo[e1.nnodes:,1+e1.nnodes:]=e2.w_echo
+    e3.leak_rate=numpy.ones(e3.nnodes)
+    e3.leak_rate[:e1.nnodes]=e1.leak_rate
+    e3.leak_rate[e1.nnodes:]=e2.leak_rate
+    e3.equilibrium_state=numpy.append(e1.equilibrium_state,e2.equilibrium_state)
+    e3.w_add=numpy.append(e1.w_add,e2.w_add)
+    if connect:
+        shape = (e2.nnodes,e1.nnodes)
+        conn = numpy.random.normal(0,1,shape) * (numpy.random.randint(0,5,shape) == 2)
+        e3.w_echo[e1.nnodes:,1:1+e1.nnodes]=conn
+    e3.bias_unit=True
+    e3.reset()
+    return e3
 
 class SpESN(ESN):
     feedback = False
