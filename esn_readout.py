@@ -13,7 +13,7 @@ def lin_regression_predict (inputs, weights):
     X = np.append(np.ones((inputs.shape[0],1)), inputs, 1)
     Y = np.dot(X, weights)
     return Y;
-     
+
 def lin_regression_train(inputs, targets, ridge):
     X = np.append(np.ones((inputs.shape[0],1)), inputs, 1)
     if ridge==0:
@@ -24,7 +24,7 @@ def lin_regression_train(inputs, targets, ridge):
         w_out = beta.T
     Y = np.dot(X, w_out)
     return (w_out, Y) # weights and training prediction
-    
+
 class LinearRegressionReadout(object):
     """ Trains an esn and uses it for prediction """
 
@@ -46,25 +46,25 @@ class LinearRegressionReadout(object):
             self.w_out = beta.T
         Y = np.dot(X, self.w_out)
         return (X[:, 1:],Y) #echos without constant
-            
+
     def predict(self, test_input,state=None):
         """ returns (echos, predictions) """
         X = self._createX(test_input,state=state)
-        Y = np.dot(X, self.w_out) 
+        Y = np.dot(X, self.w_out)
         return (X[:, 1:],Y)
-    
+
     def _createX(self, data, state=None):
         if len(data.shape) == 1:
             data = data[:,None] #1d->2d
         state_echo = self.machine.run_batch_feedback(data, state=state)
         X = np.append(np.ones((state_echo.shape[0],1)), state_echo, 1)
         return X
-    """        
+    """
     def predict_old(self, test_input):
         X = self._createX_old(test_input)
-        Y = np.dot(X, self.w_out) 
+        Y = np.dot(X, self.w_out)
         return Y
-    
+
     def _createX_old(self, data):
         if len(data.shape) == 1:
             data = data[:,None] #1d->2d
@@ -75,13 +75,13 @@ class LinearRegressionReadout(object):
 
 class FeedbackReadout(object):
     """ Trains an ESN in generative mode and uses it for time series creation """
-    #TODO: Zwischen fortgesetzten Folgen und wiederholten Sequenzen unterscheiden    
+    #TODO: Zwischen fortgesetzten Folgen und wiederholten Sequenzen unterscheiden
     def __init__(self, machine, trainer):
         self.machine = machine
         self.trainer = trainer
-        
+
     def train(self, train_input, train_target, noise_var=0):
-        """ train_target is taken as feedback. 
+        """ train_target is taken as feedback.
         returns (states, prediction) """
         feedback = add_noise(train_target, noise_var)[:-1]; #all except the last
         self.feedback_dim=feedback.shape[1]
@@ -107,14 +107,14 @@ class FeedbackReadout(object):
             #Feedback might not be equal to readouts,
             # so we need to compute them separately
             return self.trainer.predict(inputs, state)
-    
+
     def predict(self, *args, **kwarks):
         return self.trainer.predict(*args, **kwarks)
-    
+
     @property
     def w_out(self):
         return self.trainer.w_out
-        
+
     def train_old(self, train_input):
         feedback = add_noise(train_input, 0.01)[:-1];
         self.trainer.train(feedback, train_input[1:])
@@ -128,4 +128,4 @@ class FeedbackReadout(object):
         for i in range(length):
             output[i] = self.trainer.predict(feedback)
             feedback = output[i]
-        return output       
+        return output
