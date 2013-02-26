@@ -224,20 +224,20 @@ class ESN(object):
         state = self.start_state_dwim(state)
         state_echo = numpy.zeros((length, self.nnodes))
 
-        if self.w_feedback is not None and self.current_feedback is None:
+        if self.w_feedback is not None:
             state_1  = numpy.append(numpy.ones(1), state)
-            self.current_feedback = numpy.dot(self.w_feedback,state_1)
+            current_feedback = numpy.dot(self.w_feedback,state_1)
 
         u_t=numpy.zeros(self.ninput)
         for i in range(length):
             u_t[:inputs] = u[i,:].ravel()
             if self.w_feedback is not None:
-                u_t[inputs:] = self.current_feedback
+                u_t[inputs:] = current_feedback
             state    = self.step(state,u_t)
             state_echo[i,:] = state[:]
             if self.w_feedback is not None:
                 state_1  = numpy.append(numpy.ones(1), state)
-                self.current_feedback = numpy.dot(self.w_feedback,state_1)
+                current_feedback = numpy.dot(self.w_feedback,state_1)
         self.current_state = state
         return state_echo
 
