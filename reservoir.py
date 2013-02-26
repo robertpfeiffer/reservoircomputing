@@ -169,12 +169,14 @@ class ESN(object):
 
     def step(self, x_t_1, u_t, f_t=None):
         if self.bias_unit:
-            x_t_1=numpy.append(numpy.ones(1), x_t_1)
-        recur = self.w_echo.dot(x_t_1)
+            x_t_1_bias=numpy.append(numpy.ones(1), x_t_1)
+            recur = self.w_echo.dot(x_t_1_bias)
+        else:
+            recur = self.w_echo.dot(x_t_1)
         inp   = self.w_input.dot(u_t)
 
         if hasattr(self.gamma, '__call__'):
-             fx = self.gamma.activate(recur+inp+self.w_add)
+            fx = self.gamma.activate(recur+inp+self.w_add)
         else:
             fx = self.gamma.activate(recur+inp+self.w_add) 
 
@@ -233,7 +235,7 @@ class ESN(object):
             u_t[:inputs] = u[i,:].ravel()
             if self.w_feedback is not None:
                 u_t[inputs:] = current_feedback
-            state    = self.step(state,u_t)
+            state = self.step(state,u_t)
             state_echo[i,:] = state[:]
             if self.w_feedback is not None:
                 state_1  = numpy.append(numpy.ones(1), state)
