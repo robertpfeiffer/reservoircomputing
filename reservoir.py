@@ -170,10 +170,10 @@ class ESN(object):
     def step(self, x_t_1, u_t, f_t=None):
         if self.bias_unit:
             x_t_1_bias=numpy.append(numpy.ones(1), x_t_1)
-            recur = self.w_echo.dot(x_t_1_bias)
+            recur = numpy.dot(self.w_echo, x_t_1_bias)
         else:
-            recur = self.w_echo.dot(x_t_1)
-        inp   = self.w_input.dot(u_t)
+            recur = numpy.dot(self.w_echo,x_t_1)
+        inp = numpy.dot(self.w_input,u_t)
 
         if hasattr(self.gamma, '__call__'):
             fx = self.gamma.activate(recur+inp+self.w_add)
@@ -343,8 +343,8 @@ class SpESN(ESN):
         self.current_feedback = None
 
     def step(self, x_t_1, u_t, f_t=None):
-        recur = self.w_echo.dot(x_t_1)
-        inp   = self.w_input.dot(u_t)
+        recur = numpy.dot(self.w_echo,x_t_1)
+        inp   = numpy.dot(self.w_input,u_t)
         if hasattr(self.gamma, '__call__'):
             fx = self.gamma.activate(recur+inp+self.w_add)
         else:
