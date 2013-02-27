@@ -3,6 +3,8 @@ import esn_readout as r
 import reservoir
 import scipy.signal
 import matplotlib.pyplot
+import error_metrics
+import random
 
 data=numpy.loadtxt('data/MackeyGlass_t17.txt')
 
@@ -19,7 +21,19 @@ data1=numpy.convolve(data,w1,'same')
 data2=numpy.convolve(data,w2,'same')
 data3=numpy.convolve(data,w3,'same')
 
+random.seed(42)
+numpy.random.seed(42)
+causal = False
 
+if causal:
+    data1=numpy.convolve(data,w1,'full')
+    data2=numpy.convolve(data,w2,'full')
+    data3=numpy.convolve(data,w3,'full')
+    
+    data1 = data1[:-(window-1)]
+    data2 = data2[:-(window-1)]
+    data3 = data3[:-(window-1)]
+    
 offset=30
 bubble=50
 split=1000
@@ -57,8 +71,8 @@ trainer = r.FeedbackReadout(n5, r.LinearRegressionReadout(n5, 1))
 _   = trainer.train(data[split:-offset,None],data[split+offset:,None])
 _,x1 = trainer.predict(data[:split,None])
 
-print sum ( ((x-data[offset:split+offset])**2).ravel ())
-print sum ( ((x1-data[offset:split+offset])**2).ravel ())
+print 'Standard NRMSE:', error_metrics.nrmse(x,data[offset:split+offset])
+print 'Glued NRMSE:', error_metrics.nrmse(x1,data[offset:split+offset])
 
 matplotlib.pyplot.plot(x.ravel())
 matplotlib.pyplot.plot(x1.ravel())
