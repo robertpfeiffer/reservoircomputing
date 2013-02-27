@@ -29,6 +29,11 @@ def nrmse(input_signal, target_signal):
         - input_signal : array
         - target_signal : array
     """
+    if len(input_signal.shape) == 1:
+        input_signal = input_signal[:,None]
+    if len(target_signal.shape) == 1:
+        target_signal = target_signal[:,None]
+        
     check_signal_dimensions(input_signal, target_signal)
     
     input_signal = input_signal.flatten()
