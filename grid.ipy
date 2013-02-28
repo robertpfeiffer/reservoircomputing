@@ -6,33 +6,36 @@ from drone_tasks import *
 #!ls
 #!qsub -b y -wd "/net/store/projects/mtrc/grid_results" ipython -V
 
+#TODO: in tasks.run_task_for_grid muss man immer den richtigen Task einstellen
+#TODO: ip_std nur dann variieren, wenn ip_learning_rate!=0
+
 user = !whoami
 user = user[0] 
 
-COMBIS_PER_JOB = 20
-#input_dim:14 bei drone tasks
+COMBIS_PER_JOB = 50
 machine_params = {"Plots":False, "LOG":False,
 	"output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, "ridge":1e-8,
-	"input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":True, "start_in_equilibrium": True}
-#parameters = {"output_dim":range(100, 151, 50), "conn_input":[0.3, 0.4], 
-#						"conn_recurrent":[0.1, 0.2, 0.3], 'recurrent_weight_dist':[0, 1], "leak_rate":[0.3, 0.5, 0.7, 0.9], 
-#						'input_scaling': frange(0.1, 1, 0.3), 'bias_scaling':frange(0.2, 1, 0.4), 
-#						'spectral_radius':frange(0.7, 1.3, 0.2), 'fb_noise_var':[0, 0.01],
-#						'ip_learning_rate':[0, 0.00005, 0.0001], 'ip_std':[0.001, 0.01]}
-#
+	"input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": True}
+parameters = {"output_dim":[100, 150, 200], "conn_input":[0.3, 0.4, 0.8], 
+						"conn_recurrent":[0.1, 0.2, 0.3], 'recurrent_weight_dist':[0, 1], "leak_rate":[0.3, 0.5, 0.7, 0.9], 
+						'input_scaling': [0.1, 0.5, 1], 'bias_scaling':[0.1, 0.5, 1], 
+						'spectral_radius':[0.8, 0.95, 1.25], 'ridge':[1e-6, 1e-8]
+						,'ip_learning_rate':[0.00005, 0.0001, 0.001], 'ip_std':[0.001, 0.01]
+						}
+
 #parameters = {"output_dim":[100, 200, 300], "conn_input":[0.3, 0.7, 1], 
 #						"conn_recurrent":[0.1, 0.5], 'recurrent_weight_dist':[0, 1], "leak_rate":[0.3, 0.5, 0.7, 0.9], 
 #						'input_scaling': [0.1, 0.5, 1], 'bias_scaling':[0.1, 0.5, 1], 
 #						'spectral_radius':[0.8, 0.95, 1.25], 'fb_noise_var':[0, 0.01, 0.01],
 #						'ip_learning_rate':[0, 0.00005, 0.0001], 'ip_std':[0.001, 0.01]}
-parameters = {"output_dim":[100, 200, 300], "conn_input":[0.2, 0.3], 
-						"conn_recurrent":[0.1, 0.2], 'recurrent_weight_dist':[0, 1], "leak_rate":[0.3, 0.5, 0.7, 0.9], 
-						'input_scaling': [0.05, 0.1, 0.2], 'bias_scaling':[0.1, 0.5, 1], 
-						'spectral_radius':[0.8, 0.95, 1.25], 'fb_noise_var':[0, 0.001, 0.01],
-						'ip_learning_rate':[0, 0.0005, 0.0001], 'ip_std':[0.001, 0.01]}
-#parameters = {'fb_noise_var':[0, 0.01], 'ip_learning_rate':[0], 'ip_std':[0.01, 0.02]}
+#parameters = {"output_dim":[100, 200, 300], "conn_input":[0.2, 0.3], 
+#						"conn_recurrent":[0.1, 0.2], 'recurrent_weight_dist':[0, 1], "leak_rate":[0.3, 0.5, 0.7, 0.9], 
+#						'input_scaling': [0.05, 0.1, 0.2], 'bias_scaling':[0.1, 0.5, 1], 
+#						'spectral_radius':[0.8, 0.95, 1.25], 'fb_noise_var':[0, 0.001, 0.01],
+#						'ip_learning_rate':[0, 0.0005, 0.0001], 'ip_std':[0.001, 0.01]}
+#parameters = {'ip_learning_rate':[0.00005, 0.0001], 'ip_std':[0.01, 0.02], "ridge":[1e-5, 1e-4], "reset_state":[False]}
 if (user == 'witali'):
-	parameters = {'ip_learning_rate':[0, 0.00005, 0.00001, 0.0001], 'ip_std':[0.01, 0.02]}
+	parameters = {'ip_learning_rate':[0.00005], 'ip_std':[0.01, 0.02]}
 	#parameters = {"output_dim":arange(100, 200, 50), "leak_rate":[0.3, 0.5, 0.7, 0.9, 1], 'spectral_radius':frange(1.0, 1.0, 0.5)}
 parameter_keys = parameters.keys()
 parameter_ranges = []
@@ -64,9 +67,10 @@ for i in range(nr_combinations):
 		#!qsub -b y -wd "/net/store/projects/mtrc/grid_results" python tasks.py "$machine_params"
 
 if (user == 'witali'):
-	print 'end'  
+	print 'end test run'  
 	#!nohup ipython grid_monitor.ipy >nohup.txt &
 else:
+	pass
 	!nohup ipython -noconfirm_exit grid_monitor.ipy >nohup.txt &
 	#!qsub -b y -cwd ipython -noconfirm_exit grid_monitor.ipy
     

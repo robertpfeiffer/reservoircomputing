@@ -218,11 +218,16 @@ def NARMA_task(T=3, Plots=True, LOG=True, **machine_params):
         print 'NARMA task'
     
     if (machine_params == None or len(machine_params)==0):
+        """
         machine_params = {"output_dim":300, "input_scaling":0.01, "bias_scaling":0.1,
                           "reset_state":True, "start_in_equilibrium": True
                       #,'ip_learning_rate':0.0005, 'ip_std':0.1
                       }
-        
+        """
+        machine_params = {"output_dim":150, "leak_rate":0.9, "conn_input":0.3, "conn_recurrent":0.2, 
+                      "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":0.95, 'recurrent_weight_dist':1, 
+                      'ridge':1e-8, 'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": True}
     #[inputs, targets] = Oger.datasets.narma30(n_samples=10, sample_len=1100)
     #[test_input, test_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
     #np.savez('data/NARMA30_data', inputs, targets)
@@ -300,18 +305,18 @@ def mso_separation_task():
     return nrmse
     
 
-def mso_task(task_type=3, T=10, Plots=False, LOG=True, **machine_params):    
-    np.random.seed(42)
+def mso_task(task_type=5, T=20, Plots=False, LOG=True, **machine_params):    
     if (machine_params == None or len(machine_params)==0):
-        """
+        
         machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
                       "input_scaling":0.4, "bias_scaling":0.2, "spectral_radius":1.3, 'recurrent_weight_dist':0, 
-                      'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      'ridge':1e-8, 'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
         """
         N = 100
         leak_rates = 0.3
         #leak_rates2 = None
+        #np.random.seed(42)
         #leak_rates = np.random.uniform(0.1, 1, N)
         #eak_rates2 = np.random.uniform(0.1, 0.4, N)
         #leak_rates2 = np.random.uniform(0.5, 1, N)
@@ -329,7 +334,7 @@ def mso_task(task_type=3, T=10, Plots=False, LOG=True, **machine_params):
                           #'bubble_sizes':[25, 25, 25, 25], 'input_bubbles':[0, 1, 2, 3], 'leak_rate2':leak_rates2,
                           #'ip_learning_rate':0.00005, 'ip_std':0.1,
                           "reset_state":False, "start_in_equilibrium": True}
-        
+        """
     if (LOG):
         print 'MSO Task Type', task_type
 
@@ -360,7 +365,7 @@ def mso_task(task_type=3, T=10, Plots=False, LOG=True, **machine_params):
     
     task = ESNTask()
     nrmse, machine = task.run(data, 
-                    training_time=400, testing_time=600, washout_time=10, evaluation_time=300, 
+                    training_time=400, testing_time=600, washout_time=100, evaluation_time=300, 
                     target_columns=[0], fb=True, T=T, LOG=LOG, **machine_params)
     
     if Plots==True:
@@ -536,9 +541,9 @@ def run_task_for_grid(params_list):
     writer.writerow(dict((fn,fn) for fn in fieldnames))
     for machine_params in params_list:
         
-        #best_nrmse, best_esn = mso_task(**machine_params)
+        best_nrmse,_ = mso_task(**machine_params)
         #best_nrmse, best_esn = mackey_glass_task(**machine_params)
-        best_nrmse, best_esn = NARMA_task(**machine_params)
+        #best_nrmse, best_esn = NARMA_task(**machine_params)
         
         drone_tasks.remove_unnecessary_params(machine_params)
         machine_params["NRMSE"] = best_nrmse

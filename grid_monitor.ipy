@@ -21,7 +21,9 @@ def merge_files(result_file_name):
             #csv_file = csv.DictReader(open(test_file, 'rb'), delimiter=',', quotechar='"')
             for row in reader:
                 rows.append(row)
-                
+    #sort
+    rows = sorted(rows, key=lambda k: float(k['NRMSE']))             
+    
     #write values into a single file
     fieldnames = rows[0].keys()
     if 'NRMSE' in fieldnames:
@@ -34,12 +36,13 @@ def merge_files(result_file_name):
     writer.writerows(rows)
     results_file.close()
     
+    
     #check if the file was written
     file_names = os.listdir( 'results' )
     if result_file_name in file_names:
         for partial_result in result_files:
             os.remove(partial_result)
-    
+            
 def check_for_results(result_file_name):
     user = !whoami
     user = user[0]  
