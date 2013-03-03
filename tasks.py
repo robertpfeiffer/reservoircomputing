@@ -305,13 +305,27 @@ def mso_separation_task():
     return nrmse
     
 
-def mso_task(task_type=5, T=20, Plots=False, LOG=True, **machine_params):    
+def mso_task(task_type=8, T=50, Plots=True, LOG=True, **machine_params):    
     if (machine_params == None or len(machine_params)==0):
         
         machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
-                      "input_scaling":0.4, "bias_scaling":0.2, "spectral_radius":1.3, 'recurrent_weight_dist':0, 
-                      'ridge':1e-8, 'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":1.1, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 
+                      'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
+        
+        machine_params = {"output_dim":18, "leak_rate":1, "conn_input":1, "conn_recurrent":0.4, 
+                      "input_scaling":10e-7, "bias_scaling":0, "spectral_radius":0.8, 'recurrent_weight_dist':0, 
+                      #'ridge':1e-8, 
+                      #'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": False}
+        """
+        machine_params = {"output_dim":200, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.3, 
+                      "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":1, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 
+                      #'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": True}
+        """
         """
         N = 100
         leak_rates = 0.3
@@ -351,6 +365,8 @@ def mso_task(task_type=5, T=20, Plots=False, LOG=True, **machine_params):
         data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
     elif task_type==6: 
         data = np.sin(0.2*input_range) * np.sin(0.311*input_range) + np.sin(0.42*input_range) * sin(0.51*input_range) + sin(0.74*input_range)**2
+    elif task_type==8: 
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) +sin(0.63*input_range)+sin(0.74*input_range)+sin(0.85*input_range)+sin(0.97*input_range)
     else:
         print 'Unknown MSO Task Type: ', task_type
         raise ValueError 
@@ -688,6 +704,27 @@ def mackey_glass_task(LOG=True, Plots=False, **machine_params):
         plt.show()
     
     """
+def plot_mso_data():
+    input_range = np.arange(0, 500, 1)
+    data2 = np.sin(0.2*input_range) + np.sin(0.311*input_range) 
+    data3 = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range)
+    data4 = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range)
+    data5 = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
+    
+    plt.subplot(2,2,1)
+    plt.plot(data2)
+    plt.title('MSO2: sin(0.2)+sin(0.311)')
+    plt.subplot(2,2,2)
+    plt.plot(data3)
+    plt.title('MSO3: sin(0.2)+sin(0.311)+sin(0.42)')
+    plt.subplot(2,2,3)
+    plt.plot(data4)
+    plt.title('MSO4: sin(0.2)+sin(0.311)+sin(0.42)+sin(0.51)')
+    plt.subplot(2,2,4)
+    plt.plot(data5)
+    plt.title('MSO5: sin(0.2)+sin(0.311)+sin(0.42)+sin(0.51)+sin(0.74)')
+        
+    plt.show()
 
 if __name__ == "__main__":
     if 1:
@@ -695,7 +732,10 @@ if __name__ == "__main__":
             #astring = "{start_in_equilibrium: False, Plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             #dic = correct_dictionary_arg(astring)
             #one_two_a_x_task()
+            
             mso_task()
+            
+            #plot_mso_data()
             #NARMA_task()
             #mackey_glass_task()
             

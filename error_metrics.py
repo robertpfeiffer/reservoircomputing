@@ -43,8 +43,13 @@ def nrmse(input_signal, target_signal):
     var = target_signal.std(ddof=1) ** 2
     
     error = (target_signal - input_signal) ** 2
-    return np.sqrt(error.mean() / var)
-    
+    nrmse = np.sqrt(error.mean() / var)
+    #Hier runden, da hier nicht so viele Stellen nach dem Komma wichtig sind.
+    #Bei Ausfuehren der Grid-Suche beginnen ab der 6ten Stelle nach dem Komma sich die Ergebnisse
+    #zu unterscheiden, obwohl auf der Grid auf dem eigenen Rechner die gleichen Parameter benutzt werden.
+    #Liegt wahrscheinlich an den unterschiedlichen Python-Versionen.
+    #return round(nrmse, 6)
+    return nrmse
 def nmse(input_signal, target_signal):
     """ 
     nmse(input_signal, target_signal)->error
