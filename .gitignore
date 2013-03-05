@@ -38,3 +38,4 @@ music/
 *.swp
 *#
 *.orig
+/tmp

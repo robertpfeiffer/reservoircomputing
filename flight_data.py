@@ -6,8 +6,9 @@ import numpy as np
 import esn_persistence
 
 class FlightData():
-    def __init__(self, filename, load_altitude=False, load_dV=False, load_xyz=True, LOG=False):
+    def __init__(self, filename, load_altitude=False, load_dV=False, load_xyz=True, k=30, LOG=False):
         self.LOG = LOG
+        self.k = k
         if filename is not None:
             self.load_file(filename, load_altitude, load_dV, load_xyz)
         
@@ -196,7 +197,7 @@ class FlightData():
             dataTimeDiffs.append(milliseconds_diff)
         """
                 
-        k = 30
+        k = self.k
         Vscale = 1000
         Tscale = 100.0
         Yaw_scale = 100.0

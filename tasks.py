@@ -22,6 +22,7 @@ from activations import *
 import drone_tasks
 import copy
 import random
+from flight_data import *
 #import Oger
 
 
@@ -40,14 +41,6 @@ class ESNTask(object):
         #TODO: fb_columns fuer den Fall, dass das fb!=target ist
             #if fb == True:
         #    fb_columns = target_columns
-        
-        """ washout_time is part of training_time, evaluation_time is the final part of testing_time
-        if (machine_params == None or len(machine_params)==0):                       
-            machine_params = {"output_dim":100, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
-                          "input_scaling":0.1, "bias_scaling":0.2, "spectral_radius":1.1, 'recurrent_weight_dist':0, 
-                          'ridge':1e-8, 'fb_noise_var':0, 'ip_learning_rate':0, 'ip_std':0.01,
-                          "reset_state":False, "start_in_equilibrium": True}
-        """
         ridge = 0
         if 'ridge' in machine_params:
             ridge = machine_params['ridge']
@@ -78,7 +71,7 @@ class ESNTask(object):
         
         nr_dims = data.shape[1]
         if testing_time == None:
-            testing_time = data.shape[0]-training_time-washout_time
+            testing_time = data.shape[0]-training_time
         
         if evaluation_time == None:
             evaluation_time = testing_time
@@ -92,18 +85,18 @@ class ESNTask(object):
             pre_train_input_columns = all_columns
             fb_columns = target_columns
             #washout_input = data[:washout_time,all_columns]
-            if use_ip:
-                ip_pre_train_input = data[:training_time,all_columns]
+            #if use_ip:
+            #    ip_pre_train_input = data[washout_time:training_time,all_columns]
         else:
             input_dim = nr_dims - len(target_columns)
             pre_train_input_columns = input_columns
             #washout_input = data[:washout_time,input_columns]
-            if use_ip:
-                ip_pre_train_input = data[washout_time:training_time,input_columns]
+            #if use_ip:
+            #    ip_pre_train_input = data[washout_time:training_time,input_columns]
         
         washout_input = data[:washout_time,pre_train_input_columns]
         if use_ip:
-            ip_pre_train_input = data[:training_time,pre_train_input_columns]
+            ip_pre_train_input = data[washout_time:training_time,pre_train_input_columns]
             
         train_input = data[washout_time:training_time,input_columns]
         train_target = data[washout_time:training_time,target_columns] #x, y, z
@@ -305,7 +298,7 @@ def mso_separation_task():
     return nrmse
     
 
-def mso_task(task_type=8, T=50, Plots=True, LOG=True, **machine_params):    
+def mmo_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):    
     if (machine_params == None or len(machine_params)==0):
         
         machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
@@ -313,6 +306,62 @@ def mso_task(task_type=8, T=50, Plots=True, LOG=True, **machine_params):
                       'ridge':1e-8, 
                       'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
+        # Balanced-Einstellungen
+        
+        machine_params = {"output_dim":20, "leak_rate":1, "conn_input":1, "conn_recurrent":0.4, 
+                      "input_scaling":10e-4, "bias_scaling":0, "spectral_radius":0.8, 'recurrent_weight_dist':0, 
+                      #'ridge':1e-8, 
+                      #'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": False}
+        
+        """
+        machine_params = {"output_dim":200, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.3, 
+                      "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":1, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 
+                      'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": True}
+        """
+        
+    if (LOG):
+        print 'MMO Task Type', task_type
+
+    input_range = np.arange(0, 10000, 1) #np.array([range(2000)])
+    
+    oscillator_data = [np.sin(0.2*input_range), np.sin(0.311*input_range), np.sin(0.42*input_range), sin(0.51*input_range), sin(0.74*input_range)]
+    
+    data = oscillator_data[0]
+    for i in range(task_type-1):
+        data *=  oscillator_data[i+1]
+    
+    if task_type > 5:
+        print 'Unknown MSO Task Type: ', task_type
+        raise ValueError 
+    
+    task = ESNTask()
+    nrmse, machine = task.run(data, 
+                    training_time=8000, testing_time=600, washout_time=100, evaluation_time=300, 
+                    target_columns=[0], fb=True, T=T, LOG=LOG, **machine_params)
+    
+    if Plots==True:
+        plt.figure(1).clear()
+        plt.plot( task.evaluation_target, 'g' )
+        plt.plot( task.best_evaluation_prediction, 'b' )
+        plt.title('Test Performance')
+        plt.legend(['Target signal', 'Free-running predicted signal'])
+        plt.show()
+        
+    return nrmse, machine
+
+
+def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):    
+    if (machine_params == None or len(machine_params)==0):
+        
+        machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
+                      "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":1.1, 'recurrent_weight_dist':0, 
+                      'ridge':1e-8, 
+                      'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": True}
+        # Balanced-Einstellungen
         
         machine_params = {"output_dim":18, "leak_rate":1, "conn_input":1, "conn_recurrent":0.4, 
                       "input_scaling":10e-7, "bias_scaling":0, "spectral_radius":0.8, 'recurrent_weight_dist':0, 
@@ -325,10 +374,11 @@ def mso_task(task_type=8, T=50, Plots=True, LOG=True, **machine_params):
                       'ridge':1e-8, 
                       #'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
+        
         """
         """
-        N = 100
-        leak_rates = 0.3
+        #N = 100
+        #leak_rates = 0.3
         #leak_rates2 = None
         #np.random.seed(42)
         #leak_rates = np.random.uniform(0.1, 1, N)
@@ -363,10 +413,12 @@ def mso_task(task_type=8, T=50, Plots=True, LOG=True, **machine_params):
         data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range)
     elif task_type==5: 
         data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
-    elif task_type==6: 
-        data = np.sin(0.2*input_range) * np.sin(0.311*input_range) + np.sin(0.42*input_range) * sin(0.51*input_range) + sin(0.74*input_range)**2
     elif task_type==8: 
         data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) +sin(0.63*input_range)+sin(0.74*input_range)+sin(0.85*input_range)+sin(0.97*input_range)
+    elif task_type==13: 
+        data = np.sin(0.2*input_range) * np.sin(0.311*input_range) * np.sin(0.42*input_range)
+    elif task_type==15: 
+        data = np.sin(0.2*input_range) * np.sin(0.311*input_range) * np.sin(0.42*input_range) * sin(0.51*input_range) #* sin(0.74*input_range)
     else:
         print 'Unknown MSO Task Type: ', task_type
         raise ValueError 
@@ -551,17 +603,18 @@ def run_task_for_grid(params_list):
                                          "spectral_radius":0.95, "reset_state":False, "start_in_equilibrium": True}]
     output = io.BytesIO()
     fieldnames = params_list[0].keys()
-    drone_tasks.remove_unnecessary_params(fieldnames)
+    remove_unnecessary_params(fieldnames)
     fieldnames.append("NRMSE")
     writer = csv.DictWriter(output, fieldnames)
     writer.writerow(dict((fn,fn) for fn in fieldnames))
     for machine_params in params_list:
         
-        best_nrmse,_ = mso_task(**machine_params)
+        best_nrmse,_ = drone_tasks.predict_xyz_task(**machine_params)
+        #best_nrmse,_ = mso_task(**machine_params)
         #best_nrmse, best_esn = mackey_glass_task(**machine_params)
         #best_nrmse, best_esn = NARMA_task(**machine_params)
         
-        drone_tasks.remove_unnecessary_params(machine_params)
+        remove_unnecessary_params(machine_params)
         machine_params["NRMSE"] = best_nrmse
         writer.writerow(machine_params)
     
@@ -647,23 +700,37 @@ def mso_task_regression_analysis():
     plt.legend(['Target signal', 'Free-running predicted signal'])
     plt.show()
         
-def mackey_glass_task(LOG=True, Plots=False, **machine_params):
+def mackey_glass_task(T=10, LOG=True, Plots=False, t17=True, **machine_params):
     #from http://minds.jacobs-university.de/mantas/code
     if LOG:
         print 'Mackey-Glass t17 - Task'
     
     if (machine_params == None or len(machine_params)==0):
+        #Einstellungen fuer t17
+        """
         machine_params = {"output_dim":300, "conn_input":1, "conn_recurrent":1, "leak_rate":0.3,
                           "input_scaling":0.5, "bias_scaling":0.5, "spectral_radius":1.25,
                           "reset_state":False, "start_in_equilibrium": False
                       #,'ip_learning_rate':0.0005, 'ip_std':0.1
                       }
-
-
-    data = np.loadtxt('data/MackeyGlass_t17.txt') 
+        """
+        machine_params = {"output_dim":300, "conn_input":1, "conn_recurrent":1, "leak_rate":0.3,
+                          "input_scaling":0.5, "bias_scaling":0.5, "spectral_radius":1.25,
+                          "reset_state":False, "start_in_equilibrium": False
+                      #,'ip_learning_rate':0.0005, 'ip_std':0.1
+                      }
+    if t17:
+        data = np.loadtxt('data/MackeyGlass_t17.txt')
+    else:
+        data = np.loadtxt('data/MackeyGlass_t30.txt')
+    #np.savetxt('data/MackeyGlass_t30.txt', data)
     task = ESNTask()
-    nrmse, machine = task.run(data, training_time=2001, testing_time=500, washout_time=100, 
-                    target_columns=[0], fb=True, T=10, LOG=LOG, **machine_params)
+    
+    nrmse, machine = task.run(data, training_time=4000, testing_time=500, washout_time=100, 
+                    target_columns=[0], fb=True, T=T, LOG=LOG, **machine_params)
+    #t17
+    #nrmse, machine = task.run(data, training_time=2001, testing_time=500, washout_time=100, 
+    #                target_columns=[0], fb=True, T=10, LOG=LOG, **machine_params)
     
     
     if Plots:
@@ -704,6 +771,7 @@ def mackey_glass_task(LOG=True, Plots=False, **machine_params):
         plt.show()
     
     """
+
 def plot_mso_data():
     input_range = np.arange(0, 500, 1)
     data2 = np.sin(0.2*input_range) + np.sin(0.311*input_range) 
@@ -726,6 +794,15 @@ def plot_mso_data():
         
     plt.show()
 
+def remove_unnecessary_params(list_or_dic):
+    unnecessary_params = ['LOG', 'Plots', 'reset_state', 'start_in_equilibrium']
+    for param in unnecessary_params:
+        if param in list_or_dic:
+            if isinstance(list_or_dic, list):
+                list_or_dic.remove(param)
+            else:
+                del list_or_dic[param]
+    
 if __name__ == "__main__":
     if 1:
         if (len(sys.argv)==1):
@@ -733,7 +810,9 @@ if __name__ == "__main__":
             #dic = correct_dictionary_arg(astring)
             #one_two_a_x_task()
             
-            mso_task()
+            #mso_task()
+            #mso_task()
+            drone_tasks.predict_xyz_task()
             
             #plot_mso_data()
             #NARMA_task()

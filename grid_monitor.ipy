@@ -3,9 +3,13 @@ import os
 import re
 import sys
 import time, threading
+import getpass
     
 def merge_files(result_file_name):
-    file_names = filter(os.path.isfile, os.listdir( os.curdir ) )
+    #file_names = filter(os.path.isfile, os.listdir( os.curdir ) )
+    #file_names = filter(os.path.isfile, os.listdir('./tmp' ) )
+    prefix = 'tmp/'
+    file_names = os.listdir('./'+prefix )
     name_regex = re.compile(r"python\.o.*")
     result_files = filter(name_regex.search, file_names)
     print len(result_files), 'files to merge found'
@@ -15,7 +19,7 @@ def merge_files(result_file_name):
     #read values as dictionaries
     rows = []
     for file_name in result_files:
-        with open(file_name, 'rb') as f:
+        with open(prefix +file_name, 'rb') as f:
             #reader = csv.reader(f)
             reader = csv.DictReader(f)
             #csv_file = csv.DictReader(open(test_file, 'rb'), delimiter=',', quotechar='"')
@@ -41,11 +45,10 @@ def merge_files(result_file_name):
     file_names = os.listdir( 'results' )
     if result_file_name in file_names:
         for partial_result in result_files:
-            os.remove(partial_result)
+            os.remove(prefix +partial_result)
             
 def check_for_results(result_file_name):
-    user = !whoami
-    user = user[0]  
+    user = getpass.getuser() 
     while True:
         #print "Es ist nun %s Uhr" % time.strftime("%H:%M:%S")
         if (user == 'witali'):
