@@ -196,7 +196,7 @@ def remove_unnecessary_params(list_or_dic):
             else:
                 del list_or_dic[param]
 
-def predict_xyz_task(T=20, LOG=True, Plots=False, **machine_params):
+def predict_xyz_task(T=3, LOG=True, Plots=False, **machine_params):
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_58_39_AllData')
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_13_11_34_AllData')
     
@@ -216,7 +216,7 @@ def predict_xyz_task(T=20, LOG=True, Plots=False, **machine_params):
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData')
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Fri_08_Feb_2013_16_06_09_AllData')
     
-    k = 30
+    k = 10
     # Erfolgreich!
     flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData',  k=k)
     flight_data2 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_23_03_AllData', k=k)
@@ -238,9 +238,13 @@ def predict_xyz_task(T=20, LOG=True, Plots=False, **machine_params):
     
     #flight_data = FlightData('flight_data/a_to_b_constantYaw/flight_Sun_03_Feb_2013_12_27_26_AllData')
     #data = flight_data.data
+    if LOG:
+        print 'Predict XYZ'
     nr_rows = data.shape[0]
-    washout_length = 100
-    test_length = 1000
+    washout_length = 50
+    test_length = 4779
+    #washout_length = 100
+    #test_length = 4729
     train_length = nr_rows - test_length
     
     if (machine_params == None or len(machine_params)==0):
@@ -250,10 +254,46 @@ def predict_xyz_task(T=20, LOG=True, Plots=False, **machine_params):
                           'reset_state':False, 'start_in_equilibrium':True
                           }
     
-    task = ESNTask()
+    task = ESNTask(machine_params, fb=False, T=T, LOG=LOG)
     best_nrmse, machine = task.run(data,
                     training_time=train_length, testing_time=test_length, washout_time=washout_length, 
-                    target_columns=flight_data.target_xyz_columns, fb=False, T=T, LOG=LOG, **machine_params)
+                    target_columns=flight_data.target_xyz_columns)
+
+    if Plots:
+        esn_plotting.plot_predictions_targets(task.best_evaluation_prediction, task.evaluation_target, ('X', 'Y', 'Z'))
+        
+    return best_nrmse, machine 
+
+def predict_xyz_task2(T=3, LOG=True, Plots=False, **machine_params):
+    k = 10
+    f1FD = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData',  k=k)
+    f1 = f1FD.data
+    f2 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_23_03_AllData', k=k).data
+    f3 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_37_34_AllData', k=k).data
+    f4 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_54_52_AllData', k=k).data
+    f5 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData', k=k).data
+    f6 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_18_08_AllData', k=k).data
+    #bei flight_random_points ist am Ende ein outlier
+    f6 = f6[:-200,:]
+    #flight_data7 = FlightData('flight_data/flight_random_points_with_target/flight_Fri_08_Feb_2013_16_06_09_AllData')
+
+    inputs = [f1[:,f1FD.w_non_target_columns], f2[:,f1FD.w_non_target_columns],f3[:,f1FD.w_non_target_columns],
+              f4[:,f1FD.w_non_target_columns],f5[:,f1FD.w_non_target_columns],f6[:,f1FD.w_non_target_columns]]
+    
+    targets = [f1[:,f1FD.target_xyz_columns],f2[:,f1FD.target_xyz_columns],f3[:,f1FD.target_xyz_columns],
+               f4[:,f1FD.target_xyz_columns],f5[:,f1FD.target_xyz_columns],f6[:,f1FD.target_xyz_columns]]
+    if LOG:
+        print 'Predict XYZ'
+    
+    if (machine_params == None or len(machine_params)==0):
+        machine_params = {'output_dim':100, 'input_scaling':0.2, 'conn_input':0.3, 
+                          'leak_rate':0.3, 'ridge':1e-8, 
+                          'ip_learning_rate':0.00001, 'ip_std':0.01,
+                          'reset_state':False, 'start_in_equilibrium':True
+                          }
+    
+    task = ESNTask(machine_params, fb=False, T=T, LOG=LOG)
+    best_nrmse, machine = task.run_sequence(inputs, targets, washout_time=50)
 
     if Plots:
         esn_plotting.plot_predictions_targets(task.best_evaluation_prediction, task.evaluation_target, ('X', 'Y', 'Z'))
@@ -288,7 +328,7 @@ if __name__ == '__main__':
     #predict_xyz_task(Plots=True)
     if (len(sys.argv)==1):
         #control_task_wo_position(Plots=True, Save=True)
-        predict_xyz_task(Plots=True)
+        predict_xyz_task2(Plots=True)
     else:
         args = sys.argv[1]
         dic_list = correct_dictionary_arg(args)

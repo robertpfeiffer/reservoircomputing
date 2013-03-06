@@ -28,41 +28,96 @@ from flight_data import *
 
 class ESNTask(object):
     
-    def rescale_after_ip(self, machine, activ_fct):
-        """ returns the new spectral radius """
-        machine.w_echo = (machine.w_echo.T*activ_fct.a).T
-        machine.w_input = (machine.w_input.T *activ_fct.a).T
-        machine.w_add = machine.w_add*activ_fct.a + activ_fct.b
-        machine.gamma = TanhActivation()
-        return machine.get_spectral_radius()
+    def __init__(self, machine_params, fb=False, T=20, LOG=True):
+        self.machine_params = machine_params
+        self.fb = fb
+        self.T = T
+        self.LOG = LOG
     
-    def run(self, data, training_time, testing_time=None, washout_time=0, evaluation_time=None, target_columns=[0], 
-                        fb=False, T=10, LOG=True, **machine_params):
+        self.ridge = 0
+        if 'ridge' in machine_params:
+            self.ridge = machine_params['ridge']
+            del machine_params['ridge']
+            
+        self.use_ip = False
+        if 'ip_learning_rate' in machine_params:    
+            self.ip_learning_rate = machine_params['ip_learning_rate']
+            self.ip_std = machine_params['ip_std']
+            del machine_params['ip_learning_rate']
+            del machine_params['ip_std']
+            if self.ip_learning_rate > 0:
+                self.use_ip = True
+        
+        self.use_bubbles = False
+        if 'bubble_sizes' in machine_params:
+            self.use_bubbles = True
+                     
+        self.fb_noise_var = 0
+        if 'fb_noise_var' in machine_params:
+            self.fb_noise_var = machine_params['fb_noise_var']
+            del machine_params['fb_noise_var'] 
+    
+        np.random.seed(42)
+        random.seed(42)
+        
+    def run_sequence(self, inputs, targets, washout_time=0):
+        #TODO: Fuer feedback anpassen
+        input_dim = inputs[0].shape[1]
+        T = self.T
+        nrmses = np.empty(self.T)
+        self.best_nrmse = float('Inf')
+        
+        self.evaluation_target = targets[-1][washout_time:]
+        for i in range(self.T):
+            if self.use_bubbles:
+                machine = KitchenSinkBubbleESN(ninput=input_dim, **self.machine_params)
+            else:
+                machine = ESN(input_dim=input_dim, **self.machine_params)
+            #IP
+            if self.use_ip:
+                activ_fct = IPTanhActivation(self.ip_learning_rate, 0, self.ip_std, self.machine_params["output_dim"], init_learn=False)
+                ipTrainer = IPTrainer(machine, self.ip_learning_rate, self.ip_std)
+                ipTrainer.train_sequence(inputs, washout_time)
+    
+            trainer = LinearRegressionReadout(machine, self.ridge);
+            train_echo, train_prediction = trainer.train_sequence(inputs[:-1], targets[:-1], washout_time)
+                    
+            test_echo, evaluation_prediction = trainer.predict(inputs[-1])
+            evaluation_prediction = evaluation_prediction[washout_time:]
+            nrmse = error_metrics.nrmse(evaluation_prediction,self.evaluation_target)
+            if (nrmse < self.best_nrmse):
+                self.best_evaluation_prediction = evaluation_prediction
+                self.best_nrmse = nrmse
+                self.best_machine = machine
+                self.best_trainer = trainer
+                self.best_train_echo = train_echo
+                self.best_test_echo = test_echo
+            nrmses[i] = nrmse
+            
+            #if Plots:
+            #    esn_plotting.plot_output_distribution((normal_echo,train_echo), ('Output Distribution without IP','Output Distribution with IP',) )
+            
+            if (self.LOG):
+                print i,'NRMSE:', nrmse #, 'New Spectral Radius:', new_spectral_radius  
+            
+            #if best_nrmse < math.pow(10,-4):
+             #   T = i + 1
+              #  break
+        
+        self.mean_nrmse = mean(nrmses[:T])
+        self.std_nrmse = std(nrmses[:T])
+        #self.best_nrmse = min(nrmses[:T])
+        #print 'Min NRMSE: ', min_nrmse, 'Mean NRMSE: ', mean_nrmse, 'Std: ', std_nrmse
+        if (self.LOG):
+            print 'Min NRMSE: ', self.best_nrmse 
+        
+            
+        return self.best_nrmse, self.best_machine
+    
+    def run(self, data, training_time, testing_time=None, washout_time=0, evaluation_time=None, target_columns=[0]):
         #TODO: fb_columns fuer den Fall, dass das fb!=target ist
             #if fb == True:
         #    fb_columns = target_columns
-        ridge = 0
-        if 'ridge' in machine_params:
-            ridge = machine_params['ridge']
-            del machine_params['ridge']
-        
-        use_ip = False
-        if 'ip_learning_rate' in machine_params:    
-            ip_learning_rate = machine_params['ip_learning_rate']
-            ip_std = machine_params['ip_std']
-            del machine_params['ip_learning_rate']
-            del machine_params['ip_std']
-            if ip_learning_rate > 0:
-                use_ip = True
-        
-        use_bubbles = False
-        if 'bubble_sizes' in machine_params:
-            use_bubbles = True
-                     
-        fb_noise_var = 0
-        if 'fb_noise_var' in machine_params:
-            fb_noise_var = machine_params['fb_noise_var']
-            del machine_params['fb_noise_var'] 
             
             
         if len(data.shape)==1:
@@ -75,6 +130,11 @@ class ESNTask(object):
         
         if evaluation_time == None:
             evaluation_time = testing_time
+        
+        T = self.T
+        fb = self.fb
+        machine_params = self.machine_params
+        LOG = self.LOG
         
         #Generell gibt es input_columns, target_columns und fb_columns. Im Momement gilt target_columns=fb_columns
         #Fuer washout und IP besteht der input aus input_columns + fb_columns        
@@ -95,8 +155,6 @@ class ESNTask(object):
             #    ip_pre_train_input = data[washout_time:training_time,input_columns]
         
         washout_input = data[:washout_time,pre_train_input_columns]
-        if use_ip:
-            ip_pre_train_input = data[washout_time:training_time,pre_train_input_columns]
             
         train_input = data[washout_time:training_time,input_columns]
         train_target = data[washout_time:training_time,target_columns] #x, y, z
@@ -107,41 +165,27 @@ class ESNTask(object):
          
         nrmses = np.empty(T)
         self.best_nrmse = float('Inf')
-        np.random.seed(42)
-        random.seed(42)
         
         for i in range(T):
-            #IP
-            if use_ip:
-                activ_fct = IPTanhActivation(ip_learning_rate, 0, ip_std, machine_params["output_dim"], init_learn=False)
-                if use_bubbles:
-                    machine = KitchenSinkBubbleESN(ninput=input_dim, gamma=activ_fct, **machine_params)
-                else:
-                    machine = ESN(input_dim=input_dim, gamma=activ_fct, **machine_params)
-                if washout_time > 0:
-                    machine.run_batch(washout_input)
-                #normal_echo = machine.run_batch(train_target)
-                activ_fct.learn = True
-                machine.run_batch(ip_pre_train_input)
-                activ_fct.learn = False
-                new_spectral_radius = self.rescale_after_ip(machine, activ_fct)
-                machine.reset()
-            else:
-                if use_bubbles:
+            if self.use_bubbles:
                     machine = KitchenSinkBubbleESN(ninput=input_dim, **machine_params)
-                else:
-                    machine = ESN(input_dim=input_dim, **machine_params)
+            else:
+                machine = ESN(input_dim=input_dim, **machine_params)
+            #IP
+            #normal_echo = machine.run_batch(train_target)
+            if self.use_ip:
+                ipTrainer = IPTrainer(machine, self.ip_learning_rate, self.ip_std)
+                new_spectral_radius = ipTrainer.train(data, washout_time, training_time, pre_train_input_columns)
     
-            if washout_time > 0:
-                machine.run_batch(washout_input)
+            machine.run_batch(washout_input)
                     
             if fb:
-                trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, ridge))
-                train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target, noise_var=fb_noise_var)
+                trainer = FeedbackReadout(machine, LinearRegressionReadout(machine, self.ridge))
+                train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target, noise_var=self.fb_noise_var)
                 machine.current_feedback = train_target[-1]
                 test_echo, prediction = trainer.generate(testing_time, inputs=test_input)
             else: 
-                trainer = LinearRegressionReadout(machine, ridge);
+                trainer = LinearRegressionReadout(machine, self.ridge);
                 train_echo, train_prediction = trainer.train(train_input=train_input, train_target=train_target)
                 test_echo, prediction = trainer.predict(test_input)
     
@@ -175,7 +219,7 @@ class ESNTask(object):
         
             
         return self.best_nrmse, self.best_machine
-
+    
 def memory_task(N=15, delay=20):
     print "Memory Task"
     #print "create data..."
@@ -206,7 +250,7 @@ def memory_task(N=15, delay=20):
 
 
         
-def NARMA_task(T=3, Plots=True, LOG=True, **machine_params):
+def NARMA_task(T=20, Plots=True, LOG=True, machine_params=None):
     if LOG:
         print 'NARMA task'
     
@@ -219,7 +263,8 @@ def NARMA_task(T=3, Plots=True, LOG=True, **machine_params):
         """
         machine_params = {"output_dim":150, "leak_rate":0.9, "conn_input":0.3, "conn_recurrent":0.2, 
                       "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":0.95, 'recurrent_weight_dist':1, 
-                      'ridge':1e-8, 'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      'ridge':1e-8, #'fb_noise_var':0.05,
+                      'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
     #[inputs, targets] = Oger.datasets.narma30(n_samples=10, sample_len=1100)
     #[test_input, test_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
@@ -236,9 +281,8 @@ def NARMA_task(T=3, Plots=True, LOG=True, **machine_params):
     testing_time = len(test_input[0])
     data = np.vstack((np.hstack((train_input[0], train_target[0])), np.hstack((test_input[0], test_target[0]))))
     
-    task = ESNTask()
-    nrmse, machine = task.run(data, training_time=training_time, testing_time=testing_time, 
-                    target_columns=[1], T=T, LOG=LOG, **machine_params)
+    task = ESNTask(T=T, LOG=LOG, machine_params=machine_params)
+    nrmse, machine = task.run(data, training_time=training_time, testing_time=testing_time, target_columns=[1])
    
     return nrmse, machine
 
@@ -337,10 +381,10 @@ def mmo_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
         print 'Unknown MSO Task Type: ', task_type
         raise ValueError 
     
-    task = ESNTask()
+    task = ESNTask(True, T, LOG, machine_params)
     nrmse, machine = task.run(data, 
                     training_time=8000, testing_time=600, washout_time=100, evaluation_time=300, 
-                    target_columns=[0], fb=True, T=T, LOG=LOG, **machine_params)
+                    target_columns=[0])
     
     if Plots==True:
         plt.figure(1).clear()
@@ -353,7 +397,7 @@ def mmo_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
     return nrmse, machine
 
 
-def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):    
+def mso_task(task_type=5, T=10, Plots=True, LOG=True, machine_params=None):    
     if (machine_params == None or len(machine_params)==0):
         
         machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
@@ -431,10 +475,10 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
     #data = sin(0.2*input_range)  * sin(0.311*input_range) + sin(0.42*input_range) 
     ##data = np.sin(0.0311*input_range) + np.sin(0.74*input_range)
     
-    task = ESNTask()
+    task = ESNTask(fb=True, T=T, LOG=LOG, machine_params=machine_params)
     nrmse, machine = task.run(data, 
                     training_time=400, testing_time=600, washout_time=100, evaluation_time=300, 
-                    target_columns=[0], fb=True, T=T, LOG=LOG, **machine_params)
+                    target_columns=[0])
     
     if Plots==True:
         plt.figure(1).clear()
@@ -717,17 +761,16 @@ def mackey_glass_task(T=10, LOG=True, Plots=False, t17=True, **machine_params):
         machine_params = {"output_dim":300, "conn_input":1, "conn_recurrent":1, "leak_rate":0.3,
                           "input_scaling":0.5, "bias_scaling":0.5, "spectral_radius":1.25,
                           "reset_state":False, "start_in_equilibrium": False
-                      #,'ip_learning_rate':0.0005, 'ip_std':0.1
+                          #,'ip_learning_rate':0.0005, 'ip_std':0.1
                       }
     if t17:
         data = np.loadtxt('data/MackeyGlass_t17.txt')
     else:
         data = np.loadtxt('data/MackeyGlass_t30.txt')
     #np.savetxt('data/MackeyGlass_t30.txt', data)
-    task = ESNTask()
-    
+    task = ESNTask( fb=True, T=T, LOG=LOG, machine_params=machine_params)
     nrmse, machine = task.run(data, training_time=4000, testing_time=500, washout_time=100, 
-                    target_columns=[0], fb=True, T=T, LOG=LOG, **machine_params)
+                    target_columns=[0])
     #t17
     #nrmse, machine = task.run(data, training_time=2001, testing_time=500, washout_time=100, 
     #                target_columns=[0], fb=True, T=10, LOG=LOG, **machine_params)
@@ -812,11 +855,11 @@ if __name__ == "__main__":
             
             #mso_task()
             #mso_task()
-            drone_tasks.predict_xyz_task()
+            #drone_tasks.predict_xyz_task()
             
             #plot_mso_data()
-            #NARMA_task()
-            #mackey_glass_task()
+            NARMA_task(T=5)
+            #mackey_glass_task(T=2)
             
             """
             machine_params_ip = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 

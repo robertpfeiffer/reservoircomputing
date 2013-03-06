@@ -2,6 +2,9 @@ from esn_persistence import *
 import numpy as np
 import reservoir
 import scipy.linalg
+import itertools
+from activations import *
+from itertools import chain
 
 def add_noise(data, var):
     if var==0:
@@ -25,6 +28,64 @@ def lin_regression_train(inputs, targets, ridge):
     Y = np.dot(X, w_out)
     return (w_out, Y) # weights and training prediction
 
+def create_sequence_data(inputs, targets, washout_time=0):
+    train_input = np.vstack((inputs))
+    washed_indizes = []
+    current_index = 0
+    for inp in inputs:
+        washed_indizes.append(range(current_index+washout_time,current_index+len(inp)))
+        current_index += len(inp)
+    #flatten
+    washed_indizes = np.asarray(list(chain.from_iterable(washed_indizes)))
+                             
+    washed_targets = []
+    for target in targets:
+        washed_targets.append(target[washout_time:,:])
+    washed_targets = np.vstack((washed_targets))
+    return train_input, washed_indizes, washed_targets
+
+class IPTrainer(object):
+    def __init__(self, machine, learning_rate, std, mean=0):
+        self.machine = machine
+        self.ip_learning_rate = learning_rate
+        self.ip_mean = mean
+        self.ip_std = std
+    
+    def train(self, data, washout_time, training_time, pre_train_input_columns):
+        if washout_time > 0:
+            washout_input = data[:washout_time,pre_train_input_columns]
+            self.machine.run_batch(washout_input)
+        activ_fct = IPTanhActivation(self.ip_learning_rate, 0, self.ip_std, self.machine.nnodes, init_learn=True)
+        self.machine.gamma = activ_fct
+        ip_pre_train_input = data[washout_time:training_time,pre_train_input_columns]
+        self.machine.run_batch(ip_pre_train_input)
+        activ_fct.learn = False
+        new_spectral_radius = self.rescale_after_ip(self.machine, activ_fct)
+        self.machine.reset()
+        return new_spectral_radius 
+    
+    def train_sequence(self, train_inputs, washout_time):
+        activ_fct = IPTanhActivation(self.ip_learning_rate, 0, self.ip_std, self.machine.nnodes, init_learn=False)
+        self.machine.gamma = activ_fct
+        for train_input in train_inputs:
+            if washout_time > 0:
+                self.machine.run_batch(train_input[:washout_time,:])
+            activ_fct.learn = True
+            self.machine.run_batch(train_input[:washout_time,:])
+            activ_fct.learn = False
+        
+        new_spectral_radius = self.rescale_after_ip(self.machine, activ_fct)
+        self.machine.reset()
+        return new_spectral_radius
+       
+    def rescale_after_ip(self, machine, activ_fct):
+        """ returns the new spectral radius """
+        machine.w_echo = (machine.w_echo.T*activ_fct.a).T
+        machine.w_input = (machine.w_input.T *activ_fct.a).T
+        machine.w_add = machine.w_add*activ_fct.a + activ_fct.b
+        machine.gamma = TanhActivation()
+        return machine.get_spectral_radius()
+     
 class LinearRegressionReadout(object):
     """ Trains an esn and uses it for prediction """
 
@@ -33,19 +94,30 @@ class LinearRegressionReadout(object):
         self.w_out = None
         self.ridge = ridge
 
+    def regression(self, X, target):
+        if self.ridge==0:
+            self.w_out = np.linalg.lstsq(X, target)[0]
+        else:
+            X_T = X.T
+            beta = np.dot( np.dot(target.T,X), scipy.linalg.inv( np.dot(X_T,X) + self.ridge*np.eye(X.shape[1]) ) )
+            self.w_out = beta.T
+        Y = np.dot(X, self.w_out)
+        return (X[:, 1:],Y) #echos without constant
+    
     def train(self, train_input, train_target):
         """ returns (echos, predictions) """
         if train_input is None:
             train_input=np.zeros((train_target.shape[0],0))
         X = self._createX(train_input)
-        if self.ridge==0:
-            self.w_out = np.linalg.lstsq(X, train_target)[0]
-        else:
-            X_T = X.T
-            beta = np.dot( np.dot(train_target.T,X), scipy.linalg.inv( np.dot(X_T,X) + self.ridge*np.eye(X.shape[1]) ) )
-            self.w_out = beta.T
-        Y = np.dot(X, self.w_out)
-        return (X[:, 1:],Y) #echos without constant
+        return self.regression(X, train_target)
+
+
+    def train_sequence(self, train_inputs, train_targets, washout_time):
+        """ washout_time: for each sample. returns (echos, predictions) """
+        train_input, washed_indizes, washed_targets = create_sequence_data(train_inputs, train_targets, washout_time)
+        X = self._createX(train_input) 
+        X = X[washed_indizes,:] 
+        return self.regression(X, washed_targets) 
 
     def predict(self, test_input,state=None):
         """ returns (echos, predictions) """

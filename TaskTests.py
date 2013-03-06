@@ -17,12 +17,12 @@ class TaskTests(unittest.TestCase):
         
     def test_memory_capacity_task(self):
         mem_capacity = tasks.memory_task()
-        self.assertGreater(mem_capacity, 4, 'Memory Capacity too small: %f' % mem_capacity)
+        self.assertGreater(mem_capacity, 6, 'Memory Capacity too small: %f' % mem_capacity)
         print
         
     def test_mso_task(self):
         best_nrsme, best_esn = tasks.mso_task(task_type=1, T=2, LOG=True, Plots=False)
-        self.assertLess(best_nrsme, pow(10,-4), 'NRMSE too big: %f' % best_nrsme)
+        self.assertLess(best_nrsme, pow(10,-6), 'NRMSE too big: %f' % best_nrsme)
         print
         
 
