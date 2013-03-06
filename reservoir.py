@@ -208,6 +208,9 @@ class ESN(object):
         """ Runs the machine, returns the last state, saves previous states in state_echo
             Parameter u is the input, a 2dnumpy-array (time x input-dim)
         """
+        if len(u)==0:
+            return None
+        
         length = u.shape[0]
         state = self.start_state_dwim(state)
         state_echo = numpy.zeros((length, self.nnodes))
@@ -222,6 +225,9 @@ class ESN(object):
         """ Runs the machine, returns the last state, saves previous states in state_echo
             Parameter u is the input, a 2dnumpy-array (time x input-dim)
         """
+        if len(u)==0:
+            return None
+        
         length,inputs = u.shape
         state = self.start_state_dwim(state)
         state_echo = numpy.zeros((length, self.nnodes))
