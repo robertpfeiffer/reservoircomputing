@@ -17,7 +17,7 @@ import io
 import sys
 import ast
 from esn_persistence import *
-import esn_plotting
+from esn_plotting_simple import *
 from activations import *
 import drone_tasks
 import copy
@@ -197,7 +197,7 @@ class ESNTask(object):
                 self.best_machine = machine
                 self.best_trainer = trainer
                 self.best_train_echo = train_echo
-                self.best_test_echo = test_echo
+                self.best_evaluation_echo = test_echo[-evaluation_time:,:]
             nrmses[i] = nrmse
             
             #if Plots:
@@ -396,8 +396,38 @@ def mmo_task(task_type=5, T=10, Plots=True, LOG=True, **machine_params):
         
     return nrmse, machine
 
+def mso_task_data(task_type):
+    #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range)                    
+    #data = np.sin(2.92*input_range) + np.sin(1.074*input_range) 
+    #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range) + np.sin(2.92*input_range) + np.sin(1.074*input_range) 
+    #data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + np.sin(0.74*input_range) 
+    #data = sin(0.2*input_range) + sin(0.311*input_range) + sin(0.42*input_range) #+ sin(0.51*input_range) + sin(0.74*input_range)
+    #data = sin(0.2*input_range)  * sin(0.311*input_range) + sin(0.42*input_range) 
+    ##data = np.sin(0.0311*input_range) + np.sin(0.74*input_range)
+    
+    input_range = np.arange(0, 10000, 1) #np.array([range(2000)])
+    if task_type==1:
+        data = np.sin(0.2*input_range)
+    elif task_type==2:
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) 
+    elif task_type==3:
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range)
+    elif task_type==4: 
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range)
+    elif task_type==5: 
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
+    elif task_type==8: 
+        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) +sin(0.63*input_range)+sin(0.74*input_range)+sin(0.85*input_range)+sin(0.97*input_range)
+    elif task_type==13: 
+        data = np.sin(0.2*input_range) * np.sin(0.311*input_range) * np.sin(0.42*input_range)
+    elif task_type==15: 
+        data = np.sin(0.2*input_range) * np.sin(0.311*input_range) * np.sin(0.42*input_range) * sin(0.51*input_range) #* sin(0.74*input_range)
+    else:
+        print 'Unknown MSO Task Type: ', task_type
+        raise ValueError 
+    return data
 
-def mso_task(task_type=5, T=10, Plots=True, LOG=True, machine_params=None):    
+def mso_task(task_type=5, T=5, Plots=False, LOG=True, machine_params=None):    
     if (machine_params == None or len(machine_params)==0):
         
         machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
@@ -412,6 +442,15 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, machine_params=None):
                       #'ridge':1e-8, 
                       #'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": False}
+        
+        #Standard ESN-Einst ohne IP:
+        machine_params = {"output_dim":100, "leak_rate":1, "conn_input":0.5, "conn_recurrent":0.1, 
+              #"input_scaling":10e-7 # Garkeins:10e-20, Bestes:10e-7, Schlechtes: 0.1 
+              "input_scaling":10e-7 
+              ,"bias_scaling":0, "spectral_radius":0.9, 'recurrent_weight_dist':0, 
+              #'ridge':1e-7,
+              "reset_state":False, "start_in_equilibrium": True}
+    
         """
         machine_params = {"output_dim":200, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.3, 
                       "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":1, 'recurrent_weight_dist':0, 
@@ -446,59 +485,71 @@ def mso_task(task_type=5, T=10, Plots=True, LOG=True, machine_params=None):
     if (LOG):
         print 'MSO Task Type', task_type
 
-    input_range = np.arange(0, 10000, 1) #np.array([range(2000)])
-    if task_type==1:
-        data = np.sin(0.2*input_range)
-    elif task_type==2:
-        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) 
-    elif task_type==3:
-        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range)
-    elif task_type==4: 
-        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range)
-    elif task_type==5: 
-        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) + sin(0.74*input_range)
-    elif task_type==8: 
-        data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + sin(0.51*input_range) +sin(0.63*input_range)+sin(0.74*input_range)+sin(0.85*input_range)+sin(0.97*input_range)
-    elif task_type==13: 
-        data = np.sin(0.2*input_range) * np.sin(0.311*input_range) * np.sin(0.42*input_range)
-    elif task_type==15: 
-        data = np.sin(0.2*input_range) * np.sin(0.311*input_range) * np.sin(0.42*input_range) * sin(0.51*input_range) #* sin(0.74*input_range)
-    else:
-        print 'Unknown MSO Task Type: ', task_type
-        raise ValueError 
-    
-    #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range)                    
-    #data = np.sin(2.92*input_range) + np.sin(1.074*input_range) 
-    #data = np.sin(0.2*input_range) + np.sin(0.0311*input_range) + np.sin(2.92*input_range) + np.sin(1.074*input_range) 
-    #data = np.sin(0.2*input_range) + np.sin(0.311*input_range) + np.sin(0.42*input_range) + np.sin(0.74*input_range) 
-    #data = sin(0.2*input_range) + sin(0.311*input_range) + sin(0.42*input_range) #+ sin(0.51*input_range) + sin(0.74*input_range)
-    #data = sin(0.2*input_range)  * sin(0.311*input_range) + sin(0.42*input_range) 
-    ##data = np.sin(0.0311*input_range) + np.sin(0.74*input_range)
+    data = mso_task_data(task_type)
     
     task = ESNTask(fb=True, T=T, LOG=LOG, machine_params=machine_params)
     nrmse, machine = task.run(data, 
                     training_time=400, testing_time=600, washout_time=100, evaluation_time=300, 
                     target_columns=[0])
     
+    
+    """ TODO
+    # Vergleich w_echo und gefoldetes w_echo
+    machine2 = machine.fold_in_feedback()
+    plt.subplot(1,2,1)
+    plt.matshow(machine.w_echo, False, cmap="bone")
+    #Zeile: Einkommende Gewichte. Spalte: Ausgehende Gewichte. w_ij = w_j->w_i
+    #plt.subplot(2,2,2)
+    #plt.hist(machine.w_echo)
+    plt.subplot(1,2,2)
+    plt.matshow(machine2.w_echo, False, cmap="bone")
+    #plt.subplot(2,2,4)
+    #plt.hist(machine2.w_echo)
+    plt.show()
+    """
+    
+    """
+    #Test, ob folding fkt. Unterschied im Bereich 10^-9    
+    trainer2 = copy.deepcopy(task.best_trainer)
+    #machine2 = copy.deepcopy(machine)
+    machine2 = machine.fold_in_feedback()
+    trainer2.machine = machine2
+    trainer2.trainer.machine = machine2
+    echo, prediction = task.best_trainer.generate(length=600)
+    echo2, prediction2 = trainer2.generate(length=600)
+    diff = np.sum(np.abs(prediction2-prediction))
+    print diff
+    
+    plt.plot(prediction, 'g')
+    plt.plot(prediction2, 'b')
+    plt.show()
+    """
+    
     if Plots==True:
+        
         plt.figure(1).clear()
         plt.plot( task.evaluation_target, 'g' )
         plt.plot( task.best_evaluation_prediction, 'b' )
         plt.title('Test Performance')
         plt.legend(['Target signal', 'Free-running predicted signal'])
-        plt.show()
+        #plt.show()
         
-        
-        #plt.plot(3,1,3)
-        #plt.pcolormesh(plot_echo,cmap="bone")
-    
         #plt.matshow(machine.w_input.T,cmap="copper")
-        plt.matshow(machine.w_echo,cmap="bone")
+        plt.matshow(machine.w_echo, False, cmap="bone")
         plt.show()
-        
+        """
         #plt.matshow(best_trainer.w_out,cmap="bone")
         hist=np.histogram(task.best_trainer.w_out,bins=np.linspace(0,6,num=61))
         plt.hist(task.best_trainer.w_out)
+        plt.show()
+        """
+        plt.subplot2grid((5,1), (0,0), rowspan=4)
+        #plt.subplot(4,1,1])
+        plot_spectrum(task.best_evaluation_echo)
+        #plot_spectrum_weighted(task.best_evaluation_echo, task.best_trainer.w_out)
+        plt.subplot2grid((5,1), (4,0))
+        #plt.subplot(4,1,4)
+        plot_spectrum(task.evaluation_target)
         plt.show()
         
     return nrmse, machine
@@ -853,12 +904,11 @@ if __name__ == "__main__":
             #dic = correct_dictionary_arg(astring)
             #one_two_a_x_task()
             
-            #mso_task()
-            #mso_task()
+            mso_task()
             #drone_tasks.predict_xyz_task()
             
             #plot_mso_data()
-            NARMA_task(T=5)
+            #NARMA_task(T=5)
             #mackey_glass_task(T=2)
             
             """

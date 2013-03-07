@@ -196,7 +196,7 @@ def remove_unnecessary_params(list_or_dic):
             else:
                 del list_or_dic[param]
 
-def predict_xyz_task(T=3, LOG=True, Plots=False, **machine_params):
+def predict_xyz_task(T=10, LOG=True, Plots=False, **machine_params):
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_58_39_AllData')
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_13_11_34_AllData')
     
@@ -216,7 +216,7 @@ def predict_xyz_task(T=3, LOG=True, Plots=False, **machine_params):
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData')
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Fri_08_Feb_2013_16_06_09_AllData')
     
-    k = 10
+    k = 30
     # Erfolgreich!
     flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData',  k=k)
     flight_data2 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_23_03_AllData', k=k)
@@ -248,9 +248,9 @@ def predict_xyz_task(T=3, LOG=True, Plots=False, **machine_params):
     train_length = nr_rows - test_length
     
     if (machine_params == None or len(machine_params)==0):
-        machine_params = {'output_dim':100, 'input_scaling':0.2, 'conn_input':0.3, 
-                          'leak_rate':0.3, 'ridge':1e-8, 
-                          'ip_learning_rate':0.00001, 'ip_std':0.01,
+        machine_params = {'output_dim':300, 'input_scaling':0.1, 'conn_input':0.2, 'conn_recurrent':0.3,
+                          'leak_rate':0.5, 'ridge':1e-8, 'bias_scaling':0.01, 'spectral_radius':0.8, 
+                          'ip_learning_rate':0.0001, 'ip_std':0.01,
                           'reset_state':False, 'start_in_equilibrium':True
                           }
     
@@ -328,7 +328,7 @@ if __name__ == '__main__':
     #predict_xyz_task(Plots=True)
     if (len(sys.argv)==1):
         #control_task_wo_position(Plots=True, Save=True)
-        predict_xyz_task2(Plots=True)
+        predict_xyz_task(Plots=True)
     else:
         args = sys.argv[1]
         dic_list = correct_dictionary_arg(args)
