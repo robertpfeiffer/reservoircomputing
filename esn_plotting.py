@@ -117,7 +117,7 @@ def plot_spectrum_weighted(max_freq=1000,max_nodes=300,out_unit=0):
     for i in range(spectrum.shape[0]):
         spectrum[i,:] = spectrum[i,:]*w_out[1:,out_unit]
     #spectrum = spectrum*w_out[1:,out_unit]
-    plt.pcolormesh(spectrum_weighted[:max_freq,:].T)
+    plt.pcolormesh(spectrum[:max_freq,:].T)
     plt.show()
     
 def plot_predictions_targets(predictions, targets, labels):
