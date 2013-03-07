@@ -260,7 +260,7 @@ class ESN(object):
 
         w_fb=self.w_feedback
         w_in=self.w_input
-
+        #TODO: Wozu brauchen wir noch mehr bias-units? Wir haben doch w_add
         e2.bias_unit=True
         e2.feedback=None
         e2.ninput=self.ninput-w_fb.shape[0]
