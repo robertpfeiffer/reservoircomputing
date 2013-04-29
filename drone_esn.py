@@ -24,7 +24,7 @@ class DroneESN(object):
         if float(data[0]) > 1000:
             if self.last_time is None:
                 self.last_time = timestamp_to_date(float(data[0])-0.1)
-            data[0] = float(compute_time_diff_in_ms(self.last_time, data[0]))/100.0
+            data[0] = float(compute_time_diff_in_ms(self.last_time, data[0]))/100.0 #Tscale
             self.last_time = datetime.fromtimestamp(float(data[0]))
        
         #relativer target-vector
