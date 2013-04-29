@@ -427,7 +427,112 @@ def mso_task_data(task_type):
         raise ValueError 
     return data
 
-def mso_task(task_type=5, T=5, Plots=False, LOG=True, machine_params=None):    
+def mso_task_analysis():
+    #Minimal-Eins. fuer MSO5
+    machine_params = {"output_dim":10, "leak_rate":1, "conn_input":1, "conn_recurrent":0.5, 
+      "input_scaling":10e-8 
+      ,"bias_scaling":0, "spectral_radius":0.8, 'recurrent_weight_dist':0, 
+      "reset_state":False, "start_in_equilibrium": True}
+    
+    #Minimal-Eins. fuer MSO2
+    machine_params = {"output_dim":4, "leak_rate":1, "conn_input":1, "conn_recurrent":0.5, 
+      "input_scaling":10e-8
+      #,"ip_learning_rate":0.001, 'ip_std':0.01 
+      ,"bias_scaling":0, "spectral_radius":0.8, 'recurrent_weight_dist':0, 
+      "reset_state":False, "start_in_equilibrium": True}
+    
+    #Minimal-Eins. fuer MSO1
+    machine_params = {"output_dim":2, "leak_rate":1, "conn_input":1, "conn_recurrent":1, 
+      "input_scaling":10e-8
+      #,"ip_learning_rate":0.001, 'ip_std':0.01 
+      ,"bias_scaling":0, "spectral_radius":0.8, 'recurrent_weight_dist':0, 
+      "reset_state":False, "start_in_equilibrium": True}
+    
+    _, machine, task = mso_task(task_type=1, return_task=True, machine_params=machine_params)
+    w_out_orig = machine.w_feedback[0, 1:] #ignore bias 
+    w_out = np.copy(w_out_orig)  
+    
+    show_colorbar = True
+    #TODO
+    # Vergleich w_echo und gefoldetes w_echo
+    machine2 = machine.fold_in_feedback()
+    plt.subplot(1,4,1)
+    plt.matshow(machine.w_echo, False, cmap="bone")
+    plt.title('w_echo')
+    if show_colorbar:
+        plt.colorbar()
+    #Zeile: Einkommende Gewichte. Spalte: Ausgehende Gewichte. w_ij = w_j->w_i
+    #plt.subplot(2,2,2)
+    #plt.hist(machine.w_echo)
+    plt.subplot(1,4,2)
+    plt.matshow(machine2.w_echo, False, cmap="bone")
+    if show_colorbar:
+        plt.colorbar()
+    #plt.subplot(2,2,4)
+    #plt.hist(machine2.w_echo)
+    #plt.show()
+    plt.title('w2_echo')
+    
+    plt.subplot(1,4,3)
+    array = copy.deepcopy(machine2.w_echo)
+    nr_rows = array.shape[0]
+    distances = np.zeros((array.shape))
+    for i in range(nr_rows-1):
+        nearest_distance = float('Inf')
+        nearest_ind = -1
+        for j in range(i+1, nr_rows):
+            distance = np.mean(np.abs(array[i,:] - array[j,:]))
+            if distance < nearest_distance:
+                nearest_distance = distance
+                nearest_ind = j
+        #tmp_row = array[i+1,:].copy()
+        #array[i+1,:] = array[nearest_ind,:]
+        #array[nearest_ind,:] = tmp_row
+        array[[i+1, nearest_ind], :] = array[[nearest_ind, i+1], :]
+        array[:, [i+1, nearest_ind]] = array[:, [nearest_ind, i+1]]
+        #print i, nearest_ind, w_out.shape
+        w_out[[i+1, nearest_ind]] = w_out[[nearest_ind, i+1]]
+        
+        pass
+            
+    plt.matshow(array, False, cmap="bone")
+    if show_colorbar:
+        plt.colorbar()
+    plt.title('sorted w2_echo')
+    
+    plt.subplot(1,4,4)
+    plt.matshow(w_out[:,None], False, cmap="bone")
+    plt.title('w_out')
+    if show_colorbar:
+        plt.colorbar()
+    
+    #print 'folded spectral radius', machine2.get_spectral_radius() #bleibt der gleiche
+    
+    plt.show()
+    
+    #Test, ob folding fkt. Unterschied im Bereich 10^-9    
+    trainer2 = copy.deepcopy(task.best_trainer)
+    trainer2.machine = machine2
+    trainer2.trainer.machine = machine2
+    echo2, prediction2 = trainer2.generate(length=600)
+    
+    """
+    nr_plots = echo2.shape[1]+1
+    plt.subplot(nr_plots,1,1)
+    plt.plot(prediction2)
+    for i in range(nr_plots-1):
+        plt.subplot(nr_plots,1,i+2)
+        plt.plot(echo2[:,i])
+    plt.show()
+    """
+    plt.subplot(2,1,1)
+    plt.plot(prediction2)
+    plt.subplot(2,1,2)
+    plt.plot(echo2)
+    plt.show()
+    
+    
+def mso_task(task_type=5, T=5, Plots=False, LOG=True, return_task=False, machine_params=None):    
     if (machine_params == None or len(machine_params)==0):
         
         machine_params = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.1, 
@@ -435,20 +540,28 @@ def mso_task(task_type=5, T=5, Plots=False, LOG=True, machine_params=None):
                       'ridge':1e-8, 
                       'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
-        # Balanced-Einstellungen
         
+        # Balanced-Einstellungen
         machine_params = {"output_dim":18, "leak_rate":1, "conn_input":1, "conn_recurrent":0.4, 
                       "input_scaling":10e-7, "bias_scaling":0, "spectral_radius":0.8, 'recurrent_weight_dist':0, 
                       #'ridge':1e-8, 
                       #'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": False}
         
-        #Standard ESN-Einst ohne IP:
-        machine_params = {"output_dim":100, "leak_rate":1, "conn_input":0.5, "conn_recurrent":0.1, 
+        #Balanced-Optimaleinstellungen
+        machine_params = {"output_dim":11, "leak_rate":1, "conn_input":1, "conn_recurrent":1, 
               #"input_scaling":10e-7 # Garkeins:10e-20, Bestes:10e-7, Schlechtes: 0.1 
               "input_scaling":10e-7 
-              ,"bias_scaling":0, "spectral_radius":0.9, 'recurrent_weight_dist':0, 
-              #'ridge':1e-7,
+              ,"bias_scaling":0, "spectral_radius":0.8, 'recurrent_weight_dist':0, 
+              #'ridge':1e-57,
+              "reset_state":False, "start_in_equilibrium": True}
+        
+        #Balanced-Minimaleinstellungen:
+        machine_params = {"output_dim":10, "leak_rate":1, "conn_input":1, "conn_recurrent":0.5, 
+              #"input_scaling":10e-7 # Garkeins:10e-20, Bestes:10e-7, Schlechtes: 0.1 
+              "input_scaling":10e-8 
+              ,"bias_scaling":0, "spectral_radius":0.8, 'recurrent_weight_dist':0, 
+              #'ridge':1e-57,
               "reset_state":False, "start_in_equilibrium": True}
     
         """
@@ -491,22 +604,6 @@ def mso_task(task_type=5, T=5, Plots=False, LOG=True, machine_params=None):
     nrmse, machine = task.run(data, 
                     training_time=400, testing_time=600, washout_time=100, evaluation_time=300, 
                     target_columns=[0])
-    
-    
-    """ TODO
-    # Vergleich w_echo und gefoldetes w_echo
-    machine2 = machine.fold_in_feedback()
-    plt.subplot(1,2,1)
-    plt.matshow(machine.w_echo, False, cmap="bone")
-    #Zeile: Einkommende Gewichte. Spalte: Ausgehende Gewichte. w_ij = w_j->w_i
-    #plt.subplot(2,2,2)
-    #plt.hist(machine.w_echo)
-    plt.subplot(1,2,2)
-    plt.matshow(machine2.w_echo, False, cmap="bone")
-    #plt.subplot(2,2,4)
-    #plt.hist(machine2.w_echo)
-    plt.show()
-    """
     
     """
     #Test, ob folding fkt. Unterschied im Bereich 10^-9    
@@ -551,7 +648,9 @@ def mso_task(task_type=5, T=5, Plots=False, LOG=True, machine_params=None):
         #plt.subplot(4,1,4)
         plot_spectrum(task.evaluation_target)
         plt.show()
-        
+    
+    if return_task:
+        return nrmse, machine, task    
     return nrmse, machine
     """
         
@@ -904,7 +1003,8 @@ if __name__ == "__main__":
             #dic = correct_dictionary_arg(astring)
             #one_two_a_x_task()
             
-            mso_task()
+            #mso_task()
+            mso_task_analysis()
             #drone_tasks.predict_xyz_task()
             
             #plot_mso_data()

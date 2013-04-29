@@ -50,8 +50,8 @@ class DroneESN(object):
 
 def example_drone_esn(save_echo=False, Plots=True):
     print 'DroneESN-Example'   
-    #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData')
-    flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_45_56_AllData',load_altitude=True, load_xyz=False)
+    flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData')
+    #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_45_56_AllData',load_altitude=True, load_xyz=False)
     
     """
     row_data = np.column_stack((np.asarray(flight_data.dataTimeDiffs), np.asarray(flight_data.dataYaw),
