@@ -54,11 +54,12 @@ def control_task_wo_position(Plots=True, LOG=True, Save=False, **machine_params)
         
     return nrmse  
 
-def control_task(T=3, Plots=True, LOG=True, Save=False, **machine_params):
+def control_task(T=5, Plots=True, LOG=True, Save=False, **machine_params):
     if LOG:
         print 'Control Ws Generation'
         
-    data, flight_data = load_flight_random_target_data(k=20)
+    data, flight_data = load_new_mensa_data(k=30)
+    #data, flight_data = load_flight_random_target_data(k=30)
     
     nr_rows = data.shape[0]
     
@@ -109,6 +110,21 @@ def load_flight_random_target_data(k):
                       flight_data5.data, flight_data6.data ))#, flight_data7.data))
     data = data[:-200,:] #bei flight_random_points ist am Ende ein outlier
     return data, flight_data
+
+def load_new_mensa_data(k):
+    """ returns the concatenated data and the first flight_data """
+    flight_data = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_12_27_46_AllData',  k=k)
+    flight_data2 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_12_40_06_AllData',  k=k)
+    flight_data3 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_14_04_25_AllData_tracker_q',  k=k)
+    flight_data4 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_14_21_36_AllData',  k=k)
+    flight_data5 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_14_38_03_AllData',  k=k)
+    flight_data6 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_14_49_12_AllData',  k=k)
+     
+    data = np.vstack((flight_data.data, flight_data2.data, flight_data3.data, flight_data4.data, 
+                      flight_data5.data, flight_data6.data ))#, flight_data7.data))
+    data = data[:-200,:] #bei flight_random_points ist am Ende ein outlier
+    return data, flight_data
+    
     
 def predict_xyz_task(T=5, LOG=True, Plots=False, **machine_params):
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_58_39_AllData')

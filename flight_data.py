@@ -9,6 +9,7 @@ class FlightData():
     def __init__(self, filename, load_time=False, load_altitude=False, load_dV=False, load_xyz=True, k=30, LOG=False):
         self.LOG = LOG
         self.k = k
+        self.altitude_load_failure = False
         if filename is not None:
             self.load_file(filename, load_time, load_altitude, load_dV, load_xyz)
         
@@ -116,7 +117,13 @@ class FlightData():
                     rollValue = float(line[pos+2:pos2])
                     pos=pos2
                     pos2=line.find(', ',pos+1)
-                    altitudeValue = float(line[pos+2:pos2])
+                    try:
+                        altitudeValue = float(line[pos+2:pos2])
+                    except:
+                        if not self.altitude_load_failure:
+                            print 'Error while loading Altitude - will be set to 0: ',sys.exc_info()[0], sys.exc_info()[1]
+                            self.altitude_load_failure = True
+                        altitudeValue = 0
                     pos=pos2
                     pos2=line.find(', ',pos+1)
                     xValue = float(line[pos+2:pos2])
@@ -185,6 +192,7 @@ class FlightData():
                 
             except:
                 print 'Error while loading data: ',sys.exc_info()[0], sys.exc_info()[1]
+                #raise
         if self.LOG:
             print 'Finished loading data. '
         
@@ -259,8 +267,8 @@ class FlightData():
             self.data = np.column_stack((self.data, (np.asarray(self.dataYaw)[:-k])/Yaw_scale,
                                      np.asarray(self.dataPitch)[:-k], np.asarray(self.dataRoll)[:-k]))
         else:
-            self.data = np.column_stack((np.asarray(self.dataX)[:-k], np.asarray(self.dataY)[:-k], np.asarray(self.dataZ)[:-k],
-                                     np.asarray(self.dataTargetX), np.asarray(self.dataTargetY), np.asarray(self.dataTargetZ)))
+            self.data = np.column_stack(((np.asarray(self.dataYaw)[:-k])/Yaw_scale,
+                                     np.asarray(self.dataPitch)[:-k], np.asarray(self.dataRoll)[:-k]))
         self.column_names.extend(['Yaw', 'Pitch', 'Roll'])
         if self.load_altitude:
             self.data = np.column_stack((self.data, np.asarray(self.dataAltitude)[:-k]))

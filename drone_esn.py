@@ -10,7 +10,8 @@ import esn_persistence
 
 class DroneESN(object):
     def __init__(self):
-        self.trainer = load_object('saved_drone_esn')
+        self.trainer = load_object('../drone_esn')
+        #self.trainer = load_object('drone_esn')
         self.last_time = None
         self.echos = None
         
@@ -18,18 +19,22 @@ class DroneESN(object):
         if isinstance(data, (list, tuple)):
             data = np.asarray(data)
             
-        #time, yaw, pitch, roll, x, y, z, targetX, targetY, targetZ
-        data[1] = float(data[1])/100.0 #Yaw_scale
+        #yaw, pitch, roll, x, y, z, targetX, targetY, targetZ
+        data[0] = float(data[0])/100.0 #Yaw_scale
          
-        if float(data[0]) > 1000:
-            if self.last_time is None:
-                self.last_time = timestamp_to_date(float(data[0])-0.1)
-            data[0] = float(compute_time_diff_in_ms(self.last_time, data[0]))/100.0 #Tscale
-            self.last_time = datetime.fromtimestamp(float(data[0]))
-       
+#        if float(data[0]) > 1000:
+#            if self.last_time is None:
+#                self.last_time = timestamp_to_date(float(data[0])-0.1)
+#            data[0] = float(compute_time_diff_in_ms(self.last_time, data[0]))/100.0 #Tscale
+#            try:
+#                self.last_time = datetime.fromtimestamp(float(data[0]))
+#            except:
+#                pass
+#        data[0] = 0.1
         #relativer target-vector
         #data[8:] = data[8:] - data[5:8]
         
+        print "DATA:", str(data)
         #1d -> 2d
         if len(data.shape) == 1:
             data = data[None,:]
@@ -50,7 +55,7 @@ class DroneESN(object):
 
 def example_drone_esn(save_echo=False, Plots=True):
     print 'DroneESN-Example'   
-    flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData')
+    flight_data = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_12_27_46_AllData', k=20)
     #flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_45_56_AllData',load_altitude=True, load_xyz=False)
     
     """
@@ -61,7 +66,7 @@ def example_drone_esn(save_echo=False, Plots=True):
             np.asarray(flight_data.dataw1), np.asarray(flight_data.dataw2), np.asarray(flight_data.dataw3), np.asarray(flight_data.dataw4)))
    """
     row_data = flight_data.data
-    row_data[:,1] *= 100.0
+    row_data[:,0] *= 100.0 #yaw
     input_data = row_data[:,:-4]
     drone_esn = DroneESN()
     results = drone_esn.compute(input_data[0,:])
