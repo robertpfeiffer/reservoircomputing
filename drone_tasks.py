@@ -7,6 +7,7 @@ from py_utils import *
 
 import io
 import sys
+import os
 
 import numpy as np
 import time
@@ -62,6 +63,8 @@ def control_task(T=5, Plots=True, LOG=True, Save=False, **machine_params):
     #data, flight_data = load_flight_random_target_data(k=30)
     
     nr_rows = data.shape[0]
+    if LOG:
+        print nr_rows, 'time steps loaded'
     
     if (machine_params == None or len(machine_params)==0):
         machine_params = {'output_dim':150, 'input_scaling':0.1, 'bias_scaling':0.2, 
@@ -99,31 +102,22 @@ def remove_unnecessary_params(list_or_dic):
 
 def load_flight_random_target_data(k):
     """ returns the concatenated data and the first flight_data """
-    flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData',  k=k)
-    flight_data2 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_23_03_AllData', k=k)
-    flight_data3 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_37_34_AllData', k=k)
-    flight_data4 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_54_52_AllData', k=k)
-    flight_data5 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_06_52_AllData', k=k)
-    flight_data6 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_17_18_08_AllData', k=k)
-    #flight_data7 = FlightData('flight_data/flight_random_points_with_target/flight_Fri_08_Feb_2013_16_06_09_AllData')
-    data = np.vstack((flight_data.data, flight_data2.data, flight_data3.data, flight_data4.data, 
-                      flight_data5.data, flight_data6.data ))#, flight_data7.data))
-    data = data[:-200,:] #bei flight_random_points ist am Ende ein outlier
+    return load_flight_data_in_dir(k, "flight_data/flight_random_points_with_target/")
+
+def load_flight_data_in_dir(k, directory):
+    #file_names = filter(os.path.isfile, os.listdir(directory))
+    file_names = os.listdir(directory)
+    data_list = list()
+    for file_name in file_names:
+        flight_data = FlightData(directory+file_name,k)
+        data_list.append(flight_data.data)
+    data = np.vstack(data_list)
+    #data = data[:-100,:] #bei flight_random_points ist am Ende ein outlier
     return data, flight_data
 
 def load_new_mensa_data(k):
     """ returns the concatenated data and the first flight_data """
-    flight_data = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_12_27_46_AllData',  k=k)
-    flight_data2 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_12_40_06_AllData',  k=k)
-    flight_data3 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_14_04_25_AllData_tracker_q',  k=k)
-    flight_data4 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_14_21_36_AllData',  k=k)
-    flight_data5 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_14_38_03_AllData',  k=k)
-    flight_data6 = FlightData('flight_data/mensa_random/flight_Tue_07_May_2013_14_49_12_AllData',  k=k)
-     
-    data = np.vstack((flight_data.data, flight_data2.data, flight_data3.data, flight_data4.data, 
-                      flight_data5.data, flight_data6.data ))#, flight_data7.data))
-    data = data[:-200,:] #bei flight_random_points ist am Ende ein outlier
-    return data, flight_data
+    return load_flight_data_in_dir(k, "flight_data/mensa_random/")
     
     
 def predict_xyz_task(T=5, LOG=True, Plots=False, **machine_params):
