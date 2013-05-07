@@ -6,14 +6,15 @@ import numpy as np
 import esn_persistence
 
 class FlightData():
-    def __init__(self, filename, load_altitude=False, load_dV=False, load_xyz=True, k=30, LOG=False):
+    def __init__(self, filename, load_time=False, load_altitude=False, load_dV=False, load_xyz=True, k=30, LOG=False):
         self.LOG = LOG
         self.k = k
         if filename is not None:
-            self.load_file(filename, load_altitude, load_dV, load_xyz)
+            self.load_file(filename, load_time, load_altitude, load_dV, load_xyz)
         
-    def load_file(self, filename, load_altitude=False, load_dV=False, load_xyz=True):
+    def load_file(self, filename, load_time=True, load_altitude=False, load_dV=False, load_xyz=True):
         self.initVariables()
+        self.load_time = load_time
         self.load_altitude=load_altitude
         self.load_dV = load_dV
         self.load_xyz = load_xyz
@@ -37,6 +38,13 @@ class FlightData():
             self.target_xyz_columns -= 1
             self.w_columns -= 1
             all_dims -= 1
+            
+        if not load_time:
+            self.xyz_columns -= 1
+            self.target_xyz_columns -= 1
+            self.w_columns -= 1
+            all_dims -= 1
+            
             
         if not load_xyz:
             self.xyz_columns = []
@@ -239,13 +247,20 @@ class FlightData():
                                      np.asarray(self.dataTargetX), np.asarray(self.dataTargetY), np.asarray(self.dataTargetZ),
                                      np.asarray(self.dataw1)[:-k], np.asarray(self.dataw2)[:-k], np.asarray(self.dataw3)[:-k], np.asarray(self.dataw4)[:-k]))
         """
-        self.data = np.asarray(self.dataTimeDiffs)[:-k]
-        self.column_names.append('Time')
+        if self.load_time:
+            self.data = np.asarray(self.dataTimeDiffs)[:-k]
+            self.column_names.append('Time')
+        else:
+            self.data = None #TODO besser regeln
         if self.load_dV:
             self.data = np.column_stack((self.data, (np.asarray(self.dataVX)/Vscale)[:-k], (np.asarray(self.dataVY)/Vscale)[:-k], (np.asarray(self.dataVZ)/Vscale)[:-k],))
             self.column_names.append(['VX', 'VY', 'VZ'])
-        self.data = np.column_stack((self.data, (np.asarray(self.dataYaw)[:-k])/Yaw_scale,
+        if self.data is not None:
+            self.data = np.column_stack((self.data, (np.asarray(self.dataYaw)[:-k])/Yaw_scale,
                                      np.asarray(self.dataPitch)[:-k], np.asarray(self.dataRoll)[:-k]))
+        else:
+            self.data = np.column_stack((np.asarray(self.dataX)[:-k], np.asarray(self.dataY)[:-k], np.asarray(self.dataZ)[:-k],
+                                     np.asarray(self.dataTargetX), np.asarray(self.dataTargetY), np.asarray(self.dataTargetZ)))
         self.column_names.extend(['Yaw', 'Pitch', 'Roll'])
         if self.load_altitude:
             self.data = np.column_stack((self.data, np.asarray(self.dataAltitude)[:-k]))

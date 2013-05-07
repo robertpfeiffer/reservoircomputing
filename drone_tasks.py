@@ -54,11 +54,11 @@ def control_task_wo_position(Plots=True, LOG=True, Save=False, **machine_params)
         
     return nrmse  
 
-def control_task(T=10, Plots=True, LOG=True, Save=False, **machine_params):
+def control_task(T=3, Plots=True, LOG=True, Save=False, **machine_params):
     if LOG:
         print 'Control Ws Generation'
         
-    data, flight_data = load_flight_random_target_data(k=40)
+    data, flight_data = load_flight_random_target_data(k=20)
     
     nr_rows = data.shape[0]
     
