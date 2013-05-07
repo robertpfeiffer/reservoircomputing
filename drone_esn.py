@@ -6,16 +6,20 @@ from flight_data import *
 from py_utils import *
 import numpy as np
 import esn_persistence
+import os.path
 
 
 class DroneESN(object):
     def __init__(self):
-        self.trainer = load_object('../drone_esn')
+        if os.path.isfile('drone_esn'):
+            self.trainer = load_object('drone_esn')
+        else:
+            self.trainer = load_object('../drone_esn')
         #self.trainer = load_object('drone_esn')
         self.last_time = None
         self.echos = None
         
-    def compute(self, data):
+    def compute(self, data, LOG=False):
         if isinstance(data, (list, tuple)):
             data = np.asarray(data)
             
@@ -33,8 +37,8 @@ class DroneESN(object):
 #        data[0] = 0.1
         #relativer target-vector
         #data[8:] = data[8:] - data[5:8]
-        
-        print "DATA:", str(data)
+        if LOG:
+            print "DATA:", str(data)
         #1d -> 2d
         if len(data.shape) == 1:
             data = data[None,:]
