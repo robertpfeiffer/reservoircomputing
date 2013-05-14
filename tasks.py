@@ -119,6 +119,11 @@ class ESNTask(object):
             #if fb == True:
         #    fb_columns = target_columns
             
+        LOG = self.LOG
+        
+        nr_rows = data.shape[0]
+        if LOG:
+            print nr_rows, 'time steps loaded'
             
         if len(data.shape)==1:
             data = data[:, None]
@@ -134,7 +139,6 @@ class ESNTask(object):
         T = self.T
         fb = self.fb
         machine_params = self.machine_params
-        LOG = self.LOG
         
         #Generell gibt es input_columns, target_columns und fb_columns. Im Momement gilt target_columns=fb_columns
         #Fuer washout und IP besteht der input aus input_columns + fb_columns        
@@ -803,7 +807,8 @@ def run_task_for_grid(params_list):
     writer.writerow(dict((fn,fn) for fn in fieldnames))
     for machine_params in params_list:
         
-        best_nrmse,_ = drone_tasks.predict_xyz_task(**machine_params)
+        #best_nrmse,_ = drone_tasks.predict_xyz_task(**machine_params)
+        best_nrmse,_ = drone_tasks.control_task(**machine_params)
         #best_nrmse,_ = mso_task(**machine_params)
         #best_nrmse, best_esn = mackey_glass_task(**machine_params)
         #best_nrmse, best_esn = NARMA_task(**machine_params)
@@ -998,14 +1003,15 @@ def remove_unnecessary_params(list_or_dic):
     
 if __name__ == "__main__":
     if 1:
-        if (len(sys.argv)==1):
+        if (len(sys.argv)==1): #Start ohne Grid
             #astring = "{start_in_equilibrium: False, Plots: False, bias_scaling: 1, LOG: False, spectral_radius: 0.94999999999999996, task_type: 1, leak_rate: 0.3, output_dim: 100, input_scaling: 0.59999999999999998, reset_state: False, conn_input: 0.4, input_dim: 1, conn_recurrent: 0.2}"
             #dic = correct_dictionary_arg(astring)
             #one_two_a_x_task()
             
             #mso_task()
-            mso_task_analysis()
+            #mso_task_analysis()
             #drone_tasks.predict_xyz_task()
+            drone_tasks.control_task()
             
             #plot_mso_data()
             #NARMA_task(T=5)

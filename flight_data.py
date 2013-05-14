@@ -121,9 +121,10 @@ class FlightData():
                         altitudeValue = float(line[pos+2:pos2])
                     except:
                         if not self.altitude_load_failure:
-                            print 'Error while loading Altitude - will be set to 0: ',sys.exc_info()[0], sys.exc_info()[1]
+                            if self.LOG:
+                                print 'Error while loading Altitude - will be set to -1: ',sys.exc_info()[0], sys.exc_info()[1]
                             self.altitude_load_failure = True
-                        altitudeValue = 0
+                        altitudeValue = -1
                     pos=pos2
                     pos2=line.find(', ',pos+1)
                     xValue = float(line[pos+2:pos2])

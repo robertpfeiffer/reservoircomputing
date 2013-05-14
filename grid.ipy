@@ -10,18 +10,16 @@ from drone_tasks import *
 #TODO: in tasks.run_task_for_grid muss man immer den richtigen Task einstellen
 #TODO: ip_std nur dann variieren, wenn ip_learning_rate!=0
 
-only_on_dollies = False
+min_mem = True
 
 user = !whoami
 user = user[0] 
 
-COMBIS_PER_JOB = 10
+COMBIS_PER_JOB = 1
 machine_params = {"Plots":False, "LOG":False,
 	"output_dim":100, "leak_rate":0.3, "conn_input":0.4, "conn_recurrent":0.2, "ridge":1e-8,
 	"input_scaling":1, "bias_scaling":1, "spectral_radius":0.95, 'recurrent_weight_dist':1, 
 	"reset_state":False, "start_in_equilibrium": True}
-parameters = { 
-						}
 
 #parameters = {"output_dim":[100, 200, 300], "conn_input":[0.3, 0.7, 1], 
 #						"conn_recurrent":[0.1, 0.5], 'recurrent_weight_dist':[0, 1], "leak_rate":[0.3, 0.5, 0.7, 0.9], 
@@ -35,13 +33,13 @@ parameters = {
 #						'spectral_radius':[0.8, 0.9, 1, 1.1, 1.2], "ridge":[1e-10, 1e-8, 1e-6, 1e-4]
 #						#'ip_learning_rate':[0, 0.0005, 0.0001], 'ip_std':[0.001, 0.01]
 #						}
-parameters = {"output_dim":[300, 500], "conn_input":[0.1, 0.2, 0.3], 
-						"conn_recurrent":[0.1, 0.2, 0.3], "leak_rate":[0.5, 0.7, 0.9], 
-						'input_scaling': [0.01, 0.1], 'bias_scaling':[0, 0.1], 
-						'spectral_radius':[0.8, 0.9, 1], "ridge":[1e-8, 1e-6],
-						'ip_learning_rate':[0, 0.0005, 0.0001], 'ip_std':[0.001, 0.01]
+parameters = {"output_dim":[300, 500, 800], "conn_input":[0.2, 0.3], 
+						"leak_rate":[0.3, 0.7], 
+						'input_scaling': [0.1, 0.5], 'bias_scaling':[0, 0.3], 
+						'spectral_radius':[0.9, 1, 1.1], "ridge":[1e-8, 1e-6],
+						'ip_learning_rate':[0.00005, 0.0001], 'ip_std':[0.001, 0.01]
 						}
-#parameters = {'ip_learning_rate':[0, 0.0001], 'ip_std':[0.01, 0.02], "ridge":[1e-5, 1e-4], "reset_state":[False]}
+#parameters = {"ridge":[1e-5, 1e-4], "reset_state":[False]}
 if (user == 'witali'):
 	parameters = {'ip_learning_rate':[0.00005], 'ip_std':[0.01, 0.02]}
 	#parameters = {"output_dim":arange(100, 200, 50), "leak_rate":[0.3, 0.5, 0.7, 0.9, 1], 'spectral_radius':frange(1.0, 1.0, 0.5)}
@@ -67,8 +65,9 @@ for i in range(nr_combinations):
 			!python tasks.py '"$params_list_string"'
 			#!python drone_tasks.py '"$params_list_string"'
 		else:
-			if only_on_dollies:
-				!qsub -b y -cwd -o "tmp" -e "tmp" -l hostname="dolly*" python tasks.py '"$params_list_string"'
+			if min_mem:
+				!qsub -b y -cwd -o "tmp" -e "tmp" -l virtual_free=1500M python tasks.py '"$params_list_string"'
+				#!qsub -b y -cwd -o "tmp" -e "tmp" -l hostname="dolly*" python tasks.py '"$params_list_string"'
 			else:
 				!qsub -b y -cwd -o "tmp" -e "tmp" python tasks.py '"$params_list_string"'
 		params_list = list()

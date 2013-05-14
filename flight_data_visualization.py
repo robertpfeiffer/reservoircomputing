@@ -200,7 +200,10 @@ class Data_Visualization(QtGui.QWidget, FlightData):
     
     def visualize(self):
         for i in range(1,len(self.dataAltitude),10):
-            self.ui.lblAltitude.setText('Altitude: ' + str(self.dataAltitude[i]))
+            try:
+                self.ui.lblAltitude.setText('Altitude: ' + str(self.dataAltitude[i]))
+            except:
+                print 'Altitude Error'
             self.ui.lblBattery.setText('Battery: ' + self.dataBat[i])
             self.ui.lblCommand.setText('Command: ' + self.dataCommand[i])
             self.ui.lblPitch.setText('Pitch: ' + str(self.dataPitch[i]))
