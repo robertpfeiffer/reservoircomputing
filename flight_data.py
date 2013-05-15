@@ -5,6 +5,10 @@ from py_utils import *
 import numpy as np
 import esn_persistence
 
+#Ignore launch~ first and last x seconds
+start_cutoff = 100
+end_cutoff = 200
+        
 class FlightData():
     def __init__(self, filename, load_time=False, load_altitude=False, load_dV=False, load_xyz=True, k=30, LOG=False):
         self.LOG = LOG
@@ -310,9 +314,8 @@ class FlightData():
         #self.data = np.hstack((self.data, self.dataAltitude, 1))
         #self.data = np.hstack((self.data, self.dataYaw, 2))
         
-        #Ignore launch~ first 5 seconds and the last seconds in the end
-        cutoff = 50
-        self.data = self.data[cutoff:-cutoff,:]
+        #Ignore launch~ first and last x seconds
+        self.data = self.data[start_cutoff:-end_cutoff,:]
         
         if self.LOG:
             print self.data.shape

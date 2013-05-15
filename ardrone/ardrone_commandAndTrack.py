@@ -1,3 +1,8 @@
+""" ---------------------------------------------------------------------- #
+                AR Drone Command and Track Script
+                Version 2.0
+#   ------------------------------------------------------------------ """
+
 import ArdroneCommander
 import math
 import os
@@ -12,16 +17,36 @@ import esn_persistence
 
 from drone_esn import *
 
+MARGIN = 0.8
+# Trackable area [xmin, xmax, ymin, ymax, zmin, zmax]
+TRACKING_AREA = [-3.5, 3.5, 0.6, 1.9, -3.5, 3.5]
 
+x_target_margin = 0.2 #0.4
+y_target_margin = 0.1 #0.1
+z_target_margin = 0.2 #0.4
 
 class CommandAndTrack(object):
     
+    """ -------------------------------------------------------------------- #
+                    Initialize Drone and communication
+    #   ------------------------------------------------------------------ """
     def __init__(self):
         print 'init...'
+        
+        #self.ESN_control = True
+        self.ESN_control = False
+        if self.ESN_control:
+            self.with_esn = True
+            self.drone_esn = DroneESN()
+            print 'Successfully generated DroneESN()'
+        else:
+            self.with_esn = False
+        self.ESN_control = False #always false
         
         pygame.init()
         self.interval = 0.03
         self.command_list = []
+
         
         self.createCommandList()
 
@@ -55,19 +80,10 @@ class CommandAndTrack(object):
         
         self.targetPoint = [1.0,1.0,1.0]
         self.mustFlyToCenter = True
-        self.targetCount = 0
+        self.targetCount = -1
+        self.targetReached = -1
         self.targetStartSearch = 0
         self.targetReachingDuration = 0
-
-#        self.ESN_control = True
-        self.ESN_control = False
-        if self.ESN_control:
-            self.with_esn = True
-            self.drone_esn = DroneESN()
-            print 'Successfully generated DroneESN()'
-        else:
-            self.with_esn = False
-        self.ESN_control = False #always false
                       
         self.all_data = []
         
@@ -84,10 +100,17 @@ class CommandAndTrack(object):
         try:
             if self.with_esn:
                 self.drone_esn.save_echo()
-                esn_persistence.save_object(self.drone_esn, "esn_drone.txt")
+                #esn_persistence.save_object(self.drone_esn, "esn_drone.txt")
         except:
             print 'Error while saving data: ',sys.exc_info()[0], sys.exc_info()[1]
-       
+
+    """ -------------------------------------------------------------------- #
+                    Drone main flight handling procedure
+                    
+        * Drone works through the flight-command-list
+        * If drone leaves the tracking area, trivial autopilot is called
+          to push it back
+    #   ------------------------------------------------------------------ """
     def flightLoop(self):
 
         last_time = time.time()
@@ -105,7 +128,7 @@ class CommandAndTrack(object):
                     else:
                         search_time = time.time() - self.targetStartSearch
                     if self.command_list[0] == 'target':
-                        print 'Targets reached: ' + str(self.targetCount) + '\t NEW target at:' + str(self.command_list[1])
+                        print 'Targets reached: ' + str(self.targetReached) + '/' + str(self.targetCount) + '\t NEW target at:' + str(self.command_list[1])
                         self.overTargetCount=0
                         self.targetPoint = self.command_list[1]
                         self.command_list = self.command_list[2:]
@@ -113,23 +136,27 @@ class CommandAndTrack(object):
                         self.getFreshData()
                         self.stayInside()
                         self.targetCount += 1
-                        if self.with_esn and self.targetCount > 2:
+                        self.targetReached += 1
+                        if self.with_esn and self.targetCount > 0:
                             self.ESN_control=True
-                    elif search_time > 10:
+                    elif search_time > 30:
+                        self.targetReached -= 1
+                        print 'targetReached--'
                         if self.command_list[1]<>'winkel':
                             self.command_list = self.command_list[2:]
                         else:
                             self.command_list = self.command_list[6:]
                         print 'Targets NOT reached in 10s' #+ str(self.targetCount) + '\t NEW target at:' + str(self.command_list[1])
                     else:
-                        print 'Targets reached: ' + str(self.targetCount) + '\t Target at:' + str(self.targetPoint) + '\t Current Pos.: '+ str(self.x) + ' '+ str(self.y) + ' '+ str(self.z) 
+                        targetstr = str(self.targetPoint[0])[:4] +' '+ str(self.targetPoint[1])[:4] +' '+ str(self.targetPoint[2])[:4]   
+                        print 'Searchtime: ' + str(search_time)[:3] + 's Targets reached: ' + str(self.targetReached) + '/' + str(self.targetCount) + '\t Target at:' + targetstr + '\t Current Pos.: '+ str(self.x)[:4] + ' '+ str(self.y)[:4] + ' '+ str(self.z)[:4] 
                         self.command_list[0] = float(self.command_list[0])-self.interval
                         
                         if self.command_list[1]<>'end':
                             self.getFreshData()
                             self.stayInside()
                                                  
-                        if int(self.battery)<20 and self.command_list[1]<>'end':
+                        if int(self.battery)<32 and self.command_list[1]<>'end':
                             self.command_list = [1,'end']
                         if self.command_list[0]<>'target':
                             #print 'self.command_list[0]<>target'
@@ -152,7 +179,9 @@ class CommandAndTrack(object):
                     else:
                         self.command_list = self.command_list[6:]
 
-    """ Script updates and parses the data send by the drone. """
+    """ -------------------------------------------------------------------- #
+                    Updates and parses the data send by the drone
+    #   ------------------------------------------------------------------ """
     def getFreshData(self):
         self.readlist = [self.commander_sock]
         (sread, swrite, sexc) =  select.select(self.readlist, [], [], 0.01)
@@ -220,8 +249,10 @@ class CommandAndTrack(object):
                 msg=msg[temp+1:]              
             except:
                 print 'message decoding error'
-            
-    """ Drone turns to face the north pole direction until success. """
+
+    """ -------------------------------------------------------------------- #
+            Drone turns to face the north pole direction until success
+    #   ------------------------------------------------------------------ """
     def faceNorth(self):
         if self.command_list[1]<>'autoturnleft' and self.command_list[1]<>'autoturnright':
             if int(self.yaw) > 10:
@@ -235,22 +266,19 @@ class CommandAndTrack(object):
     def flyTo(self,x,z):
         pass
 
-    """ Drone checks if it is outside a defined area - the Home/Save zone.
-        If so it initiates a correcting movement command to get into the zone. """
+    """ -------------------------------------------------------------------- #
+        Drone checks if it is outside a defined area - the Home/Save zone.
+        If so it initiates a correcting movement command to get into the zone.
+    #   ------------------------------------------------------------------ """
     def stayInside(self):
         
 ##        if self.mustFlyToCenter == True:
             
-
+        margin = 1.5
         #supermarket trackable area: x -2 3, z -2 4
         
         #tracking area - if outside, then return to self.targetPoint
-        xmin = -3.5
-        xmax = 3.5
-        ymin = 0.7
-        ymax = 1.5
-        zmin = -3.5
-        zmax = 4
+        xmin,xmax,ymin,ymax,zmin,zmax = TRACKING_AREA
         
         x = self.x
         y = self.y
@@ -267,16 +295,14 @@ class CommandAndTrack(object):
             
         
         # Home zone / Target zone definition
-        xmin = self.currentTarget[0] -0.4
-        xmax = self.currentTarget[0] +0.4
-        ymin = self.currentTarget[1] -0.1
-        ymax = self.currentTarget[1] +0.2
-        zmin = self.currentTarget[2] -0.4
-        zmax = self.currentTarget[2] +0.4
         
-                
+        xmin = self.currentTarget[0] - x_target_margin
+        xmax = self.currentTarget[0] + x_target_margin
+        ymin = self.currentTarget[1] - y_target_margin
+        ymax = self.currentTarget[1] + x_target_margin
+        zmin = self.currentTarget[2] - z_target_margin
+        zmax = self.currentTarget[2] + z_target_margin
         
-
         
         w1 = 0
         w2 = 0
@@ -361,7 +387,7 @@ class CommandAndTrack(object):
                 # Set w1 and w2 by our movement correction formula
                 w1 = (math.sin( math.radians(float(self.yaw)) + math.radians(-beta) )) * speed_factor
                 w2 = (math.cos( math.radians(float(self.yaw)) + math.radians(-beta) )) * speed_factor
-                print 'stayinside w1: ' + str(w1) + ', w2: ' + str(w2)
+                #print 'stayinside w1: ' + str(w1) + ', w2: ' + str(w2)
                 
                 if float(y)>ymax:
                     w3 = -0.1
@@ -428,8 +454,10 @@ class CommandAndTrack(object):
 #                msg = self.command_list[1] + ' w1,w2,w3,w4= ' + str(self.ardrone_commander.w1) + ', ' + str(self.ardrone_commander.w2) + ', ' + str(self.ardrone_commander.w3) + ', ' + str(self.ardrone_commander.w4)
 #                print str(msg)
 
-    """ Script sends the current movement command with its parameter values to DroneSocketTest,
-        which saves it with the rest of the data. """
+    """ -------------------------------------------------------------------- #
+        Function sends the current movement command with its parameter
+        values to DroneSocketTest, which saves it with the rest of the data.
+    #   ------------------------------------------------------------------ """
     def saveData(self):
         if self.command_list[1]=='autowinkel':
             msg = self.command_list[1] + ' w1,w2,w3,w4= ' + str(self.ardrone_commander.w1) + ', ' + str(self.ardrone_commander.w2) + ', ' + str(self.ardrone_commander.w3) + ', ' + str(self.ardrone_commander.w4) + '; target: ' + str(self.targetPoint)
@@ -464,12 +492,22 @@ class CommandAndTrack(object):
 #            self.command_list = self.command_list + ['target', [rx, 1.2, rz]]
 
             # random targets inside the trackable area
-            for j in range(4):
-                rx=random.randint(-3,3)
-                ry=random.random()*0.5+0.9
-                rz=random.randint(-3,3)
+            for j in range(2):
+                x1,x2,y1,y2,z1,z2=TRACKING_AREA
+                
+                x1+=MARGIN
+                z1+=MARGIN
+                y1+=MARGIN/10.0
+                y2-=MARGIN/10.0
+                x2-=MARGIN
+                z2-=MARGIN
+                
+                rx=random.random()*(x2-x1)+x1
+                ry=random.random()*(y2-y1)+y1
+                rz=random.random()*(z2-z1)+z1
                 self.command_list = self.command_list + ['target', [rx, ry, rz]]
-            self.command_list = self.command_list + [0.3, 'turnleft'] 
+            if not self.with_esn:
+                self.command_list = self.command_list + [0.8, 'turnleft'] 
             
             # predefined movement rectangle
             #for j in range(1):

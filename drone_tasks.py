@@ -55,7 +55,21 @@ def control_task_wo_position(Plots=True, LOG=True, Save=False, **machine_params)
         
     return nrmse  
 
-def control_task(T=5, Plots=True, LOG=True, Save=False, **machine_params):
+def heatmap():
+    data, flight_data = load_new_mensa_data(k=20)
+    x = data[:,3]
+    z = data[:,5]
+    # missing for some reason 
+    #plt.hist2d(pylab.hist2d(x,z,bins=100)
+    
+    hist,xedges,yedges = numpy.histogram2d(x,z,bins=100)
+    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1] ]
+    plt.imshow(hist.T,extent=extent,interpolation='nearest',origin='lower')
+    plt.colorbar()
+
+    plt.show()
+
+def control_task(T=10, Plots=True, LOG=True, Save=False, **machine_params):
     if LOG:
         print 'Control Ws Generation'
         
@@ -68,7 +82,7 @@ def control_task(T=5, Plots=True, LOG=True, Save=False, **machine_params):
     w_columns = w_columns - 3
     
     if (machine_params == None or len(machine_params)==0):
-        machine_params = {'output_dim':300, 'input_scaling':0.1, 'bias_scaling':0.3, 
+        machine_params = {'output_dim':400, 'input_scaling':0.1, 'bias_scaling':0.3, 
                           'conn_input':0.3, 'leak_rate':0.7, 'conn_recurrent':0.2, 
                           'ridge':1e-6, 'spectral_radius':1,
                           'ip_learning_rate':0.00005, 'ip_std':0.01, 
