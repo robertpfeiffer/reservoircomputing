@@ -43,6 +43,14 @@ class DroneESN(object):
         if len(data.shape) == 1:
             data = data[None,:]
             
+            
+        #if drone control
+        if self.trainer.machine.ninput == 10:
+            nr_columns = data.shape[1]
+            #delta: target - position
+            data[:,nr_columns-6:nr_columns-3] = data[:,nr_columns-3:] - data[:,nr_columns-6:nr_columns-3]
+            data = data[:,:nr_columns-3]
+            
         echo, prediction = self.trainer.predict(data)
         if self.echos is None:
             self.echos = echo

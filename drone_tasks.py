@@ -55,11 +55,11 @@ def control_task_wo_position(Plots=True, LOG=True, Save=False, **machine_params)
         
     return nrmse  
 
-def control_task(T=10, Plots=True, LOG=True, Save=False, **machine_params):
+def control_task(T=5, Plots=True, LOG=True, Save=False, **machine_params):
     if LOG:
         print 'Control Ws Generation'
         
-    data, flight_data = load_new_mensa_data(k=10)
+    data, flight_data = load_new_mensa_data(k=30)
     #data, flight_data = load_flight_random_target_data(k=30)
     w_columns = flight_data.w_columns
     
@@ -68,9 +68,9 @@ def control_task(T=10, Plots=True, LOG=True, Save=False, **machine_params):
     w_columns = w_columns - 3
     
     if (machine_params == None or len(machine_params)==0):
-        machine_params = {'output_dim':300, 'input_scaling':0.1, 'bias_scaling':0.2, 
-                          'conn_input':0.4, 'leak_rate':0.3, 'conn_recurrent':0.2, 
-                          'ridge':1e-8, 
+        machine_params = {'output_dim':300, 'input_scaling':0.1, 'bias_scaling':0.3, 
+                          'conn_input':0.3, 'leak_rate':0.7, 'conn_recurrent':0.2, 
+                          'ridge':1e-6, 'spectral_radius':1,
                           'ip_learning_rate':0.00005, 'ip_std':0.01, 
                           'reset_state':False, 'start_in_equilibrium':True}
         
@@ -193,7 +193,7 @@ def predict_xyz_task_sequence(T=5, LOG=True, Plots=False, **machine_params):
         esn_plotting.plot_predictions_targets(task.best_evaluation_prediction, task.evaluation_target, ('X', 'Y', 'Z'))
         
     return best_nrmse, machine 
-    
+"""    
 def control_task_for_grid(params_list):
     #TODO: kein copy&paste, sondern grid_runner herausfaktorieren 
     if (params_list == None or len(params_list)==0):
@@ -216,16 +216,20 @@ def control_task_for_grid(params_list):
     
     result = output.getvalue()
     print result
-    
+"""    
 if __name__ == '__main__':
-    #control_task_for_grid()
-    #predict_xyz_task(Plots=True)
+    control_task(LOG=True, Plots=True, Save=True)
+    #predict_xyz_task(LOG=True, Plots=True, Save=True)
+    #control_task_wo_position(Plots=True, Save=True)
+    
+    """    
     if (len(sys.argv)==1):
-        control_task(Plots=True, Save=True)
-        #predict_xyz_task(Plots=True, Save=True)
+        control_task(LOG=True, Plots=True, Save=True)
+        #predict_xyz_task(LOG=True, Plots=True, Save=True)
         
         #control_task_wo_position(Plots=True, Save=True)
     else:
         args = sys.argv[1]
         dic_list = correct_dictionary_arg(args)
         control_task_for_grid(dic_list)
+    """
