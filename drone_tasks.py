@@ -49,20 +49,6 @@ def control_task_wo_position(Plots=True, LOG=True, Save=False, **machine_params)
         
     return nrmse  
 
-def heatmap():
-    data, flight_data = load_new_mensa_data(k=20)
-    x = data[:,3]
-    z = data[:,5]
-    # missing for some reason 
-    #plt.hist2d(pylab.hist2d(x,z,bins=100)
-    
-    hist,xedges,yedges = numpy.histogram2d(x,z,bins=100)
-    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1] ]
-    plt.imshow(hist.T,extent=extent,interpolation='nearest',origin='lower')
-    plt.colorbar()
-
-    plt.show()
-
 def control_task(T=1, Plots=True, LOG=True, Save=False, **machine_params):
     if LOG:
         print 'Control Ws Generation'

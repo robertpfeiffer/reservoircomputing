@@ -4,15 +4,16 @@ import matplotlib.pyplot as plt
 
 
 from reservoircomputing.esn_persistence import *
+from drone_tasks import *
 from drone_esn import *
 from flight_data import *
 
 def analyse_drone_results():
-    directory = 'results/mensa_results_2s_500N_062/'
-    flight_data_name = 'flight_Thu_16_May_2013_16_31_32_AllData'
+#    directory = 'results/mensa_results_2s_500N_062/'
+#    flight_data_name = 'flight_Thu_16_May_2013_16_31_32_AllData'
     
-#    directory = 'results/mensa_results_2s_300N_066/'
-#    flight_data_name = 'flight_Thu_16_May_2013_15_30_31_AllData'
+    directory = 'results/mensa_results_2s_300N_066/'
+    flight_data_name = 'flight_Thu_16_May_2013_15_30_31_AllData'
 #    
     echo = np.squeeze(load_arrays(directory+'drone_echo.npz')[0])
     flight_data = FlightData(directory+flight_data_name)
@@ -21,6 +22,21 @@ def analyse_drone_results():
     print echo.shape, data.shape
     
 
+def heatmap():
+    data, flight_data = load_new_mensa_data(k=20)
+    x = data[:,3]
+    z = data[:,5]
+    # missing for some reason 
+    #plt.hist2d(pylab.hist2d(x,z,bins=100)
+    
+    hist,xedges,yedges = numpy.histogram2d(x,z,bins=100)
+    extent = [xedges[0], xedges[-1], yedges[0], yedges[-1] ]
+    plt.imshow(hist.T,extent=extent,interpolation='nearest',origin='lower')
+    plt.colorbar()
+
+    plt.show()
+    
+    
 def analyse_grid_results():
 
     #data = genfromtxt('results/mso5_13_02.csv', delimiter=',', names=True)
