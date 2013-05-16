@@ -1,9 +1,7 @@
+from reservoircomputing import *
 from flight_data import *
-from reservoir import *
-from esn_readout import *
 from py_utils import *
-from data_normalizer import *
-from py_utils import *
+from reservoircomputing.tasks import *
 
 import io
 import sys
@@ -11,10 +9,6 @@ import os
 
 import numpy as np
 import time
-import error_metrics
-import esn_plotting
-from activations import *
-from tasks import *
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -69,11 +63,11 @@ def heatmap():
 
     plt.show()
 
-def control_task(T=10, Plots=True, LOG=True, Save=False, **machine_params):
+def control_task(T=1, Plots=True, LOG=True, Save=False, **machine_params):
     if LOG:
         print 'Control Ws Generation'
         
-    data, flight_data = load_new_mensa_data(k=50)
+    data, flight_data = load_new_mensa_data(k=20)
     #data, flight_data = load_flight_random_target_data(k=30)
     w_columns = flight_data.w_columns
     
@@ -82,19 +76,20 @@ def control_task(T=10, Plots=True, LOG=True, Save=False, **machine_params):
     w_columns = w_columns - 3
     
     if (machine_params == None or len(machine_params)==0):
+        
         machine_params = {'output_dim':500, 'input_scaling':0.1, 'bias_scaling':0.3, 
                   'conn_input':0.3, 'leak_rate':0.7, 'conn_recurrent':0.2, 
                   'ridge':1e-6, 'spectral_radius':0.9,
                   'ip_learning_rate':0.00005, 'ip_std':0.01, 
                   'reset_state':False, 'start_in_equilibrium':True}
         """
-        machine_params = {'output_dim':400, 'input_scaling':0.1, 'bias_scaling':0.3, 
+        machine_params = {'output_dim':300, 'input_scaling':0.1, 'bias_scaling':0.3, 
                           'conn_input':0.3, 'leak_rate':0.7, 'conn_recurrent':0.2, 
                           'ridge':1e-6, 'spectral_radius':1,
                           'ip_learning_rate':0.00005, 'ip_std':0.01, 
                           'reset_state':False, 'start_in_equilibrium':True}
         """
-        
+          
     test_length = 2000
     train_length = data.shape[0] - test_length
         
@@ -239,6 +234,7 @@ def control_task_for_grid(params_list):
     print result
 """    
 if __name__ == '__main__':
+    #heatmap()
     control_task(LOG=True, Plots=True, Save=True)
     #predict_xyz_task(LOG=True, Plots=True, Save=True)
     #control_task_wo_position(Plots=True, Save=True)

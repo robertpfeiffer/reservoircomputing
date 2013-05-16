@@ -1,11 +1,11 @@
 import unittest
-import tasks
+from reservoircomputing import *
 from math import *
 import drone_esn
-from drone_esn import DroneESN
-from esn_persistence import *
-from reservoir import *
-from esn_readout import *
+from drone_esn import *
+from reservoircomputing.esn_persistence import *
+from reservoircomputing.reservoir import *
+from reservoircomputing.esn_readout import *
 import os
 
 class TaskTests(unittest.TestCase):

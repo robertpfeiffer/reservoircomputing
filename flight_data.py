@@ -3,12 +3,12 @@ import time
 from datetime import datetime
 from py_utils import *
 import numpy as np
-import esn_persistence
+import reservoircomputing.esn_persistence as esn_persistence
 
 #Ignore launch~ first and last x seconds
 start_cutoff = 100
 end_cutoff = 200
-        
+
 class FlightData():
     def __init__(self, filename, load_time=False, load_altitude=False, load_dV=False, load_xyz=True, k=30, LOG=False):
         self.LOG = LOG

@@ -3,7 +3,7 @@
                 Version 2.0
 #   ------------------------------------------------------------------ """
 
-import ArdroneCommander
+import ardrone.ArdroneCommander as ArdroneCommander
 import math
 import os
 import pygame
@@ -13,7 +13,7 @@ import socket
 import struct
 import sys
 import time
-import esn_persistence
+import reservoircomputing.esn_persistence as esn_persistence
 
 from drone_esn import *
 
@@ -31,10 +31,20 @@ class CommandAndTrack(object):
                     Initialize Drone and communication
     #   ------------------------------------------------------------------ """
     def __init__(self):
+        self.log1 = '' # log1 structure: Timestamp, Search time, target point, current position of drone, boolean out of tracking area, boolean not yet at target point, battery
+        self.log2 = '' #Timestamp. Target reached or not. Searchtime. Target. Battery.   
+        
+        tmpstmp=time.strftime("%a_%d_%b_%Y_%H_%M_%S", time.localtime())
+        
+        self.log1_filename = 'statistics_1_'+tmpstmp+'.txt'        
+        self.log2_filename = 'statistics_2_'+tmpstmp+'.txt'
+        
+        
+        
         print 'init...'
         
-        #self.ESN_control = True
-        self.ESN_control = False
+        self.ESN_control = True
+#        self.ESN_control = False
         if self.ESN_control:
             self.with_esn = True
             self.drone_esn = DroneESN()
@@ -42,6 +52,8 @@ class CommandAndTrack(object):
         else:
             self.with_esn = False
         self.ESN_control = False #always false
+        
+        self.outoftrackingarea=False
         
         pygame.init()
         self.interval = 0.03
@@ -104,6 +116,20 @@ class CommandAndTrack(object):
         except:
             print 'Error while saving data: ',sys.exc_info()[0], sys.exc_info()[1]
 
+
+    def saveLogs(self):
+        
+        f=open(self.log1_filename,"a")
+        f.write(str(self.log1))
+        f.close()
+        self.log1=''
+
+        f=open(self.log2_filename,"a")
+        f.write(str(self.log2))
+        f.close()
+        self.log2=''
+        
+
     """ -------------------------------------------------------------------- #
                     Drone main flight handling procedure
                     
@@ -114,13 +140,20 @@ class CommandAndTrack(object):
     def flightLoop(self):
 
         last_time = time.time()
-
+        search_time=0
         print 'now run until command list is empty'
 
         while self.command_list<>[]:
             if time.time()-last_time > self.interval:
-                 
                 last_time = time.time()
+                
+                #tmpstmp=time.strftime("%a_%d_%b_%Y_%H_%M_%S", time.localtime())
+                tmpstmp = str(last_time)
+                # log1 structure: Timestamp, Search time, target point, current position of drone, boolean out of tracking area, boolean not yet at target point, battery
+                self.log1=self.log1 + str([str(tmpstmp), str(search_time)[:5], str(self.targetPoint[0])[:5] +' '+ str(self.targetPoint[1])[:5] +' '+ str(self.targetPoint[2])[:5], str(self.x)[:5] + ' '+ str(self.y)[:5] + ' '+ str(self.z)[:5], str(self.outoftrackingarea), str(self.mustFlyToCenter), str(self.battery)])  + '\n' 
+                
+                
+                
                 #print "command_list[0]", str(self.command_list[0])
                 if self.command_list[0]>0: #self.command_list[0] ist die zeit, die schon im aktuellen ziel verbracht wurde
                     if self.targetStartSearch == 0:
@@ -128,6 +161,10 @@ class CommandAndTrack(object):
                     else:
                         search_time = time.time() - self.targetStartSearch
                     if self.command_list[0] == 'target':
+                        print 'target reached. '
+                        self.log2=self.log2 + str([str(tmpstmp), 'Target     reached after: ', str(search_time)[:5], str(self.targetPoint[0])[:5] +' '+ str(self.targetPoint[1])[:5] +' '+ str(self.targetPoint[2])[:5], str(self.battery)]) + '\n'
+                        self.saveLogs() 
+                        
                         print 'Targets reached: ' + str(self.targetReached) + '/' + str(self.targetCount) + '\t NEW target at:' + str(self.command_list[1])
                         self.overTargetCount=0
                         self.targetPoint = self.command_list[1]
@@ -140,8 +177,12 @@ class CommandAndTrack(object):
                         if self.with_esn and self.targetCount > 0:
                             self.ESN_control=True
                     elif search_time > 30:
-                        self.targetReached -= 1
-                        print 'targetReached--'
+                        if self.command_list[1]<>'autoleft' and self.command_list[1]<>'autoright':
+                            self.targetReached -= 1
+                            print 'target not reached'
+                            self.log2=self.log2 + str([str(tmpstmp), 'Target not reached after: ', str(search_time)[:5], str(self.targetPoint[0])[:5] +' '+ str(self.targetPoint[1])[:5] +' '+ str(self.targetPoint[2])[:5], str(self.battery)]) + '\n'
+                            self.saveLogs()
+                            
                         if self.command_list[1]<>'winkel':
                             self.command_list = self.command_list[2:]
                         else:
@@ -156,7 +197,7 @@ class CommandAndTrack(object):
                             self.getFreshData()
                             self.stayInside()
                                                  
-                        if int(self.battery)<32 and self.command_list[1]<>'end':
+                        if int(self.battery)<33 and self.command_list[1]<>'end':
                             self.command_list = [1,'end']
                         if self.command_list[0]<>'target':
                             #print 'self.command_list[0]<>target'
@@ -288,8 +329,10 @@ class CommandAndTrack(object):
         
         original_ESN_control=self.ESN_control
         
+        self.outoftrackingarea=False
         if float(x)>xmax or float(x)<xmin or float(z)>zmax or float(z)<zmin or float(y)>ymax or float(y)<ymin:
             print 'NO ESN CONTROL!!! OUT OF TRACKING AREA! GOTO 0,1,0'
+            self.outoftrackingarea=True
             self.ESN_control=False
             self.currentTarget=[0,1,0]
             

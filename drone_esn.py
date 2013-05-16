@@ -1,11 +1,10 @@
-from esn_persistence import *
-from esn_plotting import *
-from reservoir import *
-from esn_readout import *
+from reservoircomputing.esn_persistence import *
+from reservoircomputing.esn_plotting import *
+from reservoircomputing.reservoir import *
+from reservoircomputing.esn_readout import *
 from flight_data import *
 from py_utils import *
 import numpy as np
-import esn_persistence
 import os.path
 
 
