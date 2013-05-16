@@ -1,8 +1,4 @@
-from reservoir import *
-from esn_readout import *
-from one_two_a_x_task import *
 from numpy import *
-from py_utils import *
 import shelve
 import numpy as np
 import matplotlib
@@ -11,17 +7,22 @@ import matplotlib.cm as cm
 import itertools
 import sys
 import time
-import error_metrics
 import csv
 import io
 import sys
 import ast
-from esn_persistence import *
-from esn_plotting_simple import *
-from activations import *
-import drone_tasks
 import copy
 import random
+
+from reservoircomputing.activations import *
+from reservoircomputing.reservoir import *
+from reservoircomputing.esn_readout import *
+from reservoircomputing.one_two_a_x_task import *
+from reservoircomputing.esn_plotting_simple import *
+from reservoircomputing.esn_persistence import *
+import reservoircomputing.error_metrics as error_metrics
+
+import drone_tasks
 from flight_data import *
 #import Oger
 
@@ -1010,8 +1011,8 @@ if __name__ == "__main__":
             
             #mso_task()
             #mso_task_analysis()
-            #drone_tasks.predict_xyz_task()
-            drone_tasks.control_task()
+            drone_tasks.predict_xyz_task()
+            #drone_tasks.control_task()
             
             #plot_mso_data()
             #NARMA_task(T=5)

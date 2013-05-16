@@ -1,7 +1,7 @@
 from reservoircomputing import *
 from flight_data import *
 from py_utils import *
-from reservoircomputing.tasks import *
+from tasks import *
 
 import io
 import sys
@@ -109,6 +109,8 @@ def load_flight_random_target_data(k):
 
 def load_flight_data_in_dir(k, directory):
     #file_names = filter(os.path.isfile, os.listdir(directory))
+    if not os.path.exists(directory):
+        directory = '../'+directory
     all_file_names = os.listdir(directory)
     file_names = [ f for f in all_file_names if not f.startswith('.') ]
     data_list = list()
@@ -124,17 +126,15 @@ def load_new_mensa_data(k):
     return load_flight_data_in_dir(k, "flight_data/mensa_random/")
     
     
-def predict_xyz_task(T=5, LOG=True, Plots=False, Save=False, k=20, **machine_params):
+def predict_xyz_task(T=310, LOG=True, Plots=False, Save=False, k=20, **machine_params):
     #data, flight_data = load_flight_random_target_data(k=30)
     data, flight_data = load_new_mensa_data(k=k)
     #delta_xyz - schlechtere Ergebnisse
     #data[:,flight_data.target_xyz_columns] = data[:,flight_data.target_xyz_columns] - data[:,flight_data.xyz_columns]
     if LOG:
         print 'Predict XYZ'
-    washout_length = 50
     #test_length = 4779
-    #washout_length = 100
-    test_length = 3000
+    test_length = 7000
     nr_rows = data.shape[0]
     train_length = nr_rows - test_length
     
@@ -147,7 +147,7 @@ def predict_xyz_task(T=5, LOG=True, Plots=False, Save=False, k=20, **machine_par
     
     task = ESNTask(machine_params, fb=False, T=T, LOG=LOG)
     best_nrmse, machine = task.run(data,
-                    training_time=train_length, testing_time=test_length, washout_time=washout_length, 
+                    training_time=train_length, testing_time=test_length, washout_time=50, 
                     target_columns=flight_data.target_xyz_columns)
 
     if Plots:
@@ -161,7 +161,7 @@ def predict_xyz_task(T=5, LOG=True, Plots=False, Save=False, k=20, **machine_par
     return best_nrmse, machine 
 
 def predict_xyz_task_sequence(T=5, LOG=True, Plots=False, **machine_params):
-    k = 10
+    k = 20
     f1FD = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData',  k=k)
     f1 = f1FD.data
     f2 = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_23_03_AllData', k=k).data
@@ -182,7 +182,7 @@ def predict_xyz_task_sequence(T=5, LOG=True, Plots=False, **machine_params):
         print 'Predict XYZ'
     
     if (machine_params == None or len(machine_params)==0):
-        machine_params = {'output_dim':100, 'input_scaling':0.2, 'conn_input':0.3, 
+        machine_params = {'output_dim':200, 'input_scaling':0.2, 'conn_input':0.3, 
                           'leak_rate':0.3, 'ridge':1e-8, 
                           'ip_learning_rate':0.00001, 'ip_std':0.01,
                           'reset_state':False, 'start_in_equilibrium':True
@@ -221,8 +221,8 @@ def control_task_for_grid(params_list):
 """    
 if __name__ == '__main__':
     #heatmap()
-    control_task(LOG=True, Plots=True, Save=True)
-    #predict_xyz_task(LOG=True, Plots=True, Save=True)
+    #control_task(LOG=True, Plots=True, Save=True)
+    predict_xyz_task(LOG=True, Plots=True, Save=True)
     #control_task_wo_position(Plots=True, Save=True)
     
     """    
