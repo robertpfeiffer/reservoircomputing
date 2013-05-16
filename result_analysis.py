@@ -2,9 +2,24 @@ import numpy as np
 from numpy import genfromtxt
 import matplotlib.pyplot as plt
 
-def analyse_drone_results():
-    pass
 
+from reservoircomputing.esn_persistence import *
+from drone_esn import *
+from flight_data import *
+
+def analyse_drone_results():
+    directory = 'results/mensa_results_2s_500N_062/'
+    flight_data_name = 'flight_Thu_16_May_2013_16_31_32_AllData'
+    
+#    directory = 'results/mensa_results_2s_300N_066/'
+#    flight_data_name = 'flight_Thu_16_May_2013_15_30_31_AllData'
+#    
+    echo = np.squeeze(load_arrays(directory+'drone_echo.npz')[0])
+    flight_data = FlightData(directory+flight_data_name)
+    data = flight_data.data
+    
+    print echo.shape, data.shape
+    
 
 def analyse_grid_results():
 
@@ -41,3 +56,4 @@ def analyse_grid_results():
     plt.show()
     
 if __name__ == '__main__':
+    analyse_drone_results()

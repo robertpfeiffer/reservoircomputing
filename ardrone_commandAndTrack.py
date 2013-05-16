@@ -112,7 +112,6 @@ class CommandAndTrack(object):
         try:
             if self.with_esn:
                 self.drone_esn.save_echo()
-                #esn_persistence.save_object(self.drone_esn, "esn_drone.txt")
         except:
             print 'Error while saving data: ',sys.exc_info()[0], sys.exc_info()[1]
 
