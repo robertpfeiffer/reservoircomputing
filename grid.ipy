@@ -33,9 +33,9 @@ machine_params = {"Plots":False, "LOG":False,
 #						'spectral_radius':[0.8, 0.9, 1, 1.1, 1.2], "ridge":[1e-10, 1e-8, 1e-6, 1e-4]
 #						#'ip_learning_rate':[0, 0.0005, 0.0001], 'ip_std':[0.001, 0.01]
 #						}
-parameters = {"output_dim":[300, 500, 800], "conn_input":[0.2, 0.3], 
+parameters = {"output_dim":[200, 300, 500], "conn_input":[0.2, 0.3], 
 						"leak_rate":[0.3, 0.7], 
-						'input_scaling': [0.1, 0.5], 'bias_scaling':[0, 0.3], 
+						'input_scaling': [0.1, 0.3, 0.5], 'bias_scaling':[0.1, 0.3], 
 						'spectral_radius':[0.9, 1, 1.1], "ridge":[1e-8, 1e-6],
 						'ip_learning_rate':[0.00005, 0.0001], 'ip_std':[0.001, 0.01]
 						}
