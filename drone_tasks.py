@@ -126,25 +126,25 @@ def load_new_mensa_data(k):
     return load_flight_data_in_dir(k, "flight_data/mensa_random/")
     
     
-def predict_xyz_task(T=310, LOG=True, Plots=False, Save=False, k=20, **machine_params):
+def predict_xyz_task(T=10, LOG=True, Plots=False, Save=False, k=10, **machine_params):
     #data, flight_data = load_flight_random_target_data(k=30)
     data, flight_data = load_new_mensa_data(k=k)
     #delta_xyz - schlechtere Ergebnisse
     #data[:,flight_data.target_xyz_columns] = data[:,flight_data.target_xyz_columns] - data[:,flight_data.xyz_columns]
     if LOG:
-        print 'Predict XYZ'
+        print 'Predict XYZ, k =', k
     #test_length = 4779
     test_length = 7000
     nr_rows = data.shape[0]
     train_length = nr_rows - test_length
     
     if (machine_params == None or len(machine_params)==0):
-        machine_params = {'output_dim':150, 'input_scaling':0.1, 'conn_input':0.2, 'conn_recurrent':0.3,
-                          'leak_rate':0.5, 'ridge':1e-8, 'bias_scaling':0.01, 'spectral_radius':0.8, 
-                          #'ip_learning_rate':0.001, 'ip_std':0.01,
+        machine_params = {'output_dim':200, 'input_scaling':0.1, 'conn_input':0.2, 'conn_recurrent':0.2,
+                          'leak_rate':0.3, 'ridge':1e-5, 'bias_scaling':0.1, 'spectral_radius':1, 
+                          #'ip_learning_rate':0.00005, 'ip_std':0.01,
                           'reset_state':False, 'start_in_equilibrium':True
                           }
-    
+        
     task = ESNTask(machine_params, fb=False, T=T, LOG=LOG)
     best_nrmse, machine = task.run(data,
                     training_time=train_length, testing_time=test_length, washout_time=50, 
@@ -179,7 +179,7 @@ def predict_xyz_task_sequence(T=5, LOG=True, Plots=False, **machine_params):
     targets = [f1[:,f1FD.target_xyz_columns],f2[:,f1FD.target_xyz_columns],f3[:,f1FD.target_xyz_columns],
                f4[:,f1FD.target_xyz_columns],f5[:,f1FD.target_xyz_columns],f6[:,f1FD.target_xyz_columns]]
     if LOG:
-        print 'Predict XYZ'
+        print 'Predict XYZ Sequence'
     
     if (machine_params == None or len(machine_params)==0):
         machine_params = {'output_dim':200, 'input_scaling':0.2, 'conn_input':0.3, 

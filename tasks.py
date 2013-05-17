@@ -808,8 +808,8 @@ def run_task_for_grid(params_list):
     writer.writerow(dict((fn,fn) for fn in fieldnames))
     for machine_params in params_list:
         
-        #best_nrmse,_ = drone_tasks.predict_xyz_task(**machine_params)
-        best_nrmse,_ = drone_tasks.control_task(**machine_params)
+        best_nrmse,_ = drone_tasks.predict_xyz_task(**machine_params)
+        #best_nrmse,_ = drone_tasks.control_task(**machine_params)
         #best_nrmse,_ = mso_task(**machine_params)
         #best_nrmse, best_esn = mackey_glass_task(**machine_params)
         #best_nrmse, best_esn = NARMA_task(**machine_params)
