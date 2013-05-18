@@ -6,7 +6,7 @@ import matplotlib.pyplot
 import error_metrics
 import random
 
-data=numpy.loadtxt('data/MackeyGlass_t17.txt')
+data=numpy.loadtxt('../data/MackeyGlass_t17.txt')
 
 window=50
 w1=scipy.signal.gaussian(window,5)
@@ -38,21 +38,23 @@ offset=30
 bubble=50
 split=1000
 
+ridge = 1e-2
+
 reload(reservoir)
 net1=reservoir.ESN(2,bubble)
-trainer = r.FeedbackReadout(net1, r.LinearRegressionReadout(net1, 1))
+trainer = r.FeedbackReadout(net1, r.LinearRegressionReadout(net1, ridge))
 _ = trainer.train(data[split:-offset,None],data1[split+offset:,None])
 n1=net1.fold_in_feedback()
 _,d1 = trainer.predict(data[:split,None])
 
 net2=reservoir.ESN(2,bubble)
-trainer = r.FeedbackReadout(net2, r.LinearRegressionReadout(net2, 1))
+trainer = r.FeedbackReadout(net2, r.LinearRegressionReadout(net2, ridge))
 _ = trainer.train(data[split:-offset,None],data2[split+offset:,None])
 n2=net2.fold_in_feedback()
 _,d2 = trainer.predict(data[:split,None])
 
 net3=reservoir.ESN(2,bubble)
-trainer = r.FeedbackReadout(net3, r.LinearRegressionReadout(net3, 1))
+trainer = r.FeedbackReadout(net3, r.LinearRegressionReadout(net3, ridge))
 _ = trainer.train(data[split:-offset,None],data3[split+offset:,None])
 n3=net3.fold_in_feedback()
 _,d3 = trainer.predict(data[:split,None])
@@ -62,17 +64,17 @@ net4=reservoir.ESN(1,bubble)
 n12=reservoir.glue_esns_bias(n1,n2)
 n123=reservoir.glue_esns_bias(n12,n3)
 n1234=reservoir.glue_esns_bias(n123,net4,True)
-trainer = r.LinearRegressionReadout(n1234, 1)
+trainer = r.LinearRegressionReadout(n1234, ridge)
 _   = trainer.train(data[split:-offset,None],data[split+offset:,None])
 _,x = trainer.predict(data[:split,None])
 
 n5 = reservoir.ESN(2,bubble*4)
-trainer = r.FeedbackReadout(n5, r.LinearRegressionReadout(n5, 1))
+trainer = r.FeedbackReadout(n5, r.LinearRegressionReadout(n5, ridge))
 _   = trainer.train(data[split:-offset,None],data[split+offset:,None])
 _,x1 = trainer.predict(data[:split,None])
 
-print 'Standard NRMSE:', error_metrics.nrmse(x,data[offset:split+offset])
-print 'Glued NRMSE:', error_metrics.nrmse(x1,data[offset:split+offset])
+print 'Standard NRMSE:', error_metrics.nrmse(x1,data[offset:split+offset])
+print 'Glued NRMSE:', error_metrics.nrmse(x,data[offset:split+offset])
 
 matplotlib.pyplot.plot(x.ravel())
 matplotlib.pyplot.plot(x1.ravel())
