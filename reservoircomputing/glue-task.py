@@ -6,6 +6,8 @@ import matplotlib.pyplot
 import error_metrics
 import random
 
+Plot=False
+
 data=numpy.loadtxt('../data/MackeyGlass_t17.txt')
 
 window=50
@@ -76,35 +78,36 @@ _,x1 = trainer.predict(data[:split,None])
 print 'Standard NRMSE:', error_metrics.nrmse(x1,data[offset:split+offset])
 print 'Glued NRMSE:', error_metrics.nrmse(x,data[offset:split+offset])
 
-matplotlib.pyplot.plot(x.ravel())
-matplotlib.pyplot.plot(x1.ravel())
-matplotlib.pyplot.plot(data[offset:split+offset].ravel())
-matplotlib.pyplot.show()
-
-matplotlib.pyplot.plot(numpy.zeros(0))
-matplotlib.pyplot.plot(w1)
-matplotlib.pyplot.plot(w2)
-matplotlib.pyplot.plot(w3)
-matplotlib.pyplot.show()
-
-matplotlib.pyplot.plot(data[:1000].ravel())
-matplotlib.pyplot.plot(data1[:1000].ravel()+3)
-matplotlib.pyplot.plot(data2[:1000].ravel()+6)
-matplotlib.pyplot.plot(data3[:1000].ravel()+9)
-#matplotlib.pyplot.plot(numpy.zeros (1000) +9,color= "black")
-#matplotlib.pyplot.plot(numpy.zeros (1000) +6,color= "black")
-#matplotlib.pyplot.plot(numpy.zeros (1000) +3,color= "black")
-#matplotlib.pyplot.plot(numpy.zeros (1000) +0,color= "black")
-matplotlib.pyplot.show()
-
-matplotlib.pyplot.matshow(n1234.w_echo, cmap="bone")
-matplotlib.pyplot.matshow(n5.w_echo, cmap="bone")
-matplotlib.pyplot.show()
-
-matplotlib.pyplot.plot(data1[1000+offset:2000].ravel()+3)
-matplotlib.pyplot.plot(data2[1000+offset:2000].ravel()+6)
-matplotlib.pyplot.plot(data3[1000+offset:2000].ravel()+9)
-matplotlib.pyplot.plot(d1+3)
-matplotlib.pyplot.plot(d2+6)
-matplotlib.pyplot.plot(d3+9)
-matplotlib.pyplot.show()
+if Plot:
+    matplotlib.pyplot.plot(x.ravel())
+    matplotlib.pyplot.plot(x1.ravel())
+    matplotlib.pyplot.plot(data[offset:split+offset].ravel())
+    matplotlib.pyplot.show()
+    
+    matplotlib.pyplot.plot(numpy.zeros(0))
+    matplotlib.pyplot.plot(w1)
+    matplotlib.pyplot.plot(w2)
+    matplotlib.pyplot.plot(w3)
+    matplotlib.pyplot.show()
+    
+    matplotlib.pyplot.plot(data[:1000].ravel())
+    matplotlib.pyplot.plot(data1[:1000].ravel()+3)
+    matplotlib.pyplot.plot(data2[:1000].ravel()+6)
+    matplotlib.pyplot.plot(data3[:1000].ravel()+9)
+    #matplotlib.pyplot.plot(numpy.zeros (1000) +9,color= "black")
+    #matplotlib.pyplot.plot(numpy.zeros (1000) +6,color= "black")
+    #matplotlib.pyplot.plot(numpy.zeros (1000) +3,color= "black")
+    #matplotlib.pyplot.plot(numpy.zeros (1000) +0,color= "black")
+    matplotlib.pyplot.show()
+    
+    matplotlib.pyplot.matshow(n1234.w_echo, cmap="bone")
+    matplotlib.pyplot.matshow(n5.w_echo, cmap="bone")
+    matplotlib.pyplot.show()
+    
+    matplotlib.pyplot.plot(data1[1000+offset:2000].ravel()+3)
+    matplotlib.pyplot.plot(data2[1000+offset:2000].ravel()+6)
+    matplotlib.pyplot.plot(data3[1000+offset:2000].ravel()+9)
+    matplotlib.pyplot.plot(d1+3)
+    matplotlib.pyplot.plot(d2+6)
+    matplotlib.pyplot.plot(d3+9)
+    matplotlib.pyplot.show()
