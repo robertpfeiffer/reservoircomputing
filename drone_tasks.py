@@ -126,7 +126,7 @@ def load_new_mensa_data(k):
     return load_flight_data_in_dir(k, "flight_data/mensa_random/")
     
     
-def predict_xyz_task(T=10, LOG=True, Plots=False, Save=False, k=10, **machine_params):
+def predict_xyz_task(T=10, LOG=True, Plots=False, Save=False, k=20, **machine_params):
     #data, flight_data = load_flight_random_target_data(k=30)
     data, flight_data = load_new_mensa_data(k=k)
     #delta_xyz - schlechtere Ergebnisse

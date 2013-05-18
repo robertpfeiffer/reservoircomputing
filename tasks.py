@@ -209,7 +209,7 @@ class ESNTask(object):
             #    esn_plotting.plot_output_distribution((normal_echo,train_echo), ('Output Distribution without IP','Output Distribution with IP',) )
             
             if (LOG):
-                print i,'NRMSE:', nrmse #, 'New Spectral Radius:', new_spectral_radius  
+                print i+1,'NRMSE:', nrmse #, 'New Spectral Radius:', new_spectral_radius  
             
             #if best_nrmse < math.pow(10,-4):
              #   T = i + 1
@@ -255,7 +255,7 @@ def memory_task(N=15, delay=20):
 
 
         
-def NARMA_task(T=20, Plots=True, LOG=True, machine_params=None):
+def NARMA_task(T=10, Plots=True, LOG=True, machine_params=None):
     if LOG:
         print 'NARMA task'
     
@@ -271,6 +271,8 @@ def NARMA_task(T=20, Plots=True, LOG=True, machine_params=None):
                       'ridge':1e-8, #'fb_noise_var':0.05,
                       'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
+        
+    ######## NARMA - Daten erzeugen ##########
     #[inputs, targets] = Oger.datasets.narma30(n_samples=10, sample_len=1100)
     #[test_input, test_target] = Oger.datasets.narma30(n_samples=1, sample_len=10000)
     #np.savez('data/NARMA30_data', inputs, targets)
@@ -811,7 +813,7 @@ def run_task_for_grid(params_list):
         best_nrmse,_ = drone_tasks.predict_xyz_task(**machine_params)
         #best_nrmse,_ = drone_tasks.control_task(**machine_params)
         #best_nrmse,_ = mso_task(**machine_params)
-        #best_nrmse, best_esn = mackey_glass_task(**machine_params)
+        #best_nrmse,_ = mackey_glass_task(**machine_params)
         #best_nrmse, best_esn = NARMA_task(**machine_params)
         
         remove_unnecessary_params(machine_params)
@@ -900,32 +902,36 @@ def mso_task_regression_analysis():
     plt.legend(['Target signal', 'Free-running predicted signal'])
     plt.show()
         
-def mackey_glass_task(T=10, LOG=True, Plots=False, t17=True, **machine_params):
-    #from http://minds.jacobs-university.de/mantas/code
+def mackey_glass_task(T=10, LOG=True, Plots=True, t17=False, **machine_params):
     if LOG:
-        print 'Mackey-Glass t17 - Task'
+        if t17:
+            print 'Mackey-Glass t17 - Task'
+        else:
+            print 'Mackey-Glass t30 - Task'
     
+    testing_time = 1000 
     if (machine_params == None or len(machine_params)==0):
+        machine_params = {"output_dim":300, "conn_input":0.3, "conn_recurrent":0.3, "leak_rate":0.3,
+                          "input_scaling":0.5, "bias_scaling":0.5, "spectral_radius":0.8,
+                          'ridge':1e-8
+                          ,'ip_learning_rate':0.0001, 'ip_std':0.1
+                          ,"reset_state":False, "start_in_equilibrium": True
+                      }
+        
+    if t17:
+        data = np.loadtxt('data/MackeyGlass_t17.txt')
         #Einstellungen fuer t17
-        """
         machine_params = {"output_dim":300, "conn_input":1, "conn_recurrent":1, "leak_rate":0.3,
                           "input_scaling":0.5, "bias_scaling":0.5, "spectral_radius":1.25,
                           "reset_state":False, "start_in_equilibrium": False
                       #,'ip_learning_rate':0.0005, 'ip_std':0.1
                       }
-        """
-        machine_params = {"output_dim":300, "conn_input":1, "conn_recurrent":1, "leak_rate":0.3,
-                          "input_scaling":0.5, "bias_scaling":0.5, "spectral_radius":1.25,
-                          "reset_state":False, "start_in_equilibrium": False
-                          #,'ip_learning_rate':0.0005, 'ip_std':0.1
-                      }
-    if t17:
-        data = np.loadtxt('data/MackeyGlass_t17.txt')
+        testing_time = 500
     else:
         data = np.loadtxt('data/MackeyGlass_t30.txt')
     #np.savetxt('data/MackeyGlass_t30.txt', data)
     task = ESNTask( fb=True, T=T, LOG=LOG, machine_params=machine_params)
-    nrmse, machine = task.run(data, training_time=4000, testing_time=500, washout_time=100, 
+    nrmse, machine = task.run(data, training_time=4000, testing_time=testing_time, washout_time=1000, 
                     target_columns=[0])
     #t17
     #nrmse, machine = task.run(data, training_time=2001, testing_time=500, washout_time=100, 
@@ -942,10 +948,12 @@ def mackey_glass_task(T=10, LOG=True, Plots=False, t17=True, **machine_params):
         plt.legend(['Target signal', 'Free-running predicted signal'])
         #plt.show()
         
+        """
         plt.figure(2).clear()
         N = machine_params["output_dim"]
         plt.bar( range(1+N), task.best_trainer.w_out)
         plt.title('Output weights $\mathbf{W}^{out}$')
+        """
         plt.show()
         
     return nrmse, machine
@@ -1011,12 +1019,12 @@ if __name__ == "__main__":
             
             #mso_task()
             #mso_task_analysis()
-            drone_tasks.predict_xyz_task()
+            #drone_tasks.predict_xyz_task()
             #drone_tasks.control_task()
             
             #plot_mso_data()
-            #NARMA_task(T=5)
-            #mackey_glass_task(T=2)
+            #NARMA_task()
+            mackey_glass_task()
             
             """
             machine_params_ip = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 
