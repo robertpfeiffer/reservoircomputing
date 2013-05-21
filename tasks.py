@@ -255,9 +255,9 @@ def memory_task(N=15, delay=20):
 
 
         
-def NARMA_task(T=10, Plots=True, LOG=True, machine_params=None):
+def NARMA_task(T=3, Plots=True, LOG=True, machine_params=None):
     if LOG:
-        print 'NARMA task'
+        print 'NARMA-30 Task'
     
     if (machine_params == None or len(machine_params)==0):
         """
@@ -266,11 +266,35 @@ def NARMA_task(T=10, Plots=True, LOG=True, machine_params=None):
                       #,'ip_learning_rate':0.0005, 'ip_std':0.1
                       }
         """
-        machine_params = {"output_dim":150, "leak_rate":0.9, "conn_input":0.3, "conn_recurrent":0.2, 
+        machine_params = {"output_dim":200, "leak_rate":0.9, "conn_input":0.3, "conn_recurrent":0.2, 
                       "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":0.95, 'recurrent_weight_dist':1, 
                       'ridge':1e-8, #'fb_noise_var':0.05,
                       'ip_learning_rate':0.00005, 'ip_std':0.01,
                       "reset_state":False, "start_in_equilibrium": True}
+        
+        """ Mit Bubbles schlechte Ergenisse
+        N = 200
+        #leak_rates = 0.9
+        #leak_rates2 = None
+        np.random.seed(42)
+        #leak_rates = np.random.uniform(0.5, 1, N)
+        #leak_rates2 = np.random.uniform(0.5, 1, N)
+        #leak_rates2 = np.random.uniform(0.5, 1, N)
+        
+        #leak_rates = np.hstack((np.random.uniform(0.1, 0.3, N/4), np.random.uniform(0.3, 0.5, N/4), 
+        #                      np.random.uniform(0.5, 0.7, N/4), np.random.uniform(0.7, 0.9, N/4)))
+        leak_rates = np.hstack((np.ones((1,N/4))*0.3, np.ones((1,N/4))*0.5, np.ones((1,N/4))*0.7, np.ones((1,N/4))*0.9))
+        
+        #leak_rates2 = np.zeros((1, N))
+        machine_params = {#"output_dim":N, 
+                          "leak_rate":leak_rates, #"leak_rate2":leak_rates2, 
+                          "conn_input":0.3, "conn_recurrent":0.2, "input_scaling":0.1, "bias_scaling":0.1, 
+                          "spectral_radius":0.95, 'recurrent_weight_dist':1, 
+                          'ridge':1e-8,
+                          'bubble_sizes':[50, 50, 50, 50], 'input_bubbles':[0, 1, 2, 3],
+                          'ip_learning_rate':0.00005, 'ip_std':0.01,
+                          "reset_state":False, "start_in_equilibrium": True}
+        """
         
     ######## NARMA - Daten erzeugen ##########
     #[inputs, targets] = Oger.datasets.narma30(n_samples=10, sample_len=1100)
@@ -284,12 +308,15 @@ def NARMA_task(T=10, Plots=True, LOG=True, machine_params=None):
     train_input, train_target, test_input, test_target = load_arrays('data/NARMA_task_data') 
         
     
-    training_time = len(train_input[0])
-    testing_time = len(test_input[0])
+    #training_time = len(train_input[0])
+    #testing_time = len(test_input[0])
+    training_time = 4000
+    testing_time = 1000
     data = np.vstack((np.hstack((train_input[0], train_target[0])), np.hstack((test_input[0], test_target[0]))))
     
     task = ESNTask(T=T, LOG=LOG, machine_params=machine_params)
-    nrmse, machine = task.run(data, training_time=training_time, testing_time=testing_time, target_columns=[1])
+    nrmse, machine = task.run(data, training_time=training_time, testing_time=testing_time, washout_time=100, 
+                              target_columns=[1])
    
     return nrmse, machine
 
@@ -902,7 +929,7 @@ def mso_task_regression_analysis():
     plt.legend(['Target signal', 'Free-running predicted signal'])
     plt.show()
         
-def mackey_glass_task(T=10, LOG=True, Plots=True, t17=False, **machine_params):
+def mackey_glass_task(T=10, LOG=True, Plots=False, t17=False, **machine_params):
     if LOG:
         if t17:
             print 'Mackey-Glass t17 - Task'
@@ -917,6 +944,30 @@ def mackey_glass_task(T=10, LOG=True, Plots=True, t17=False, **machine_params):
                           ,'ip_learning_rate':0.0001, 'ip_std':0.1
                           ,"reset_state":False, "start_in_equilibrium": True
                       }
+        
+        """ Mit Bubbles schlechte Ergenisse
+        N = 300
+        leak_rates = 0.3
+        #leak_rates2 = None
+        np.random.seed(42)
+        #leak_rates = np.random.uniform(0.1, 1, N)
+        #leak_rates2 = np.random.uniform(0.5, 1, N)
+        #leak_rates2 = np.random.uniform(0.5, 1, N)
+        
+        #leak_rates = np.hstack((np.random.uniform(0.1, 0.3, N/4), np.random.uniform(0.3, 0.5, N/4), 
+        #                      np.random.uniform(0.5, 0.7, N/4), np.random.uniform(0.7, 0.9, N/4)))
+        leak_rates = np.hstack((np.ones((1,N/4))*0.1, np.ones((1,N/4))*0.2, np.ones((1,N/4))*0.3, np.ones((1,N/4))*0.4))
+        
+        #leak_rates2 = np.zeros((1, N))
+        machine_params = {#"output_dim":N, 
+                          "leak_rate":leak_rates, #"leak_rate2":leak_rates2, 
+                          "conn_input":0.3, "conn_recurrent":0.3, "input_scaling":0.5, "bias_scaling":0.5, 
+                          "spectral_radius":0.8, 'recurrent_weight_dist':1, 
+                          'ridge':1e-8,
+                          'bubble_sizes':[75, 75, 75, 75], 'input_bubbles':[0, 1, 2, 3],
+                          'ip_learning_rate':0.0001, 'ip_std':0.1,
+                          "reset_state":False, "start_in_equilibrium": True}
+        """
         
     if t17:
         data = np.loadtxt('data/MackeyGlass_t17.txt')
