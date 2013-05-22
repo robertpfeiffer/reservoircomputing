@@ -39,10 +39,33 @@ class DummyESN(object):
     Thus the regression is applied directly to the inputs."""
     feedback = False
 
-    def __init__(self,ninput,nnodes,*a,**k):
-        self.ninput=ninput
-        self.nnodes=nnodes
+    def __init__(self,ninput=None,nnodes=None, hist=1, *a,**k):
+        self.hist=hist
 
+    def run_batch_feedback(self, u, state=None):
+        return self.run_batch(u, state)
+    
+    def run_batch(self, u, state=None):
+        """ Runs the machine, returns the last state, saves previous states in state_echo
+            Parameter u is the input, a 2dnumpy-array (time x input-dim)
+        """
+        length = u.shape[0]
+        if length==0:
+            return None
+        
+        """ Rolling window regression mit Fensterbreite = hist """
+        original_columns = u.shape[1]
+        result = numpy.zeros((length, self.hist*original_columns))
+        for i in range(length):
+            for j in range(self.hist):
+                u_hist_index = i-j
+                #Bei den ersten hist-Zeitpunkten, wird einfach der aelteste Wert zum auffuellen genommen
+                if u_hist_index < 0: 
+                    u_hist_index = 0 
+                result[i,range(j*original_columns,(j+1)*original_columns)] = u[u_hist_index,:]
+        
+        return result
+    
     def run_streaming(self,u,y=None):
         return itertools.izip(u,y)
 
