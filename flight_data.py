@@ -10,6 +10,13 @@ start_cutoff = 100
 end_cutoff = 200
 
 class FlightData():
+    
+    Vscale = 1000
+    Tscale = 100.0
+    Yaw_scale = 100.0 #100
+    Pitch_scale = 10.0 #1  #Pitch/Roll Evtl. fuer prediction und control mit fb gar nicht erforderlich
+    Roll_scale = 10.0 #1
+        
     def __init__(self, filename, load_time=False, load_altitude=False, load_dV=False, load_xyz=True, k=30, LOG=False):
         self.LOG = LOG
         self.k = k
@@ -219,9 +226,6 @@ class FlightData():
         """
                 
         k = self.k
-        Vscale = 1000
-        Tscale = 100.0
-        Yaw_scale = 100.0
         
         #Zeitdifferenz in ms
         last_time = the_time = datetime.fromtimestamp(float(self.dataTime[0])-0.1)
@@ -230,7 +234,7 @@ class FlightData():
             #the_time = datetime.fromtimestamp(float(timeString))
             #timediff = the_time - last_time
             #milliseconds_diff = ((timediff.days * 24 * 60 * 60 + timediff.seconds) * 1000 + timediff.microseconds / 1000)
-            self.dataTimeDiffs.append(milliseconds_diff/Tscale)
+            self.dataTimeDiffs.append(milliseconds_diff/FlightData.Tscale)
             last_time = datetime.fromtimestamp(float(timeString))
 
         nr_rows = len(self.dataTimeDiffs)
@@ -266,14 +270,14 @@ class FlightData():
         else:
             self.data = None #TODO besser regeln
         if self.load_dV:
-            self.data = np.column_stack((self.data, (np.asarray(self.dataVX)/Vscale)[:-k], (np.asarray(self.dataVY)/Vscale)[:-k], (np.asarray(self.dataVZ)/Vscale)[:-k],))
+            self.data = np.column_stack((self.data, (np.asarray(self.dataVX)/FlightData.Vscale)[:-k], (np.asarray(self.dataVY)/FlightData.Vscale)[:-k], (np.asarray(self.dataVZ)/FlightData.Vscale)[:-k],))
             self.column_names.append(['VX', 'VY', 'VZ'])
         if self.data is not None:
-            self.data = np.column_stack((self.data, (np.asarray(self.dataYaw)[:-k])/Yaw_scale,
-                                     np.asarray(self.dataPitch)[:-k], np.asarray(self.dataRoll)[:-k]))
+            self.data = np.column_stack((self.data, (np.asarray(self.dataYaw)[:-k])/FlightData.Yaw_scale,
+                                     np.asarray(self.dataPitch)[:-k]/FlightData.Pitch_scale, np.asarray(self.dataRoll)[:-k])/FlightData.Roll_scale)
         else:
-            self.data = np.column_stack(((np.asarray(self.dataYaw)[:-k])/Yaw_scale,
-                                     np.asarray(self.dataPitch)[:-k], np.asarray(self.dataRoll)[:-k]))
+            self.data = np.column_stack(((np.asarray(self.dataYaw)[:-k])/FlightData.Yaw_scale,
+                                     np.asarray(self.dataPitch)[:-k]/FlightData.Pitch_scale, np.asarray(self.dataRoll)[:-k]/FlightData.Roll_scale))
         self.column_names.extend(['Yaw', 'Pitch', 'Roll'])
         if self.load_altitude:
             self.data = np.column_stack((self.data, np.asarray(self.dataAltitude)[:-k]))

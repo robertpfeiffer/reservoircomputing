@@ -71,5 +71,17 @@ def analyse_grid_results():
     #print best_ip_data[:,-1].min()
     plt.show()
     
+def analyse_drone_predict():
+    data, flight_data = load_new_mensa_data(k=20)
+    trainer = load_object('drone_esn_predict_2s')
+    input_columns = exclude_columns(data.shape[1], flight_data.target_xyz_columns)
+    echo, prediction = trainer.predict(data[-2000:,input_columns])
+    #eplot.plot_predictions_targets(prediction[-1000:,:], data[-1000:,flight_data.target_xyz_columns], ['x', 'y', 'z'])
+    eplot.plot_activations(echo[-100:,:])
+    #Unterschied in Aktivierungen
+    #diff = np.diff(echo, axis=0)
+    #eplot.plot_activations(echo[-100:,:])
+    
 if __name__ == '__main__':
-    analyse_drone_results()
+    analyse_drone_predict()
+    #analyse_drone_results()

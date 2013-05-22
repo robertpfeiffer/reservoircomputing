@@ -58,3 +58,9 @@ def compute_time_diff_in_ms(time1, time2):
     timediff = time2 - time1
     milliseconds_diff = ((timediff.days * 24 * 60 * 60 + timediff.seconds) * 1000 + timediff.microseconds / 1000)
     return milliseconds_diff
+
+def exclude_columns(nr_columns, columns_to_exclude):
+    """ Assuming an array with nr_columns, returns the indizes of the remaining columns excluding the columns_to_exclude """
+    all_columns = range(nr_columns)
+    remaining_columns = list(set(all_columns) - set(columns_to_exclude))
+    return remaining_columns

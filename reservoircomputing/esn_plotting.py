@@ -5,6 +5,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import copy
 
+import esn_plotting_simple as eplot
+
 d={}
 
 def run_perturbation(esn,data1=None):
@@ -121,27 +123,7 @@ def plot_spectrum_weighted(max_freq=1000,max_nodes=300,out_unit=0):
     plt.show()
     
 def plot_predictions_targets(predictions, targets, labels):
-    nr_plots = predictions.shape[1]
-    for i in range(nr_plots):
-        plt.subplot(nr_plots,1,i+1)
-        plt.plot(predictions[:,i])
-        plt.plot(targets[:,i])
-        plt.title(labels[i])
-        
-    plt.show()
+    eplot.plot_predictions_targets(predictions, targets, labels)
     
 def plot_output_distribution(echos, labels):
-    nr_plots = len(echos)
-    for i in range(nr_plots):
-        echo = echos[i]    
-        N = echo.shape[1]
-        hist, bin_edges = np.histogram(echo,bins=np.linspace(-1,1,num=201))
-        hist = hist.astype(float)
-        #y: percentage of (neurons*timesteps)
-        hist = (hist*100)/(N*len(echo))
-        plt.subplot(nr_plots, 1, i+1)
-        plt.plot(bin_edges[1:], hist, '.')
-        plt.title(labels[i])
-        plt.xlabel('neuron output')
-
-    plt.show()
+    eplot.plot_output_distribution(echos, labels)

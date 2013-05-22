@@ -21,6 +21,7 @@ from reservoircomputing.one_two_a_x_task import *
 from reservoircomputing.esn_plotting_simple import *
 from reservoircomputing.esn_persistence import *
 import reservoircomputing.error_metrics as error_metrics
+import reservoircomputing.esn_plotting_simple as eplot
 
 import drone_tasks
 from flight_data import *
@@ -52,6 +53,10 @@ class ESNTask(object):
         self.use_bubbles = False
         if 'bubble_sizes' in machine_params:
             self.use_bubbles = True
+        
+        self.dummy = False
+        if 'dummy' in machine_params:
+            self.dummy = True
                      
         self.fb_noise_var = 0
         if 'fb_noise_var' in machine_params:
@@ -70,7 +75,9 @@ class ESNTask(object):
         
         self.evaluation_target = targets[-1][washout_time:]
         for i in range(self.T):
-            if self.use_bubbles:
+            if self.dummy:
+                machine = DummyESN()
+            elif self.use_bubbles:
                 machine = KitchenSinkBubbleESN(ninput=input_dim, **self.machine_params)
             else:
                 machine = ESN(input_dim=input_dim, **self.machine_params)
@@ -144,7 +151,8 @@ class ESNTask(object):
         #Generell gibt es input_columns, target_columns und fb_columns. Im Momement gilt target_columns=fb_columns
         #Fuer washout und IP besteht der input aus input_columns + fb_columns        
         all_columns = range(nr_dims)
-        input_columns = list(set(all_columns) - set(target_columns))
+        #input_columns = list(set(all_columns) - set(target_columns))
+        input_columns = exclude_columns(nr_dims, target_columns)
         if fb:
             input_dim = nr_dims #-len(target_columns) + len(fb_columns)
             pre_train_input_columns = all_columns
@@ -172,8 +180,10 @@ class ESNTask(object):
         self.best_nrmse = float('Inf')
         
         for i in range(T):
-            if self.use_bubbles:
-                    machine = KitchenSinkBubbleESN(ninput=input_dim, **machine_params)
+            if self.dummy:
+                machine = DummyESN(**machine_params)
+            elif self.use_bubbles:
+                machine = KitchenSinkBubbleESN(ninput=input_dim, **machine_params)
             else:
                 machine = ESN(input_dim=input_dim, **machine_params)
             #IP
@@ -269,8 +279,10 @@ def NARMA_task(T=3, Plots=True, LOG=True, machine_params=None):
         machine_params = {"output_dim":200, "leak_rate":0.9, "conn_input":0.3, "conn_recurrent":0.2, 
                       "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":0.95, 'recurrent_weight_dist':1, 
                       'ridge':1e-8, #'fb_noise_var':0.05,
-                      'ip_learning_rate':0.00005, 'ip_std':0.01,
-                      "reset_state":False, "start_in_equilibrium": True}
+                      #'ip_learning_rate':0.00005, 'ip_std':0.01,
+                      "reset_state":False, "start_in_equilibrium": True
+                      #,'dummy':True, 'hist':100
+                      }
         
         """ Mit Bubbles schlechte Ergenisse
         N = 200
@@ -1074,8 +1086,8 @@ if __name__ == "__main__":
             #drone_tasks.control_task()
             
             #plot_mso_data()
-            #NARMA_task()
-            mackey_glass_task()
+            NARMA_task()
+            #mackey_glass_task()
             
             """
             machine_params_ip = {"output_dim":150, "leak_rate":0.5, "conn_input":0.3, "conn_recurrent":0.2, 

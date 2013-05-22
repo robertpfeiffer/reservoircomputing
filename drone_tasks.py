@@ -2,6 +2,7 @@ from reservoircomputing import *
 from flight_data import *
 from py_utils import *
 from tasks import *
+import reservoircomputing.esn_plotting_simple as eplot
 
 import io
 import sys
@@ -76,16 +77,16 @@ def control_task(T=1, Plots=True, LOG=True, Save=False, **machine_params):
                           'reset_state':False, 'start_in_equilibrium':True}
         """
           
-    test_length = 2000
+    test_length = 6000
     train_length = data.shape[0] - test_length
         
-    task = ESNTask(machine_params, fb=True, T=T, LOG=LOG)
+    task = ESNTask(machine_params, fb=False, T=T, LOG=LOG)
     best_nrmse, machine = task.run(data,
                     training_time=train_length, testing_time=test_length, washout_time=50, 
                     target_columns=w_columns)
 
     if Plots:
-        esn_plotting.plot_predictions_targets(task.best_evaluation_prediction, task.evaluation_target, ('w1', 'w2', 'w3', 'w4'))
+        esn_plotting.plot_predictions_targets(task.best_evaluation_prediction[:2000,:3], task.evaluation_target[:2000,:3], ('w1', 'w2', 'w3'))
     
     if Save:
         save_object(task.best_trainer, 'drone_esn')
@@ -134,7 +135,7 @@ def predict_xyz_task(T=10, LOG=True, Plots=False, Save=False, k=20, **machine_pa
     if LOG:
         print 'Predict XYZ, k =', k
     #test_length = 4779
-    test_length = 7000
+    test_length = 6000
     nr_rows = data.shape[0]
     train_length = nr_rows - test_length
     
@@ -143,6 +144,7 @@ def predict_xyz_task(T=10, LOG=True, Plots=False, Save=False, k=20, **machine_pa
                           'leak_rate':0.3, 'ridge':1e-5, 'bias_scaling':0.1, 'spectral_radius':1, 
                           #'ip_learning_rate':0.00005, 'ip_std':0.01,
                           'reset_state':False, 'start_in_equilibrium':True
+                          ,#'dummy':True, 'hist':10
                           }
         
     task = ESNTask(machine_params, fb=False, T=T, LOG=LOG)
@@ -152,7 +154,7 @@ def predict_xyz_task(T=10, LOG=True, Plots=False, Save=False, k=20, **machine_pa
 
     if Plots:
         esn_plotting.plot_predictions_targets(task.best_evaluation_prediction[:1000,:], task.evaluation_target[:1000,:], ('X', 'Y', 'Z'))
-    
+        #eplot.plot_activations(task.best_evaluation_echo[-100:,:])
     if Save:
         save_object(task.best_trainer, 'drone_esn')
     if Save and LOG:
@@ -221,18 +223,14 @@ def control_task_for_grid(params_list):
 """    
 if __name__ == '__main__':
     #heatmap()
-    #control_task(LOG=True, Plots=True, Save=True)
-    predict_xyz_task(LOG=True, Plots=True, Save=True)
+    #control_task(T=3, LOG=True, Plots=True, Save=True)
+    predict_xyz_task(T=3, LOG=True, Plots=True, Save=True)
     #control_task_wo_position(Plots=True, Save=True)
     
-    """    
-    if (len(sys.argv)==1):
-        control_task(LOG=True, Plots=True, Save=True)
-        #predict_xyz_task(LOG=True, Plots=True, Save=True)
-        
-        #control_task_wo_position(Plots=True, Save=True)
-    else:
-        args = sys.argv[1]
-        dic_list = correct_dictionary_arg(args)
-        control_task_for_grid(dic_list)
-    """
+
+#    data, flight_data = load_new_mensa_data(k=20)
+#    ypr = data[:,:3]
+#    plot_hist(ypr, bins=100, labels=['Yaw', 'Pitch', 'Roll'])
+#    
+#    #yaw
+#    print 'Yaw,Pitch,Roll Min:', np.min(ypr,0), 'Max:', np.max(ypr, 0)
