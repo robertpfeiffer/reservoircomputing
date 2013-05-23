@@ -106,7 +106,7 @@ class ArdroneCommander(object):
         self.fly()
         
         
-    def decode_navdata(packet):
+    def decode_navdata(self, packet):
         """Decode a navdata packet."""
         offset = 0
         _ =  struct.unpack_from("IIII", packet, offset)

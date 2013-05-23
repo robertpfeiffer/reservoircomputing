@@ -63,7 +63,14 @@ def control_task(T=1, Plots=True, LOG=True, Save=False, **machine_params):
     w_columns = w_columns - 3
     
     if (machine_params == None or len(machine_params)==0):
+        #Ohne feedback
+#        machine_params = {'output_dim':300, 'input_scaling':0.1, 'bias_scaling':0.1, 
+#                  'conn_input':0.5, 'leak_rate':0.5, 'conn_recurrent':0.2, 
+#                  'ridge':1e-6, 'spectral_radius':0.9,
+#                  #'ip_learning_rate':0.00005, 'ip_std':0.01, 
+#                  'reset_state':False, 'start_in_equilibrium':True} 
         
+        # Mit feedback:
         machine_params = {'output_dim':500, 'input_scaling':0.1, 'bias_scaling':0.3, 
                   'conn_input':0.3, 'leak_rate':0.7, 'conn_recurrent':0.2, 
                   'ridge':1e-6, 'spectral_radius':0.9,
@@ -80,7 +87,7 @@ def control_task(T=1, Plots=True, LOG=True, Save=False, **machine_params):
     test_length = 6000
     train_length = data.shape[0] - test_length
         
-    task = ESNTask(machine_params, fb=False, T=T, LOG=LOG)
+    task = ESNTask(machine_params, fb=True, T=T, LOG=LOG)
     best_nrmse, machine = task.run(data,
                     training_time=train_length, testing_time=test_length, washout_time=50, 
                     target_columns=w_columns)
@@ -140,7 +147,7 @@ def predict_xyz_task(T=10, LOG=True, Plots=False, Save=False, k=20, **machine_pa
     train_length = nr_rows - test_length
     
     if (machine_params == None or len(machine_params)==0):
-        machine_params = {'output_dim':200, 'input_scaling':0.1, 'conn_input':0.2, 'conn_recurrent':0.2,
+        machine_params = {'output_dim':200, 'input_scaling':0.1, 'conn_input':0.5, 'conn_recurrent':0.2,
                           'leak_rate':0.3, 'ridge':1e-5, 'bias_scaling':0.1, 'spectral_radius':1, 
                           #'ip_learning_rate':0.00005, 'ip_std':0.01,
                           'reset_state':False, 'start_in_equilibrium':True
@@ -223,8 +230,8 @@ def control_task_for_grid(params_list):
 """    
 if __name__ == '__main__':
     #heatmap()
-    #control_task(T=3, LOG=True, Plots=True, Save=True)
-    predict_xyz_task(T=3, LOG=True, Plots=True, Save=True)
+    control_task(LOG=True, Plots=True, Save=True)
+    #predict_xyz_task(T=3, LOG=True, Plots=True, Save=True)
     #control_task_wo_position(Plots=True, Save=True)
     
 

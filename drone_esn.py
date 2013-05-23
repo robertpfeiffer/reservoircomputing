@@ -18,11 +18,13 @@ class DroneESN(object):
         #self.trainer = load_object('drone_esn')
         self.last_time = None
         self.echos = None
+        self.counter = 0
         
-    def compute(self, data, LOG=False):
+    def compute(self, data, LOG=True):
         if isinstance(data, (list, tuple)):
             data = np.asarray(data)
-            
+        
+        self.counter += 1    
         #yaw, pitch, roll, x, y, z, targetX, targetY, targetZ
         data[0] = float(data[0])/FlightData.Yaw_scale
         data[1] = float(data[1])/FlightData.Pitch_scale
@@ -40,14 +42,14 @@ class DroneESN(object):
         #relativer target-vector
         #data[8:] = data[8:] - data[5:8]
         if LOG:
-            print "DATA:", str(data)
+            print self.counter, "DATA:", str(data)
         #1d -> 2d
         if len(data.shape) == 1:
             data = data[None,:]
             
             
         #if drone control
-        if self.trainer.machine.ninput == 10:
+        if self.trainer.machine.ninput == 10 or self.trainer.machine.ninput == 6: #6 ohne fb
             nr_columns = data.shape[1]
             #delta: target - position
             data[:,nr_columns-6:nr_columns-3] = data[:,nr_columns-3:] - data[:,nr_columns-6:nr_columns-3]

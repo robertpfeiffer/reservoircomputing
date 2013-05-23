@@ -21,9 +21,9 @@ MARGIN = 0.8
 # Trackable area [xmin, xmax, ymin, ymax, zmin, zmax]
 TRACKING_AREA = [-3.5, 3.5, 0.6, 1.9, -3.5, 3.5]
 
-x_target_margin = 0.2 #0.4
-y_target_margin = 0.1 #0.1
-z_target_margin = 0.2 #0.4
+x_target_margin = 0.3 #0.4
+y_target_margin = 0.15 #0.1
+z_target_margin = 0.3 #0.4
 
 class CommandAndTrack(object):
     
@@ -76,9 +76,14 @@ class CommandAndTrack(object):
 
         self.readlist = [self.commander_sock]
         self.yaw = '181'
-        self.x = '0'
-        self.y = '0'
-        self.z = '0'
+        self.x_drone = '0'
+        self.y_drone = '0'
+        self.z_drone = '0'
+        
+        self.x_lkw = '0'
+        self.y_lkw = '0'
+        self.z_lkw = '0'
+        
         
         self.pitch='12345'
         self.roll = '12345'
@@ -145,12 +150,14 @@ class CommandAndTrack(object):
 
         while self.command_list<>[]:
             if time.time()-last_time > self.interval:
+                
+                
                 last_time = time.time()
                 
                 #tmpstmp=time.strftime("%a_%d_%b_%Y_%H_%M_%S", time.localtime())
                 tmpstmp = str(last_time)
                 # log1 structure: Timestamp, Search time, target point, current position of drone, boolean out of tracking area, boolean not yet at target point, battery
-                self.log1=self.log1 + str([str(tmpstmp), str(search_time)[:5], str(self.targetPoint[0])[:5] +' '+ str(self.targetPoint[1])[:5] +' '+ str(self.targetPoint[2])[:5], str(self.x)[:5] + ' '+ str(self.y)[:5] + ' '+ str(self.z)[:5], str(self.outoftrackingarea), str(self.mustFlyToCenter), str(self.battery)])  + '\n' 
+                self.log1=self.log1 + str([str(tmpstmp), str(search_time)[:5], str(self.targetPoint[0])[:5] +' '+ str(self.targetPoint[1])[:5] +' '+ str(self.targetPoint[2])[:5], str(self.x_drone)[:5] + ' '+ str(self.y_drone)[:5] + ' '+ str(self.z_drone)[:5], str(self.outoftrackingarea), str(self.mustFlyToCenter), str(self.battery)])  + '\n' 
                 
                 
                 
@@ -190,7 +197,7 @@ class CommandAndTrack(object):
                         print 'Targets NOT reached in 10s' #+ str(self.targetCount) + '\t NEW target at:' + str(self.command_list[1])
                     else:
                         targetstr = str(self.targetPoint[0])[:4] +' '+ str(self.targetPoint[1])[:4] +' '+ str(self.targetPoint[2])[:4]   
-                        print 'Searchtime: ' + str(search_time)[:3] + 's Targets reached: ' + str(self.targetReached) + '/' + str(self.targetCount) + '\t Target at:' + targetstr + '\t Current Pos.: '+ str(self.x)[:4] + ' '+ str(self.y)[:4] + ' '+ str(self.z)[:4] 
+                        print 'Searchtime: ' + str(search_time)[:3] + 's Targets reached: ' + str(self.targetReached) + '/' + str(self.targetCount) + '\t Target at:' + targetstr + '\t Current Pos.: '+ str(self.x_drone)[:4] + ' '+ str(self.y_drone)[:4] + ' '+ str(self.z_drone)[:4] 
                         self.command_list[0] = float(self.command_list[0])-self.interval
                         
                         if self.command_list[1]<>'end':
@@ -270,15 +277,28 @@ class CommandAndTrack(object):
                 msg=msg[temp+1:]
     
                 temp=str.find(msg, '#')
-                self.x=msg[:temp]
+                self.x_drone=msg[:temp]
                 msg=msg[temp+1:]
     
                 temp=str.find(msg, '#')
-                self.y=msg[:temp]
+                self.y_drone=msg[:temp]
                 msg=msg[temp+1:]
 
                 temp=str.find(msg, '#')
-                self.z=msg[:temp]
+                self.z_drone=msg[:temp]
+                msg=msg[temp+1:]
+
+    
+                temp=str.find(msg, '#')
+                self.x_lkw=msg[:temp]
+                msg=msg[temp+1:]
+    
+                temp=str.find(msg, '#')
+                self.y_lkw=msg[:temp]
+                msg=msg[temp+1:]
+
+                temp=str.find(msg, '#')
+                self.z_lkw=msg[:temp]
                 msg=msg[temp+1:]
 
                 temp=str.find(msg, '#')
@@ -316,14 +336,17 @@ class CommandAndTrack(object):
 ##        if self.mustFlyToCenter == True:
             
         margin = 1.5
-        #supermarket trackable area: x -2 3, z -2 4
+        #supermarket trackable area: x_drone -2 3, z_drone -2 4
         
         #tracking area - if outside, then return to self.targetPoint
         xmin,xmax,ymin,ymax,zmin,zmax = TRACKING_AREA
         
-        x = self.x
-        y = self.y
-        z = self.z
+        x = self.x_drone
+        y = self.y_drone
+        z = self.z_drone
+        
+        #for lkw tracking purposes, the targetPoint is set to the current lkw position plus 1m in height
+        self.targetPoint= [float(self.x_lkw), float(self.y_lkw)+1.25, float(self.z_lkw)]
         
         self.currentTarget=self.targetPoint
         
@@ -353,10 +376,10 @@ class CommandAndTrack(object):
         w4 = 0
 
         if original_ESN_control:
-            ESN_param=[float(self.yaw), float(self.pitch), float(self.roll), float(self.x), float(self.y), float(self.z), float(self.targetPoint[0]), float(self.targetPoint[1]), float(self.targetPoint[2]) ]
+            ESN_param=[float(self.yaw), float(self.pitch), float(self.roll), float(self.x_drone), float(self.y_drone), float(self.z_drone), float(self.targetPoint[0]), float(self.targetPoint[1]), float(self.targetPoint[2]) ]
             wwww = self.drone_esn.compute(ESN_param)
         
-        # Check if drone is inside x and z range of target area
+        # Check if drone is inside x_drone and z_drone range of target area
         if float(x)>xmax or float(x)<xmin or float(z)>zmax or float(z)<zmin or float(y)>ymax or float(y)<ymin:
             
             self.mustFlyToCenter=True
@@ -406,7 +429,7 @@ class CommandAndTrack(object):
                 
                 self.targetReachingDuration = time.time() - self.targetStartSearch
                 
-                # speed_factor = ((float(x)**2+float(z)**2)**0.5)/7*0.5
+                # speed_factor = ((float(x_drone)**2+float(z_drone)**2)**0.5)/7*0.5
                 # max deviation = 5 m, euklidian distance max sqrt(50), therefore normalized by 7, 0.5 is maximum speed factor
                 if self.targetReachingDuration > 1:
                     speed_factor = ( (((float(x)-self.currentTarget[0])**2 + (float(z)-self.currentTarget[2])**2)**0.5)/7 * 0.5 ) / self.targetReachingDuration
@@ -414,7 +437,7 @@ class CommandAndTrack(object):
                     speed_factor = (((float(x)-self.currentTarget[0])**2 + (float(z)-self.currentTarget[2])**2)**0.5)/7 * 0.5
                     
                 if speed_factor < 0.1: speed_factor = 0.1
-    #            print 'Distance to goal, x: ' + str(float(x)-self.currentTarget[0]) + ', z: ' + str(float(z)-self.currentTarget[2])
+    #            print 'Distance to goal, x_drone: ' + str(float(x_drone)-self.currentTarget[0]) + ', z_drone: ' + str(float(z_drone)-self.currentTarget[2])
     
                 # Case differentiation where the drone is located relative to the origin of the target / Home zone.
                 # Calculation of the beta parameter which is used for the correcting movement.
@@ -443,11 +466,11 @@ class CommandAndTrack(object):
 #            print w1
 #            print w2
 
-        # Check if drone is inside y range of target area (altitude)
-##        if float(y)<0.7:
+        # Check if drone is inside y_drone range of target area (altitude)
+##        if float(y_drone)<0.7:
 ##            self.flexibleymin = 1.8
 ##            w3 = 0.4
-##        elif float(y)<1.8 and self.flexibleymin == 1.8:
+##        elif float(y_drone)<1.8 and self.flexibleymin == 1.8:
 ##            w3 = 0.4
 ##        else:
 ##            self.flexibleymin = 0.7
@@ -512,7 +535,7 @@ class CommandAndTrack(object):
         self.command_list=[4,'hover']
         self.command_list=['target', [2, 1, 2]]
         
-        #trackable area: x -2 3, z -2 4
+        #trackable area: x_drone -2 3, z_drone -2 4
         
         for i in range(1000):
 ###            #from A [-1, 1.2, 3] to B [2, 1.2, 3], constant yaw, no ventilator, until battery empty
