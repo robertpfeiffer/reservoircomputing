@@ -376,7 +376,7 @@ class CommandAndTrack(object):
         w4 = 0
 
         if original_ESN_control:
-            ESN_param=[float(self.yaw), float(self.pitch), float(self.roll), float(self.x_drone), float(self.y_drone), float(self.z_drone), float(self.targetPoint[0]), float(self.targetPoint[1]), float(self.targetPoint[2]) ]
+            ESN_param=[float(self.yaw), float(self.x_drone), float(self.y_drone), float(self.z_drone), float(self.targetPoint[0]), float(self.targetPoint[1]), float(self.targetPoint[2]) ]
             wwww = self.drone_esn.compute(ESN_param)
         
         # Check if drone is inside x_drone and z_drone range of target area

@@ -14,12 +14,15 @@ def analyse_drone_results():
     
     directory = 'results/mensa_results_2s_300N_066/'
     flight_data_name = 'flight_Thu_16_May_2013_15_30_31_AllData'
+    
+    directory = 'results/mensa_results_schlecht/'
+    flight_data_name = 'flight_Thu_23_May_2013_13_38_16_AllData'
 #    
     echo = np.squeeze(load_arrays(directory+'drone_echo.npz')[0])
     flight_data = FlightData(directory+flight_data_name)
     data = flight_data.data
     
-    print echo.shape, data.shape
+    print 'echo.shape', echo.shape, 'flight-data', data.shape
     
 
 def heatmap():
@@ -33,10 +36,39 @@ def heatmap():
     extent = [xedges[0], xedges[-1], yedges[0], yedges[-1] ]
     plt.imshow(hist.T,extent=extent,interpolation='nearest',origin='lower')
     plt.colorbar()
-
+    plt.title('Space exploration by the drone')
+    plt.xlabel('x in meters')
+    plt.ylabel('z in meters')
     plt.show()
     
+def analyse_input_data():
+    data, flight_data = load_new_mensa_data(k=20)
+    ypr = data[:,:3]
+    w4 = data[:,-4:]
     
+    #plot_hist(ypr, bins=100, labels=['Yaw', 'Pitch', 'Roll'])
+    #plot_hist(w4, bins=100, labels=['w1', 'w2', 'w3', 'w4'])
+    
+    #pitch/forward-backward-tilt
+    pitch_data = ypr[:,1]
+    roll_data = ypr[:,2]
+    lr_tilt_data = w4[:,0]
+    fb_tilt_data = w4[:,1]
+    #pitch_corr = np.correlate(pitch_data, fb_tilt_data, 'same')
+    #lag_max = len(pitch_data)/2
+    #plt.plot(arange(-lag_max,lag_max+1), pitch_corr)
+    #plt.xcorr(fb_tilt_data, pitch_data, maxlags=20)
+    plt.xcorr(lr_tilt_data, roll_data, maxlags=20)
+    plt.xlabel('lags')
+    plt.ylabel('correlation')
+    plt.show()
+    
+    #yaw
+    #print 'Yaw,Pitch,Roll Min:', np.min(ypr,0), 'Max:', np.max(ypr, 0)
+
+    
+    #np.correlate(a, v, mode, old_behavior)
+        
 def analyse_grid_results():
 
     #data = genfromtxt('results/mso5_13_02.csv', delimiter=',', names=True)
@@ -83,5 +115,7 @@ def analyse_drone_predict():
     #eplot.plot_activations(echo[-100:,:])
     
 if __name__ == '__main__':
-    analyse_drone_predict()
-    #analyse_drone_results()
+    #analyse_drone_predict()
+#    analyse_drone_results()
+    #heatmap()
+    analyse_input_data()

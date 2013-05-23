@@ -73,7 +73,7 @@ def control_task(T=1, Plots=True, LOG=True, Save=False, **machine_params):
         # Mit feedback:
         machine_params = {'output_dim':500, 'input_scaling':0.1, 'bias_scaling':0.3, 
                   'conn_input':0.3, 'leak_rate':0.7, 'conn_recurrent':0.2, 
-                  'ridge':1e-6, 'spectral_radius':0.9,
+                  'ridge':1e-4, 'spectral_radius':0.9,
                   'ip_learning_rate':0.00005, 'ip_std':0.01, 
                   'reset_state':False, 'start_in_equilibrium':True}
         """
@@ -227,17 +227,10 @@ def control_task_for_grid(params_list):
     
     result = output.getvalue()
     print result
-"""    
+""" 
+   
 if __name__ == '__main__':
     #heatmap()
-    control_task(LOG=True, Plots=True, Save=True)
+    control_task(T=3, LOG=True, Plots=True, Save=True)
     #predict_xyz_task(T=3, LOG=True, Plots=True, Save=True)
     #control_task_wo_position(Plots=True, Save=True)
-    
-
-#    data, flight_data = load_new_mensa_data(k=20)
-#    ypr = data[:,:3]
-#    plot_hist(ypr, bins=100, labels=['Yaw', 'Pitch', 'Roll'])
-#    
-#    #yaw
-#    print 'Yaw,Pitch,Roll Min:', np.min(ypr,0), 'Max:', np.max(ypr, 0)

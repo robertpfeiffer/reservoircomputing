@@ -26,9 +26,10 @@ class DroneESN(object):
         
         self.counter += 1    
         #yaw, pitch, roll, x, y, z, targetX, targetY, targetZ
+        #yaw, x, y, z, targetX, targetY, targetZ
         data[0] = float(data[0])/FlightData.Yaw_scale
-        data[1] = float(data[1])/FlightData.Pitch_scale
-        data[2] = float(data[2])/FlightData.Roll_scale
+        #data[1] = float(data[1])/FlightData.Pitch_scale
+        #data[2] = float(data[2])/FlightData.Roll_scale
          
 #        if float(data[0]) > 1000:
 #            if self.last_time is None:
@@ -49,7 +50,8 @@ class DroneESN(object):
             
             
         #if drone control
-        if self.trainer.machine.ninput == 10 or self.trainer.machine.ninput == 6: #6 ohne fb
+        #if self.trainer.machine.ninput == 10 or self.trainer.machine.ninput == 6: #6 ohne fb
+        if self.trainer.machine.ninput == 8 or self.trainer.machine.ninput == 4: #6 ohne fb
             nr_columns = data.shape[1]
             #delta: target - position
             data[:,nr_columns-6:nr_columns-3] = data[:,nr_columns-3:] - data[:,nr_columns-6:nr_columns-3]
@@ -83,8 +85,8 @@ def example_drone_esn(save_echo=False, Plots=True):
    """
     row_data = flight_data.data
     row_data[:,0] *= FlightData.Yaw_scale
-    row_data[:,1] *= FlightData.Pitch_scale
-    row_data[:,2] *= FlightData.Roll_scale
+    #row_data[:,1] *= FlightData.Pitch_scale
+    #row_data[:,2] *= FlightData.Roll_scale
     input_data = row_data[:,:-4]
     drone_esn = DroneESN()
     results = drone_esn.compute(input_data[0,:])
@@ -94,7 +96,7 @@ def example_drone_esn(save_echo=False, Plots=True):
 
     targets = row_data[:1000,-4:]
     if Plots:
-        eplot.plot_activations(drone_esn.echos[900:,:])
+        #eplot.plot_activations(drone_esn.echos[900:,:])
         eplot.plot_predictions_targets(results, targets, ('w1', 'w2', 'w3', 'w4'))
     #arrays = esn_persistence.load_arrays('drone_echo')
     

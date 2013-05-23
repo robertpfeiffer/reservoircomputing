@@ -17,19 +17,20 @@ class FlightData():
     Pitch_scale = 10.0 #1  #Pitch/Roll Evtl. fuer prediction und control mit fb gar nicht erforderlich
     Roll_scale = 10.0 #1
         
-    def __init__(self, filename, load_time=False, load_altitude=False, load_dV=False, load_xyz=True, k=30, LOG=False):
+    def __init__(self, filename, load_time=False, load_altitude=False, load_dV=False, load_xyz=True, load_pitch_roll=False, k=30, LOG=False):
         self.LOG = LOG
         self.k = k
         self.altitude_load_failure = False
         if filename is not None:
-            self.load_file(filename, load_time, load_altitude, load_dV, load_xyz)
+            self.load_file(filename, load_time, load_altitude, load_dV, load_xyz, load_pitch_roll)
         
-    def load_file(self, filename, load_time=True, load_altitude=False, load_dV=False, load_xyz=True):
+    def load_file(self, filename, load_time=True, load_altitude=False, load_dV=False, load_xyz=True, load_pitch_roll=False):
         self.initVariables()
         self.load_time = load_time
         self.load_altitude=load_altitude
         self.load_dV = load_dV
         self.load_xyz = load_xyz
+        self.load_pitch_roll = load_pitch_roll
         self.loadData(filename)
         
         #18 Dim:
@@ -56,13 +57,19 @@ class FlightData():
             self.target_xyz_columns -= 1
             self.w_columns -= 1
             all_dims -= 1
-            
+        
+        if not load_pitch_roll:
+            self.xyz_columns -= 2
+            self.target_xyz_columns -= 2
+            self.w_columns -= 2
+            all_dims -= 2
             
         if not load_xyz:
             self.xyz_columns = []
             self.target_xyz_columns = []
             self.w_columns -= 6
             all_dims -= 6
+            
         else:
             #for prediction
             self.w_non_target_columns = np.hstack((np.arange(0, all_dims-7), self.w_columns))
@@ -272,13 +279,16 @@ class FlightData():
         if self.load_dV:
             self.data = np.column_stack((self.data, (np.asarray(self.dataVX)/FlightData.Vscale)[:-k], (np.asarray(self.dataVY)/FlightData.Vscale)[:-k], (np.asarray(self.dataVZ)/FlightData.Vscale)[:-k],))
             self.column_names.append(['VX', 'VY', 'VZ'])
+        
         if self.data is not None:
-            self.data = np.column_stack((self.data, (np.asarray(self.dataYaw)[:-k])/FlightData.Yaw_scale,
-                                     np.asarray(self.dataPitch)[:-k]/FlightData.Pitch_scale, np.asarray(self.dataRoll)[:-k])/FlightData.Roll_scale)
+            self.data = np.column_stack((self.data, (np.asarray(self.dataYaw)[:-k])/FlightData.Yaw_scale))
         else:
-            self.data = np.column_stack(((np.asarray(self.dataYaw)[:-k])/FlightData.Yaw_scale,
-                                     np.asarray(self.dataPitch)[:-k]/FlightData.Pitch_scale, np.asarray(self.dataRoll)[:-k]/FlightData.Roll_scale))
-        self.column_names.extend(['Yaw', 'Pitch', 'Roll'])
+            self.data = np.asarray(self.dataYaw)[:-k]/FlightData.Yaw_scale
+        self.column_names.extend(['Yaw'])
+        if self.load_pitch_roll:
+            self.data = np.column_stack((self.data, np.asarray(self.dataPitch)[:-k]/FlightData.Pitch_scale, 
+                                                     np.asarray(self.dataRoll)[:-k]/FlightData.Roll_scale))
+            self.column_names.extend(['Pitch', 'Roll'])
         if self.load_altitude:
             self.data = np.column_stack((self.data, np.asarray(self.dataAltitude)[:-k]))
             self.column_names.append('Altitude')
@@ -327,7 +337,7 @@ class FlightData():
         
 if __name__ == '__main__':
     #flight_data = FlightData('flight_data/flight_random_points_with_target/flight_Wed_06_Feb_2013_16_07_34_AllData', LOG=True)
-    flight_data = FlightData('flight_data/a_to_b_changingYaw/flight_Sun_03_Feb_2013_12_45_56_AllData',load_altitude=True, load_xyz=False, LOG=True)
+    flight_data = FlightData('flight_data/mensa_random/flight_Fri_10_May_2013_15_04_48_AllData',load_altitude=False, load_xyz=True, LOG=True)
     
     #print len(data.dataZ), len(data.dataCommand), len(data.dataw1), len(data.dataPitch)
     #print len(flight_data.dataTime)
