@@ -50,7 +50,7 @@ def control_task_wo_position(Plots=True, LOG=True, Save=False, **machine_params)
         
     return nrmse  
 
-def control_task(T=1, Plots=True, LOG=True, Save=False, **machine_params):
+def control_task(T=2, Plots=True, LOG=True, Save=False, **machine_params):
     if LOG:
         print 'Control Ws Generation'
         
@@ -71,9 +71,9 @@ def control_task(T=1, Plots=True, LOG=True, Save=False, **machine_params):
 #                  'reset_state':False, 'start_in_equilibrium':True} 
         
         # Mit feedback:
-        machine_params = {'output_dim':500, 'input_scaling':0.1, 'bias_scaling':0.3, 
-                  'conn_input':0.3, 'leak_rate':0.7, 'conn_recurrent':0.2, 
-                  'ridge':1e-4, 'spectral_radius':0.9,
+        machine_params = {'output_dim':300, 'input_scaling':0.2, 'bias_scaling':0.3, 
+                  'conn_input':0.5, 'leak_rate':0.7, 'conn_recurrent':0.2, 
+                  'ridge':1e-4, 'spectral_radius':0.9, 
                   'ip_learning_rate':0.00005, 'ip_std':0.01, 
                   'reset_state':False, 'start_in_equilibrium':True}
         """
@@ -94,7 +94,7 @@ def control_task(T=1, Plots=True, LOG=True, Save=False, **machine_params):
 
     if Plots:
         esn_plotting.plot_predictions_targets(task.best_evaluation_prediction[:2000,:3], task.evaluation_target[:2000,:3], ('w1', 'w2', 'w3'))
-    
+        eplot.plot_activations(task.best_evaluation_echo[:500,:])
     if Save:
         save_object(task.best_trainer, 'drone_esn')
     if Save and LOG:
@@ -228,9 +228,22 @@ def control_task_for_grid(params_list):
     result = output.getvalue()
     print result
 """ 
+
+def compute_angle_distance(yaw, x, y, z, target_x, target_y, target_z):
+    dy = target_y - y
+    
+#    np.dot()
+#>>> np.dot(x,y)
+#36
+#>>> dot = np.dot(x,y)
+#>>> x_modulus = np.sqrt((x*x).sum())
+#>>> y_modulus = np.sqrt((y*y).sum())
+#>>> cos_angle = np.dot(x,y) / x_modulus / y_modulus 
+#>>> angle = np.arccos(cos_angle) # Winkel in Bogenmas
+
    
 if __name__ == '__main__':
     #heatmap()
-    control_task(T=3, LOG=True, Plots=True, Save=True)
+    control_task(LOG=True, Plots=True, Save=True)
     #predict_xyz_task(T=3, LOG=True, Plots=True, Save=True)
     #control_task_wo_position(Plots=True, Save=True)

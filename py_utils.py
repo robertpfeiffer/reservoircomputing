@@ -10,6 +10,12 @@ def frange(start, stop, step):
     num = np.ceil((stop - start)/step + 1)
     values = np.linspace(start, stop, num)
     return values
+
+def as2darray(array):
+    array = np.asarray(array)
+    if len(array.shape) == 1:
+        array = array[None,:]
+    return array
     
 def correct_dictionary_arg(arg_string):
     """ returns a list with dictionaries from the arg_string. Separator: '#' """
