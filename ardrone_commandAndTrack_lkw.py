@@ -346,7 +346,7 @@ class CommandAndTrack(object):
         z = self.z_drone
         
         #for lkw tracking purposes, the targetPoint is set to the current lkw position plus 1m in height
-        self.targetPoint= [float(self.x_lkw), float(self.y_lkw)+1.25, float(self.z_lkw)]
+        self.targetPoint= [float(self.x_lkw), float(self.y_lkw)+0.7, float(self.z_lkw)]
         
         self.currentTarget=self.targetPoint
         
@@ -533,7 +533,7 @@ class CommandAndTrack(object):
 
     def createCommandList(self):
         self.command_list=[4,'hover']
-        self.command_list=['target', [2, 1, 2]]
+        self.command_list=['target', [-1, 1, 1]]
         
         #trackable area: x_drone -2 3, z_drone -2 4
         

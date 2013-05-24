@@ -23,6 +23,8 @@ def _compute_spectrum(data, max_freq):
     return spectrum
 
 def plot_hist(data, bins=10, labels=None):
+    if len(data.shape) == 1:
+        data = data[:,None]
     
     nr_plots = data.shape[1]
     for i in range(nr_plots):

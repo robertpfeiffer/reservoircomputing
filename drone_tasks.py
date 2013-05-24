@@ -71,7 +71,7 @@ def control_task(T=2, Plots=True, LOG=True, Save=False, **machine_params):
 #                  'reset_state':False, 'start_in_equilibrium':True} 
         
         # Mit feedback:
-        machine_params = {'output_dim':300, 'input_scaling':0.2, 'bias_scaling':0.3, 
+        machine_params = {'output_dim':200, 'input_scaling':0.2, 'bias_scaling':0.3, 
                   'conn_input':0.5, 'leak_rate':0.7, 'conn_recurrent':0.2, 
                   'ridge':1e-4, 'spectral_radius':0.9, 
                   'ip_learning_rate':0.00005, 'ip_std':0.01, 
