@@ -123,6 +123,7 @@ class ESNTask(object):
         return self.best_nrmse, self.best_machine
     
     def run(self, data, training_time, testing_time=None, washout_time=0, evaluation_time=None, target_columns=[0]):
+        """ washout_time is part of the training_time (and evaluation_time part of the testing_time) """
         #TODO: fb_columns fuer den Fall, dass das fb!=target ist
             #if fb == True:
         #    fb_columns = target_columns
@@ -265,7 +266,7 @@ def memory_task(N=15, delay=20):
 
 
         
-def NARMA_task(T=3, Plots=True, LOG=True, machine_params=None):
+def NARMA_task(T=5, Plots=True, LOG=True, machine_params=None):
     if LOG:
         print 'NARMA-30 Task'
     
@@ -276,7 +277,7 @@ def NARMA_task(T=3, Plots=True, LOG=True, machine_params=None):
                       #,'ip_learning_rate':0.0005, 'ip_std':0.1
                       }
         """
-        machine_params = {"output_dim":200, "leak_rate":0.9, "conn_input":0.3, "conn_recurrent":0.2, 
+        machine_params = {"output_dim":1000, "leak_rate":0.9, "conn_input":0.4, "conn_recurrent":0.2, 
                       "input_scaling":0.1, "bias_scaling":0.1, "spectral_radius":0.95, 'recurrent_weight_dist':1, 
                       'ridge':1e-8, #'fb_noise_var':0.05,
                       #'ip_learning_rate':0.00005, 'ip_std':0.01,
@@ -322,14 +323,32 @@ def NARMA_task(T=3, Plots=True, LOG=True, machine_params=None):
     
     #training_time = len(train_input[0])
     #testing_time = len(test_input[0])
-    training_time = 4000
+    training_time = 1100
     testing_time = 1000
     data = np.vstack((np.hstack((train_input[0], train_target[0])), np.hstack((test_input[0], test_target[0]))))
     
     task = ESNTask(T=T, LOG=LOG, machine_params=machine_params)
     nrmse, machine = task.run(data, training_time=training_time, testing_time=testing_time, washout_time=100, 
                               target_columns=[1])
-   
+
+    if Plots:
+        plt.figure(1).clear()
+        #plt.plot( data[trainLen+1:trainLen+testLen+1], 'g' )
+        #plt.plot( prediction, 'b' )
+        plt.plot( task.evaluation_target[-200:], 'g' )
+        plt.plot( task.best_evaluation_prediction[-200:], 'b' )
+        plt.title('Test Performance')
+        plt.legend(['Target', 'Prediction'])
+        #plt.show()
+        
+        """
+        plt.figure(2).clear()
+        N = machine_params["output_dim"]
+        plt.bar( range(1+N), task.best_trainer.w_out)
+        plt.title('Output weights $\mathbf{W}^{out}$')
+        """
+        plt.show()
+           
     return nrmse, machine
 
 def one_two_a_x_task():
@@ -1083,10 +1102,10 @@ if __name__ == "__main__":
             #mso_task()
             #mso_task_analysis()
             #drone_tasks.predict_xyz_task()
-            drone_tasks.control_task()
+            #drone_tasks.control_task()
             
             #plot_mso_data()
-            #NARMA_task()
+            NARMA_task()
             #mackey_glass_task()
             
             """

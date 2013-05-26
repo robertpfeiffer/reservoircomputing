@@ -132,7 +132,7 @@ def load_flight_data_in_dir(k, directory):
 def load_new_mensa_data(k):
     """ returns the concatenated data and the first flight_data """
     return load_flight_data_in_dir(k, "flight_data/mensa_random/")
-    
+  
     
 def predict_xyz_task(T=10, LOG=True, Plots=False, Save=False, k=20, **machine_params):
     #data, flight_data = load_flight_random_target_data(k=30)

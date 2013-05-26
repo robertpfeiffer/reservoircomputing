@@ -100,9 +100,11 @@ class FlightData():
         self.dataTargetY = []
         self.dataTargetZ = []
         
+        self.data = None
         self.containsTarget = False
         self.dataTimeDiffs = []
         self.column_names = list()
+        
                 
     def loadData_original(self, filename):
         self.initVariables()
@@ -274,8 +276,7 @@ class FlightData():
         if self.load_time:
             self.data = np.asarray(self.dataTimeDiffs)[:-k]
             self.column_names.append('Time')
-        else:
-            self.data = None #TODO besser regeln
+
         if self.load_dV:
             self.data = np.column_stack((self.data, (np.asarray(self.dataVX)/FlightData.Vscale)[:-k], (np.asarray(self.dataVY)/FlightData.Vscale)[:-k], (np.asarray(self.dataVZ)/FlightData.Vscale)[:-k],))
             self.column_names.append(['VX', 'VY', 'VZ'])
@@ -298,7 +299,8 @@ class FlightData():
             self.column_names.extend(['X', 'Y', 'Z', 'TargetX', 'TargetY', 'TargetZ'])
         self.data = np.column_stack((self.data, np.asarray(self.dataw1)[:-k], np.asarray(self.dataw2)[:-k], 
                                      np.asarray(self.dataw3)[:-k], np.asarray(self.dataw4)[:-k]))
-        self.column_names.extend(['w1', 'w2', 'w3', 'w4'])  
+        self.column_names.extend(['w1', 'w2', 'w3', 'w4'])
+        
         """
         if self.containsTarget:
             #Relative target

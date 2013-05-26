@@ -12,6 +12,9 @@ def frange(start, stop, step):
     return values
 
 def as2darray(array):
+    if isinstance(array, (list, tuple)):
+        array = np.column_stack(array)
+        
     array = np.asarray(array)
     if len(array.shape) == 1:
         array = array[None,:]
